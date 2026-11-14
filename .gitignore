@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+/dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist-ssr/
+*.local
+
+# Environment & Secrets
+.env
+!.env.example
+deploy/release.env
+!deploy/release.env.example
+backups/
+apps/*/web/dist/
+*.key
+core/nats/certs/*.key
+core/nats/certs/*.crt
+core/postgrest/jwks.json
+core/apisix/apisix.yaml
+secrets/
+core/keycloak/realm-dxos.json
+*.pem
+*.pfx
+secrets.yaml
+!deploy/secrets.enc.yaml
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker / Volumes local data
+data/
+volumes/
+*.db
+*.sqlite3
+
+# One-shot launcher logs
+/logs/
+
+# Tai lieu, bao cao test, prompt (giu ngoai ma nguon he thong)
+/_DXOS_TaiLieu/
+docs/qa/
+tests/qa/

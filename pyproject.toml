@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".venv",
+    "node_modules",
+    "dist",
+    "_DXOS_TaiLieu",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "ASYNC"]
+ignore = [
+    "E501",      # line too long (allow long SQL queries and Vietnamese comments)
+    "B008",      # do not perform function calls in argument defaults (standard FastAPI pattern: Header(...), Depends(...))
+    "B904",      # within an except clause, raise exceptions with raise ... from err
+    "ASYNC240",  # blocking pathlib.Path operations in CLI scripts
+]
