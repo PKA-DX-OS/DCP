@@ -1253,9 +1253,9 @@ GRANT EXECUTE ON FUNCTION core_api.ds_truy_cap_khan(text) TO web_user;
 
 -- Cấp quyền tối thiểu theo nhu cầu cho vai trò dịch vụ nền dxos_svc, svc và quản trị ứng dụng dxos_owner (Z-01)
 GRANT USAGE ON SCHEMA core, core_api TO dxos_svc, svc, dxos_owner;
-GRANT SELECT, INSERT, UPDATE, DELETE ON 
-    core.consents, core.dsar_requests, core.files, core.outbox, core.settings, 
-    core.assignments, core.break_glass, core.app_policies, 
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+    core.consents, core.dsar_requests, core.files, core.outbox, core.settings,
+    core.assignments, core.break_glass, core.app_policies,
     core.entity_state, core.timeseries, core.knowledge_chunks, core.lineage_events, core.notifications
 TO dxos_svc, svc, dxos_owner;
 
@@ -1298,4 +1298,3 @@ GRANT EXECUTE ON FUNCTION core_api.dong_y_du_lieu(text, text) TO web_user;
 GRANT EXECUTE ON FUNCTION core_api.rut_dong_y_du_lieu(text) TO web_user;
 GRANT EXECUTE ON FUNCTION core_api.gui_yeu_cau_dsar(text, text) TO web_user;
 GRANT EXECUTE ON FUNCTION core_api.ds_truy_cap_khan(text) TO web_user;
-
