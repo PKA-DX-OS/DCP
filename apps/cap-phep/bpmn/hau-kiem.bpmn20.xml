@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/app/cap-phep">
+  <process id="hau-kiem" name="Quy trình Hậu kiểm Công trường Xây dựng" isExecutable="true">
+    <startEvent id="startHauKiem" name="Phát hiện sự kiện cảnh báo cảm biến hoặc phản ánh"/>
+    
+    <sequenceFlow id="hk1" sourceRef="startHauKiem" targetRef="taskKiemTraHienTruong"/>
+    
+    <!-- 1. Cán bộ Trật tự xây dựng kiểm tra hiện trường -->
+    <userTask id="taskKiemTraHienTruong" name="Kiểm tra Hiện trường Công trường"
+              flowable:candidateGroups="app:cap-phep:trat-tu-xd">
+      <documentation>Cán bộ trật tự xây dựng xác minh nguồn ồn/bụi và lập biên bản kiểm tra.</documentation>
+    </userTask>
+    
+    <sequenceFlow id="hk2" sourceRef="taskKiemTraHienTruong" targetRef="gatewayKetLuan"/>
+    
+    <exclusiveGateway id="gatewayKetLuan" name="Kết luận Kiểm tra?"/>
+    
+    <sequenceFlow id="hkDat" name="Đạt yêu cầu" sourceRef="gatewayKetLuan" targetRef="endDat">
+      <conditionExpression>${ketLuan == 'dat'}</conditionExpression>
+    </sequenceFlow>
+    
+    <sequenceFlow id="hkViPham" name="Có vi phạm" sourceRef="gatewayKetLuan" targetRef="taskXuLyViPham">
+      <conditionExpression>${ketLuan != 'dat'}</conditionExpression>
+    </sequenceFlow>
+    
+    <userTask id="taskXuLyViPham" name="Yêu cầu Khắc phục Vi phạm Môi trường"
+              flowable:candidateGroups="app:cap-phep:trat-tu-xd"/>
+              
+    <sequenceFlow id="hk3" sourceRef="taskXuLyViPham" targetRef="endViPham"/>
+    
+    <endEvent id="endDat" name="Đạt tiêu chuẩn - Lưu hồ sơ kiểm tra"/>
+    <endEvent id="endViPham" name="Đã lập biên bản xử lý vi phạm"/>
+  </process>
+</definitions>

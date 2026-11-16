@@ -1,0 +1,286 @@
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<template>
+  <div id="modal-detail-dossier" class="nen-hop" @click.self="$emit('close')">
+    <div class="hop max-w-[680px]" role="dialog" aria-modal="true" aria-labelledby="detail-ma-ho-so">
+      <div class="hop-dau">
+        <div>
+          <span class="mo">Chi tiết hồ sơ</span>
+          <h3 id="detail-ma-ho-so" class="ma">{{ dossier.ma_ho_so }}</h3>
+          <div class="flex flex-wrap items-center gap-2 mt-1.5">
+            <span id="detail-trang-thai" :class="getStatusBadgeClass(dossier.trang_thai)">{{ formatStatus(dossier.trang_thai) }}</span>
+            <span class="mo">Bước hiện tại: <span id="detail-buoc">{{ tenBuoc(dossier.buoc) }}</span></span>
+          </div>
+        </div>
+        <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>
+      </div>
+
+      <div class="hop-than">
+        <h4 class="muc-con">Chủ đầu tư</h4>
+        <dl class="ds-thong-tin">
+          <dt>Họ tên</dt><dd id="detail-chu-dau-tu">{{ dossier.ho_ten }}</dd>
+          <dt>CCCD</dt><dd>{{ cheCccd(dossier.cccd) }}</dd>
+          <dt>Điện thoại</dt><dd>{{ dossier.dien_thoai }}</dd>
+          <dt>Địa bàn</dt><dd>{{ tenDonVi(dossier.tenant) }}</dd>
+        </dl>
+
+        <h4 class="muc-con">Công trình</h4>
+        <dl class="ds-thong-tin">
+          <dt>Địa chỉ</dt><dd id="detail-dia-chi">{{ dossier.dia_chi_cong_trinh }}</dd>
+          <dt>Thửa đất</dt><dd>{{ dossier.thua_dat }}</dd>
+          <dt>Quy mô</dt><dd>{{ dossier.so_tang }} tầng, diện tích sàn {{ formatNumberVi(dossier.dien_tich_san_m2) }} m²</dd>
+        </dl>
+
+        <section v-if="dossier.trang_thai === 'DA_CAP' || permitInfo" id="block-giay-phep-signature" class="mt-5 p-4 rounded-[10px] border border-vien bg-mat">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h4 class="text-[14px] font-semibold m-0">Giấy phép và chữ ký số</h4>
+            <span id="badge-permit-status" :class="permitInfo?.trang_thai === 'revoked' ? 'tt tt-do' : 'tt tt-xanh'">
+              {{ permitInfo?.trang_thai === "revoked" ? "Đã thu hồi" : permitInfo?.trang_thai === "valid" ? "Hợp lệ" : "Đã cấp" }}
+            </span>
+          </div>
+          <p v-if="loadingPermit" class="text-phu m-0">Đang tải thông tin giấy phép…</p>
+          <template v-else-if="permitInfo">
+            <dl class="ds-thong-tin">
+              <dt>Số giấy phép</dt><dd><b id="val-so-giay-phep" class="font-semibold">{{ permitInfo.so_giay_phep }}</b></dd>
+              <dt>Ngày cấp</dt><dd>{{ ngayNgan(permitInfo.ngay_cap) }}</dd>
+              <dt>Người ký</dt><dd id="val-nguoi-ky">{{ permitInfo.nguoi_ky || "Không xác định" }}</dd>
+              <dt>Chữ ký số</dt>
+              <dd><span id="val-thuat-toan">{{ permitInfo.thuat_toan || "Không xác định" }}</span><template v-if="permitInfo.khoa_phien_ban && !isPades">, khóa phiên bản {{ permitInfo.khoa_phien_ban }}</template></dd>
+              <dt>Mã tra cứu</dt>
+              <dd><a id="link-public-code" :href="'/kiem-tra/' + permitInfo.ma_cong_khai" target="_blank" rel="noopener" class="btn-lien-ket break-all">{{ permitInfo.ma_cong_khai }}</a></dd>
+              <dt>Mã băm SHA-256</dt>
+              <dd class="text-[12.5px] text-phu break-all">
+                {{ permitInfo.ma_bam }}
+                <button type="button" class="btn-lien-ket ml-1" @click="copyText(permitInfo.ma_bam, 'hash')">{{ copiedField === "hash" ? "Đã chép" : "Chép" }}</button>
+              </dd>
+              <dt>Chữ ký</dt>
+              <dd v-if="isPades" class="text-[12.5px] text-phu">Nhúng trong tệp PDF, kiểm tra được bằng trình đọc PDF hoặc trang tra cứu</dd>
+              <dd v-else class="text-[12.5px] text-phu">
+                <span class="break-all">{{ shortSig }}</span>
+                <button type="button" class="btn-lien-ket ml-1" @click="copyText(permitInfo.chu_ky, 'sig')">{{ copiedField === "sig" ? "Đã chép" : "Chép đầy đủ" }}</button>
+              </dd>
+            </dl>
+            <div class="flex flex-wrap gap-2 mt-4">
+              <a :href="'/kiem-tra/' + permitInfo.ma_cong_khai" target="_blank" rel="noopener" class="btn btn-sm">Mở trang tra cứu</a>
+              <button type="button" id="btn-download-permit" class="btn btn-sm btn-chinh" @click="downloadPermit">Tải giấy phép (PDF)</button>
+            </div>
+          </template>
+        </section>
+
+        <section id="block-dossier-files" class="mt-5">
+          <div class="flex items-baseline justify-between gap-3 mb-2">
+            <h4 class="text-[14px] font-semibold m-0">Giấy tờ đã nộp</h4>
+            <span class="mo">{{ docs.length }} tệp</span>
+          </div>
+          <p v-if="loadingDocs" class="text-phu m-0">Đang tải danh sách giấy tờ…</p>
+          <p v-else-if="docs.length === 0" class="text-phu m-0">Chưa có giấy tờ đính kèm.</p>
+          <ul v-else class="list-none m-0 p-0">
+            <li v-for="d in docs" :key="d.id" class="the-tep flex-col !items-stretch">
+              <div class="flex items-center justify-between gap-3">
+                <span class="font-medium">{{ d.ten_loai || d.loai }}<span class="text-phu font-normal">, lần nộp {{ d.version || 1 }}</span></span>
+                <span :class="['tt', docTone(d)]">{{ docStatusLabel(d) }}</span>
+              </div>
+              <p v-if="d.trang_thai_kiem_tra === 'khong_dat' && d.ly_do" class="text-son text-[13px] mt-1 mb-0">Lý do: {{ d.ly_do }}</p>
+            </li>
+          </ul>
+        </section>
+
+        <section id="block-dossier-audit" class="mt-5">
+          <div class="flex items-baseline justify-between gap-3 mb-1">
+            <h4 class="text-[14px] font-semibold m-0">Ai đã xem và xử lý hồ sơ</h4>
+            <span class="mo">{{ auditList.length }} ghi nhận</span>
+          </div>
+          <p class="goi-y mt-0 mb-2">Mọi lần mở hồ sơ, xem tệp và xử lý đều được ghi lại và không sửa được.</p>
+          <p v-if="loadingAudit" class="text-phu m-0">Đang tải nhật ký…</p>
+          <p v-else-if="auditList.length === 0" class="text-phu m-0">Chưa có ghi nhận nào.</p>
+          <ol v-else id="list-dossier-audit" class="list-none m-0 p-0 max-h-[260px] overflow-y-auto border-t border-vien-nhat">
+            <li
+              v-for="(item, idx) in auditList"
+              :key="idx"
+              :class="['grid grid-cols-[110px_1fr] gap-3 py-2.5 border-b border-vien-nhat text-[13px]', isBreakGlass(item) && 'text-son']"
+            >
+              <time class="text-phu">{{ ngayGio(item.at) }}</time>
+              <span>
+                <b class="font-medium">{{ tenHanhDong(item.action) }}</b>
+                <span class="block" :class="isBreakGlass(item) ? '' : 'text-phu'">
+                  {{ item.actor_name || item.actor_sub || "Hệ thống" }}<template v-if="item.actor_roles && item.actor_roles.length">, {{ tenVai(item.actor_roles[0]) }}</template>
+                </span>
+                <span v-if="getAuditReason(item)" class="block">Lý do: {{ getAuditReason(item) }}</span>
+              </span>
+            </li>
+          </ol>
+        </section>
+      </div>
+
+      <div class="hop-chan">
+        <button
+          v-if="dossier.trang_thai === 'CAN_BO_SUNG'"
+          type="button"
+          id="btn-modal-supplement"
+          class="btn mr-auto text-vang"
+          @click="$emit('supplement', dossier)"
+        >Bổ sung hồ sơ</button>
+        <button type="button" id="btn-close-modal-detail" class="btn" @click="$emit('close')">Đóng</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import IconX from "./IconX.vue";
+import { notify } from "../composables/useToast";
+import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, tenVai, ngayNgan, ngayGio } from "../utils/labels";
+import type { HoSo } from "../types";
+import { formatStatus, getStatusBadgeClass, formatNumberVi } from "../utils/formatters";
+
+const props = defineProps<{
+  dossier: HoSo;
+  userToken?: string;
+}>();
+
+defineEmits<{
+  (e: "close"): void;
+  (e: "supplement", dossier: HoSo): void;
+}>();
+
+const permitInfo = ref<any>(null);
+const loadingPermit = ref(false);
+const isPades = computed(() => String(permitInfo.value?.thuat_toan || "").startsWith("PAdES"));
+const docs = ref<any[]>([]);
+const loadingDocs = ref(false);
+
+// Trạng thái kiểm tra từng giấy tờ do cán bộ đánh giá (đạt / không đạt / cách ly)
+function docStatusLabel(d: any): string {
+  const st = d.trang_thai_kiem_tra || "cho_kiem_tra";
+  if (st === "dat") return "Đạt";
+  if (st === "khong_dat") return "Không đạt";
+  if (st === "cach_ly") return "Cách ly";
+  return "Chờ kiểm tra";
+}
+function docTone(d: any): string {
+  const st = d.trang_thai_kiem_tra || "cho_kiem_tra";
+  if (st === "dat") return "tt-xanh";
+  if (st === "khong_dat") return "tt-do";
+  if (st === "cach_ly") return "tt-xam";
+  return "tt-vang";
+}
+async function loadDocs() {
+  if (!props.userToken) return;
+  loadingDocs.value = true;
+  try {
+    const resp = await fetch(`/api/v1/rest/v_ho_so_tep?ho_so_id=eq.${encodeURIComponent(props.dossier.id)}&order=created_at.desc`, {
+      headers: { Authorization: `Bearer ${props.userToken}`, Accept: "application/json" },
+    });
+    docs.value = resp.ok ? await resp.json() : [];
+  } catch {
+    docs.value = [];
+  } finally {
+    loadingDocs.value = false;
+  }
+}
+const auditList = ref<any[]>([]);
+const loadingAudit = ref(false);
+const copiedField = ref("");
+const shortSig = computed(() => {
+  const sig = String(permitInfo.value?.chu_ky || "");
+  return sig.length > 28 ? sig.slice(0, 14) + "…" + sig.slice(-10) : sig;
+});
+
+function copyText(text: string, field: string) {
+  if (!text) return;
+  navigator.clipboard?.writeText(text).catch(() => notify("Trình duyệt không cho chép tự động.", "loi"));
+  copiedField.value = field;
+  setTimeout(() => {
+    copiedField.value = "";
+  }, 2000);
+}
+
+// U-01: bản gốc giấy phép chỉ tải được kèm token đăng nhập
+async function downloadPermit() {
+  if (!permitInfo.value?.file_url || !props.userToken) return;
+  try {
+    const resp = await fetch(permitInfo.value.file_url, {
+      headers: { Authorization: `Bearer ${props.userToken}` },
+    });
+    if (!resp.ok) {
+      notify(`Không tải được giấy phép (mã lỗi ${resp.status}).`, "loi");
+      return;
+    }
+    const blob = await resp.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${permitInfo.value.so_giay_phep || "giay-phep"}.pdf`;
+    a.click();
+    setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+  } catch (err: any) {
+    notify(`Không tải được giấy phép: ${err.message}`, "loi");
+  }
+}
+
+function isBreakGlass(item: any): boolean {
+  if (!item) return false;
+  const act = String(item.action || "").toLowerCase();
+  return act.includes("break_glass") || act.includes("truy_cap_khan");
+}
+
+function getAuditReason(item: any): string {
+  if (!item || !item.detail) return "";
+  return item.detail.reason || item.detail.ly_do || item.detail.loi || "";
+}
+
+
+
+onMounted(async () => {
+  if (!props.dossier?.id || !props.userToken) return;
+
+  loadDocs();
+
+  // 1. Tải thông tin giấy phép (nếu đã cấp phép hoặc đang trong quy trình)
+  loadingPermit.value = true;
+  try {
+    const res = await fetch("/api/v1/rest/rpc/thong_tin_giay_phep", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${props.userToken}`,
+      },
+      body: JSON.stringify({ p_ho_so_id: props.dossier.id }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.so_giay_phep) {
+        permitInfo.value = data;
+      }
+    }
+  } catch (err) {
+    console.debug("Lỗi tải thông tin giấy phép:", err);
+  } finally {
+    loadingPermit.value = false;
+  }
+
+  // 2. Tải nhật ký kiểm toán hồ sơ
+  loadingAudit.value = true;
+  try {
+    const res = await fetch("/api/v1/rest/rpc/lay_nhat_ky_ho_so", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${props.userToken}`,
+      },
+      body: JSON.stringify({ p_ho_so_id: props.dossier.id, p_limit: 50 }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      auditList.value = Array.isArray(data) ? data : [];
+    }
+  } catch (err) {
+    console.debug("Lỗi tải nhật ký hồ sơ:", err);
+  } finally {
+    loadingAudit.value = false;
+  }
+});
+</script>

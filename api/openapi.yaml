@@ -1,0 +1,247 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.0.3
+info:
+  title: DX-OS Open-Core API
+  description: >
+    Tài liệu giao diện lập trình ứng dụng (REST API) của Hệ điều hành Chuyển đổi số DX-OS Open-Core (v5).
+    Mọi yêu cầu đều được định tuyến và kiểm soát qua Apache APISIX Gateway tại cổng 8080.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Cổng biên mạng APISIX Gateway cục bộ
+
+components:
+  securitySchemes:
+    OAuth2Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token OIDC do Keycloak cấp, chứa thông tin `tenant`, `roles`, `sub`.
+
+security:
+  - OAuth2Bearer: []
+
+paths:
+  /api/v1/files:
+    post:
+      summary: Tải tệp đính kèm và kiểm dịch mã độc ClamAV
+      description: >
+        Tải tệp tin lên vùng kiểm dịch staging, quét virus ClamAV INSTREAM.
+        Nếu nhiễm mã độc trả về lỗi 422; nếu sạch chuyển sang kho tệp chính.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                object_type:
+                  type: string
+                  example: ho_so
+                object_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Tệp đã được kiểm dịch an toàn và lưu trữ thành công
+        '422':
+          description: Tệp bị nhiễm mã độc và đã bị cách ly
+        '503':
+          description: Dịch vụ quét ClamAV quá tải hoặc không phản hồi
+
+  /api/v1/files/{id}:
+    get:
+      summary: Lấy URL tải tệp đính kèm có chữ ký thời hạn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trả về URL có chữ ký hiệu lực 5 phút
+
+  /api/v1/docs/sign:
+    post:
+      summary: Kết xuất tài liệu PDF và ký số OpenBao Transit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                doc_type:
+                  type: string
+                  example: giay-phep-xay-dung
+                template:
+                  type: string
+                data:
+                  type: object
+      responses:
+        '201':
+          description: Tài liệu PDF đã được sinh và ký số thành công
+
+  /api/v1/docs/{id}/revoke:
+    post:
+      summary: Thu hồi giấy phép điện tử
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ly_do:
+                  type: string
+                  example: Phát hiện sai phạm cốt xây dựng
+      responses:
+        '200':
+          description: Đã thu hồi giấy phép thành công
+
+  /kiem-tra/{public_code}:
+    get:
+      summary: Tra cứu thông tin giấy phép công khai (không cần đăng nhập)
+      security: []
+      parameters:
+        - name: public_code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trả về trạng thái giấy phép (Hợp lệ / Đã thu hồi)
+
+  /kiem-tra/{public_code}/verify-file:
+    post:
+      summary: Tải tệp PDF lên để kiểm tra tính toàn vẹn và chữ ký số
+      security: []
+      parameters:
+        - name: public_code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Kết quả kiểm tra chữ ký số mật mã học
+
+  /api/v1/flow/tasks:
+    get:
+      summary: Lấy danh sách nhiệm vụ công việc của người dùng hiện tại
+      responses:
+        '200':
+          description: Danh sách task theo vai trò và tenant
+
+  /api/v1/flow/tasks/{id}/complete:
+    post:
+      summary: Hoàn thành nhiệm vụ công việc trong quy trình
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variables:
+                  type: object
+      responses:
+        '200':
+          description: Nhiệm vụ hoàn thành thành công
+        '403':
+          description: Vi phạm quy tắc phân tách nhiệm vụ (dx:sodExclude)
+
+  /api/v1/events:
+    get:
+      summary: Luồng sự kiện thông báo thời gian thực qua Server-Sent Events (SSE)
+      responses:
+        '200':
+          description: Dòng sự kiện SSE
+
+  /api/v1/ngsi-ld/v1/entities:
+    get:
+      summary: Truy vấn thực thể đô thị theo chuẩn NGSI-LD
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách thực thể định dạng JSON-LD
+
+  /api/v1/metrics:
+    get:
+      summary: Lấy 5 chỉ số điều hành then chốt của thuê ước
+      responses:
+        '200':
+          description: Dữ liệu thống kê chỉ số điều hành
+
+  /api/v1/metrics/{code}/lineage:
+    get:
+      summary: Truy xuất phả hệ dữ liệu OpenLineage của chỉ số
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chuỗi sự kiện phả hệ OpenLineage
+
+  /api/v1/audit/verify:
+    get:
+      summary: Xác minh tính toàn vẹn của chuỗi băm kiểm toán
+      responses:
+        '200':
+          description: Kết quả kiểm tra chuỗi băm và phát hiện sai lệch nếu có
+
+  /api/v1/assistant/ask:
+    post:
+      summary: Hỏi đáp tra cứu quy chuẩn xây dựng với Trợ lý AI (RAG)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                  example: Thời hạn thẩm định hồ sơ cấp phép xây dựng là bao nhiêu ngày?
+      responses:
+        '200':
+          description: Câu trả lời kèm trích dẫn nguồn tài liệu tri thức

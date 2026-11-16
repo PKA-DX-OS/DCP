@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[Unit]
+Description=DX-OS GitOps Reconciler Service
+After=network.target docker.service
+
+[Service]
+Type=oneshot
+User=dxos
+WorkingDirectory=/opt/dxos
+ExecStart=/usr/bin/python3 ops/reconciler/reconciler.py
+StandardOutput=journal
+StandardError=journal

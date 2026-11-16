@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+rules:
+  # Quy chuẩn tiếng ồn theo QCVN 26:2025/BNNMT
+  noise:
+    metric: laeq_dba
+    unit: dBA
+    window_minutes: 60
+    thresholds:
+      day:
+        from_hour: 6
+        to_hour: 21
+        limit: 70.0
+      night:
+        from_hour: 21
+        to_hour: 6
+        limit: 55.0
+    action:
+      trigger_process: hau-kiem
+      alert_topic: alert.threshold
+
+  # Quy chuẩn bụi mịn theo QCVN 05:2023/BTNMT
+  dust_pm10:
+    metric: pm10
+    unit: µg/m³
+    window_minutes: 60
+    limit: 100.0
+    action:
+      trigger_process: hau-kiem
+      alert_topic: alert.threshold
+
+  dust_pm25:
+    metric: pm25
+    unit: µg/m³
+    window_minutes: 60
+    limit: 50.0
+    action:
+      trigger_process: hau-kiem
+      alert_topic: alert.threshold
+
+  device_heartbeat:
+    max_silent_minutes: 30
+    action:
+      alert_topic: alert.device_silent

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/app/cap-phep">
+  <process id="cap-phep" name="Quy trình Cấp phép Xây dựng Nhà ở Riêng lẻ" isExecutable="true">
+    <startEvent id="startCapPhep" name="Chủ đầu tư nộp hồ sơ"/>
+    
+    <sequenceFlow id="f1" sourceRef="startCapPhep" targetRef="taskKiemTraHopLe"/>
+    
+    <!-- 1. Cán bộ Một cửa tiếp nhận kiểm tra thành phần -->
+    <userTask id="taskKiemTraHopLe" name="Kiểm tra Hồ sơ Hợp lệ"
+              flowable:candidateGroups="app:cap-phep:mot-cua">
+      <documentation>Cán bộ một cửa kiểm tra tính đầy đủ của các tài liệu đính kèm.</documentation>
+    </userTask>
+
+    <!-- SLA Boundary Timer: Cảnh báo quá hạn bước tiếp nhận (P-04) -->
+    <boundaryEvent id="timerHopLe" name="Quá hạn tiếp nhận" attachedToRef="taskKiemTraHopLe" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${vars:getOrDefault('han_buoc_at', '2099-12-31T23:59:59Z')}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="fTimerHopLe" sourceRef="timerHopLe" targetRef="serviceTimerHopLe"/>
+    <serviceTask id="serviceTimerHopLe" name="Ghi nhận quá hạn tiếp nhận" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:string>http://flow:8000/internal/timer</flowable:string></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>${'Content-Type: application/json&#10;X-DXOS-Internal-Token: '.concat(systemEnvironment['FLOW_INTERNAL_TOKEN'])}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${'{"process_instance_id": "'.concat(execution.processInstanceId).concat('", "task_def": "taskKiemTraHopLe"}')}</flowable:expression></flowable:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="fEndTimerHopLe" sourceRef="serviceTimerHopLe" targetRef="endTimerHopLe"/>
+    <endEvent id="endTimerHopLe"/>
+
+    <sequenceFlow id="f2" sourceRef="taskKiemTraHopLe" targetRef="gwHopLe"/>
+
+    <!-- Exclusive Gateway kiểm tra tính hợp lệ của hồ sơ (N-07) -->
+    <exclusiveGateway id="gwHopLe" name="Hồ sơ hợp lệ?" default="flowHopLe"/>
+
+    <!-- Nhánh không hợp lệ: Yêu cầu chủ đầu tư bổ sung -->
+    <sequenceFlow id="flowKhongHopLe" sourceRef="gwHopLe" targetRef="taskChoBoSung">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${vars:getOrDefault('hoSoHopLe', true) == false}]]></conditionExpression>
+    </sequenceFlow>
+
+    <!-- Bước chờ chủ đầu tư bổ sung tài liệu hồ sơ (N-07) -->
+    <userTask id="taskChoBoSung" name="Chủ đầu tư Bổ sung Hồ sơ"
+              flowable:assignee="${vars:getOrDefault('chu_dau_tu_sub', vars:getOrDefault('cdt_sub', ''))}"
+              flowable:candidateGroups="app:cap-phep:chu-dau-tu">
+      <documentation>Hồ sơ thiếu tài liệu, chủ đầu tư bổ sung và nộp lại một cửa.</documentation>
+    </userTask>
+
+    <!-- Sau khi bổ sung, quay lại một cửa kiểm tra tiếp nhận -->
+    <sequenceFlow id="flowBoSungXong" sourceRef="taskChoBoSung" targetRef="taskKiemTraHopLe"/>
+
+    <!-- Nhánh hợp lệ: chuyển sang lãnh đạo phân công -->
+    <sequenceFlow id="flowHopLe" sourceRef="gwHopLe" targetRef="taskPhanCong"/>
+
+    <!-- 2. Lãnh đạo phân công thẩm định viên phụ trách -->
+    <userTask id="taskPhanCong" name="Lãnh đạo Phân công Thẩm định viên"
+              flowable:candidateGroups="app:cap-phep:lanh-dao">
+      <documentation>Lãnh đạo chọn thẩm định viên và lưu vào biến quy trình nguoiThamDinh.</documentation>
+    </userTask>
+
+    <!-- SLA Boundary Timer: Cảnh báo quá hạn phân công (P-04) -->
+    <boundaryEvent id="timerPhanCong" name="Quá hạn phân công" attachedToRef="taskPhanCong" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${vars:getOrDefault('han_buoc_at', '2099-12-31T23:59:59Z')}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="fTimerPhanCong" sourceRef="timerPhanCong" targetRef="serviceTimerPhanCong"/>
+    <serviceTask id="serviceTimerPhanCong" name="Ghi nhận quá hạn phân công" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:string>http://flow:8000/internal/timer</flowable:string></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>${'Content-Type: application/json&#10;X-DXOS-Internal-Token: '.concat(systemEnvironment['FLOW_INTERNAL_TOKEN'])}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${'{"process_instance_id": "'.concat(execution.processInstanceId).concat('", "task_def": "taskPhanCong"}')}</flowable:expression></flowable:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="fEndTimerPhanCong" sourceRef="serviceTimerPhanCong" targetRef="endTimerPhanCong"/>
+    <endEvent id="endTimerPhanCong"/>
+
+    <sequenceFlow id="f3" sourceRef="taskPhanCong" targetRef="gwPhanLoai"/>
+
+    <!-- Exclusive Gateway phân loại hồ sơ theo diện tích và khu quy hoạch kiến trúc (F-44) -->
+    <exclusiveGateway id="gwPhanLoai" name="Phân loại yêu cầu thẩm định" default="flowThamDinhChuyenSau"/>
+
+    <!-- Luồng 1 (Mặc định): Công trình > 100m2 hoặc thuộc khu quản lý kiến trúc: thẩm định chuyên sâu -->
+    <sequenceFlow id="flowThamDinhChuyenSau" sourceRef="gwPhanLoai" targetRef="taskThamDinh"/>
+
+    <!-- Luồng 2: Công trình <= 100m2 và không thuộc khu quản lý kiến trúc: thẩm định nhanh -->
+    <sequenceFlow id="flowThamDinhNhanh" sourceRef="gwPhanLoai" targetRef="taskThamDinhNhanh">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${vars:getOrDefault('dien_tich_san_m2', 120.0) <= 100.0 && vars:getOrDefault('khu_quan_ly_kien_truc', false) == false}]]></conditionExpression>
+    </sequenceFlow>
+    
+    <!-- 3. Thẩm định viên thẩm định kỹ thuật (F-45: biến nguoiThamDinh) -->
+    <userTask id="taskThamDinh" name="Thẩm định Hồ sơ Kỹ thuật"
+              flowable:assignee="${nguoiThamDinh}"
+              flowable:candidateGroups="app:cap-phep:tham-dinh">
+      <documentation>Thẩm định viên được phân công thẩm định bản vẽ và điều kiện xây dựng.</documentation>
+    </userTask>
+
+    <!-- SLA Boundary Timer: Cảnh báo quá hạn thẩm định kỹ thuật (P-04) -->
+    <boundaryEvent id="timerThamDinh" name="Quá hạn thẩm định" attachedToRef="taskThamDinh" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${vars:getOrDefault('han_buoc_at', '2099-12-31T23:59:59Z')}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="fTimerThamDinh" sourceRef="timerThamDinh" targetRef="serviceTimerThamDinh"/>
+    <serviceTask id="serviceTimerThamDinh" name="Ghi nhận quá hạn thẩm định" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:string>http://flow:8000/internal/timer</flowable:string></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>${'Content-Type: application/json&#10;X-DXOS-Internal-Token: '.concat(systemEnvironment['FLOW_INTERNAL_TOKEN'])}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${'{"process_instance_id": "'.concat(execution.processInstanceId).concat('", "task_def": "taskThamDinh"}')}</flowable:expression></flowable:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="fEndTimerThamDinh" sourceRef="serviceTimerThamDinh" targetRef="endTimerThamDinh"/>
+    <endEvent id="endTimerThamDinh"/>
+
+    <!-- 3b. Thẩm định rút gọn -->
+    <userTask id="taskThamDinhNhanh" name="Thẩm định Rút gọn"
+              flowable:assignee="${nguoiThamDinh}"
+              flowable:candidateGroups="app:cap-phep:tham-dinh">
+      <documentation>Thẩm định viên kiểm tra điều kiện rút gọn đối với nhà ở dưới 100m2 ngoài khu quy hoạch.</documentation>
+    </userTask>
+
+    <!-- SLA Boundary Timer: Cảnh báo quá hạn thẩm định rút gọn (P-04) -->
+    <boundaryEvent id="timerThamDinhNhanh" name="Quá hạn thẩm định rút gọn" attachedToRef="taskThamDinhNhanh" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${vars:getOrDefault('han_buoc_at', '2099-12-31T23:59:59Z')}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="fTimerThamDinhNhanh" sourceRef="timerThamDinhNhanh" targetRef="serviceTimerThamDinhNhanh"/>
+    <serviceTask id="serviceTimerThamDinhNhanh" name="Ghi nhận quá hạn thẩm định rút gọn" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:string>http://flow:8000/internal/timer</flowable:string></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>${'Content-Type: application/json&#10;X-DXOS-Internal-Token: '.concat(systemEnvironment['FLOW_INTERNAL_TOKEN'])}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${'{"process_instance_id": "'.concat(execution.processInstanceId).concat('", "task_def": "taskThamDinhNhanh"}')}</flowable:expression></flowable:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="fEndTimerThamDinhNhanh" sourceRef="serviceTimerThamDinhNhanh" targetRef="endTimerThamDinhNhanh"/>
+    <endEvent id="endTimerThamDinhNhanh"/>
+    
+    <sequenceFlow id="f4a" sourceRef="taskThamDinh" targetRef="taskDuyetCapPhep"/>
+    <sequenceFlow id="f4b" sourceRef="taskThamDinhNhanh" targetRef="taskDuyetCapPhep"/>
+    
+    <!-- 4. Lãnh đạo phê duyệt cấp phép (bắt buộc SoD loại trừ người thẩm định nguoiThamDinh) -->
+    <userTask id="taskDuyetCapPhep" name="Lãnh đạo Phê duyệt Cấp phép"
+              flowable:candidateGroups="app:cap-phep:lanh-dao">
+      <documentation>Lãnh đạo phê duyệt. Áp dụng quy tắc SoD ngăn ngừa người thẩm định nguoiThamDinh tự phê duyệt.</documentation>
+      <extensionElements>
+        <flowable:field name="dx:sodExclude">
+          <flowable:string>nguoiThamDinh</flowable:string>
+        </flowable:field>
+      </extensionElements>
+    </userTask>
+
+    <!-- SLA Boundary Timer: Cảnh báo quá hạn phê duyệt (P-04) -->
+    <boundaryEvent id="timerDuyetCapPhep" name="Quá hạn phê duyệt" attachedToRef="taskDuyetCapPhep" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${vars:getOrDefault('han_buoc_at', '2099-12-31T23:59:59Z')}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="fTimerDuyetCapPhep" sourceRef="timerDuyetCapPhep" targetRef="serviceTimerDuyetCapPhep"/>
+    <serviceTask id="serviceTimerDuyetCapPhep" name="Ghi nhận quá hạn phê duyệt" flowable:type="http">
+      <extensionElements>
+        <flowable:field name="requestMethod"><flowable:string>POST</flowable:string></flowable:field>
+        <flowable:field name="requestUrl"><flowable:string>http://flow:8000/internal/timer</flowable:string></flowable:field>
+        <flowable:field name="requestHeaders"><flowable:expression>${'Content-Type: application/json&#10;X-DXOS-Internal-Token: '.concat(systemEnvironment['FLOW_INTERNAL_TOKEN'])}</flowable:expression></flowable:field>
+        <flowable:field name="requestBody"><flowable:expression>${'{"process_instance_id": "'.concat(execution.processInstanceId).concat('", "task_def": "taskDuyetCapPhep"}')}</flowable:expression></flowable:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="fEndTimerDuyetCapPhep" sourceRef="serviceTimerDuyetCapPhep" targetRef="endTimerDuyetCapPhep"/>
+    <endEvent id="endTimerDuyetCapPhep"/>
+    
+    <sequenceFlow id="f5" sourceRef="taskDuyetCapPhep" targetRef="gwPheDuyet"/>
+
+    <!-- Exclusive Gateway kiểm tra kết quả phê duyệt của Lãnh đạo (N-07) -->
+    <exclusiveGateway id="gwPheDuyet" name="Lãnh đạo đồng ý cấp phép?" default="flowDongY"/>
+
+    <!-- Nhánh từ chối: kết thúc tại endTuChoi -->
+    <sequenceFlow id="flowTuChoi" sourceRef="gwPheDuyet" targetRef="endTuChoi">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${vars:getOrDefault('dongYCapPhep', true) == false || vars:getOrDefault('pheDuyet', true) == false}]]></conditionExpression>
+    </sequenceFlow>
+    <endEvent id="endTuChoi" name="Từ chối Cấp phép"/>
+
+    <!-- Nhánh đồng ý: chuyển sang ký số và hoàn tất cấp phép -->
+    <sequenceFlow id="flowDongY" sourceRef="gwPheDuyet" targetRef="eventKySo"/>
+    
+    <!-- 5. Ký số do flow hook thực hiện qua OpenBao -->
+    <intermediateThrowEvent id="eventKySo" name="Ký số do flow hook thực hiện"/>
+                 
+    <sequenceFlow id="f6" sourceRef="eventKySo" targetRef="endCapPhep"/>
+    
+    <endEvent id="endCapPhep" name="Hoàn tất Cấp phép - Bắt đầu Thi công"/>
+  </process>
+</definitions>

@@ -1,0 +1,35 @@
+{
+  "identities": [
+    {
+      "name": "svc-files",
+      "credentials": [
+        {
+          "accessKey": "${SEAWEEDFS_ACCESS_KEY}",
+          "secretKey": "${SEAWEEDFS_SECRET_KEY}"
+        }
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "Write",
+        "List",
+        "Tagging"
+      ]
+    },
+    {
+      "name": "svc-backup",
+      "credentials": [
+        {
+          "accessKey": "${SEAWEEDFS_BACKUP_ACCESS_KEY}",
+          "secretKey": "${SEAWEEDFS_BACKUP_SECRET_KEY}"
+        }
+      ],
+      "actions": [
+        "Read",
+        "Write",
+        "List"
+      ]
+    }
+  ]
+}
+

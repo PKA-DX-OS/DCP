@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/core">
+  <process id="truy-cap-khan" name="Quy trình Yêu cầu Truy cập Khẩn cấp (Break-Glass)" isExecutable="true">
+    <startEvent id="startEvent" name="Bắt đầu yêu cầu truy cập khẩn"/>
+    
+    <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="taskPheDuyetTruyCapKhan"/>
+    
+    <userTask id="taskPheDuyetTruyCapKhan" name="Lãnh đạo Phê duyệt Truy cập Khẩn cấp"
+              flowable:candidateGroups="dx:tenant-admin,dx:approver">
+      <documentation>Lãnh đạo xem xét lý do khẩn cấp và quyết định phê duyệt cấp quyền tạm thời.</documentation>
+    </userTask>
+    
+    <sequenceFlow id="flow2" sourceRef="taskPheDuyetTruyCapKhan" targetRef="gatewayQuyetDinh"/>
+    
+    <exclusiveGateway id="gatewayQuyetDinh" name="Quyết định Phê duyệt?"/>
+    
+    <sequenceFlow id="flowApproved" name="Đồng ý" sourceRef="gatewayQuyetDinh" targetRef="endApproved">
+      <conditionExpression>${quyetDinh == 'dong_y'}</conditionExpression>
+    </sequenceFlow>
+    
+    <sequenceFlow id="flowRejected" name="Từ chối" sourceRef="gatewayQuyetDinh" targetRef="endRejected">
+      <conditionExpression>${quyetDinh != 'dong_y'}</conditionExpression>
+    </sequenceFlow>
+    
+    <endEvent id="endApproved" name="Kết thúc quyền truy cập khẩn"/>
+    <endEvent id="endRejected" name="Yêu cầu bị từ chối"/>
+  </process>
+</definitions>
