@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Tệp cấu hình ghi đè mẫu (compose.override.yaml)
+# Sao chép tệp này thành compose.override.yaml nếu bạn muốn mở cổng cơ sở dữ liệu ra host:
+#   cp compose.override.example.yaml compose.override.yaml
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
