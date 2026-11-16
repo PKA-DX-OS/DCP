@@ -2,179 +2,165 @@
 # SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+"""
+Công cụ giả lập thiết bị cảm biến IoT công trường:
+- Xác thực OAuth2 client_credentials (vai dx:device) qua Keycloak trước khi gửi dữ liệu qua Gateway.
+- Bình thường: phát số liệu tiếng ồn 55-65 dBA, PM10 30-45 µg/m³, PM2.5 15-25 µg/m³.
+- Chế độ spike (--spike): phát tiếng ồn 78 dBA vượt ngưỡng ban ngày (70 dBA) để kích hoạt quy trình hậu kiểm.
+"""
+
 import argparse
 import os
 import random
-import sys
 import time
-from datetime import datetime, timedelta, timezone
+import sys
+import logging
 from pathlib import Path
-
+from datetime import datetime, timezone
 import httpx
 
-ICT = timezone(timedelta(hours=7))
+logger = logging.getLogger("sensor-sim")
 
-# Công trường và thiết bị mô phỏng tương ứng
-SITES = {
-    "CT-01": "DEV-NOISE-01",
-    "CT-02": "DEV-NOISE-02",
-}
-
-
-def utf8_console() -> None:
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
+# Ensure UTF-8 output on all platforms
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, Exception) as _e:
+        _ = _e
 
 
-def load_sensor_secret(tenant: str) -> str:
-    env_name = f"SENSOR_{tenant.upper().replace('-', '_')}_SECRET"
-    secret = os.environ.get(env_name, "").strip()
+def get_sensor_token(keycloak_url: str, tenant: str = "phuong-a") -> str:
+    secret = os.environ.get(f"SENSOR_{tenant.upper().replace('-', '_')}_SECRET")
     if not secret:
-        secret_file = Path("secrets") / f"sensor-{tenant}-secret.txt"
+        secret_file = Path(f"secrets/sensor-{tenant}-secret.txt")
         if secret_file.exists():
             secret = secret_file.read_text(encoding="utf-8").strip()
     if not secret:
-        raise SystemExit(
-            f"Thiếu secret cho tenant {tenant}. Đặt {env_name} trong .env "
-            f"hoặc chạy 'make init' để tạo secrets/sensor-{tenant}-secret.txt"
-        )
-    return secret
+        secret = "dxos_dev_sensor_phuong_a_secret_2026" if tenant == "phuong-a" else "dxos_dev_sensor_phuong_b_secret_2026"
+
+    token_url = f"{keycloak_url.rstrip('/')}/realms/dxos/protocol/openid-connect/token"
+    client_id = f"dxos-sensor-{tenant}"
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            resp = client.post(
+                token_url,
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": secret,
+                },
+            )
+            if resp.status_code == 200:
+                return resp.json().get("access_token", "")
+            else:
+                print(f"Lỗi lấy token cho sensor {client_id}: {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"Không kết nối được Keycloak để lấy token sensor: {e}")
+    return ""
 
 
-def build_metrics(spike: bool, local_hour: int) -> dict:
-    if spike:
-        laeq = random.uniform(84.0, 86.5)
-        pm10 = random.uniform(80.0, 115.0)
-        pm25 = random.uniform(40.0, 55.0)
-    else:
-        laeq = random.uniform(55.0, 64.0)
-        pm10 = random.uniform(30.0, 45.0)
-        pm25 = random.uniform(15.0, 25.0)
-        if local_hour >= 21 or local_hour < 6:
-            laeq = min(laeq, 54.9)
-    return {
-        "laeq_dba": round(laeq, 1),
-        "pm10": round(pm10, 1),
-        "pm25": round(pm25, 1),
-    }
-
-
-def build_payload(tenant: str, site_id: str, device_id: str, spike: bool) -> dict:
-    now_utc = datetime.now(timezone.utc)
-    return {
+def send_reading(endpoint: str, site_id: str, device_id: str, laeq: float, pm10: float, pm25: float, tenant: str = "phuong-a", token: str = ""):
+    payload = {
         "tenant": tenant,
         "site_id": site_id,
         "device_id": device_id,
-        "source": "sensor",
-        "ts": now_utc.isoformat(),
-        "metrics": build_metrics(spike, now_utc.astimezone(ICT).hour),
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "metrics": {
+            "laeq_dba": round(laeq, 1),
+            "pm10": round(pm10, 1),
+            "pm25": round(pm25, 1),
+        },
     }
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            resp = client.post(endpoint, json=payload, headers=headers)
+            if resp.status_code == 201:
+                data = resp.json()
+                alerts = data.get("alerts", [])
+                alert_str = f" [CẢNH BÁO VƯỢT NGƯỠNG: {len(alerts)}]" if alerts else ""
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] {site_id} ({device_id}): ồn={laeq}dBA, PM10={pm10}, PM2.5={pm25}{alert_str}")
+            else:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Lỗi gửi bản tin: {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Không kết nối được API Ingest ({e})")
 
 
-class TokenClient:
-    """Lấy token OAuth2 client_credentials, làm mới trước khi hết hạn 30 giây."""
+def main():
+    parser = argparse.ArgumentParser(description="DX-OS Sensor Simulator")
+    parser.add_argument("--endpoint", default="http://localhost:8080/api/v1/ingest", help="Ingest API URL")
+    parser.add_argument("--keycloak", default="http://keycloak:8080/auth", help="Keycloak URL")
+    parser.add_argument("--spike", action="store_true", help="Gửi tiếng ồn đột biến 78 dBA (vượt ngưỡng ban ngày 70 dBA)")
+    parser.add_argument("--duration", type=int, default=120, help="Thời gian chạy đột biến (giây)")
+    parser.add_argument("--interval", type=int, default=5, help="Khoảng thời gian giữa các bản tin (giây)")
+    parser.add_argument("--tenant", default="phuong-a", help="Tenant đơn vị")
+    parser.add_argument("--site", default="", help="Mã công trình cụ thể để phát mô phỏng đột biến")
+    parser.add_argument("--laeq", type=float, default=86.5, help="Chỉ số tiếng ồn dBA khi phát đột biến cụ thể")
+    args = parser.parse_args()
 
-    def __init__(self, token_url: str, client_id: str, client_secret: str):
-        self.token_url = token_url
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self._token = ""
-        self._expires_at = 0.0
-
-    def get(self, http: httpx.Client) -> str:
-        if self._token and time.time() < self._expires_at - 30:
-            return self._token
-        resp = http.post(self.token_url, data={
-            "grant_type": "client_credentials",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-        }, timeout=10.0)
-        if resp.status_code != 200:
-            raise RuntimeError(f"lấy token thất bại: HTTP {resp.status_code}")
-        body = resp.json()
-        self._token = body["access_token"]
-        self._expires_at = time.time() + float(body.get("expires_in", 300))
-        return self._token
-
-    def invalidate(self) -> None:
-        self._token = ""
-        self._expires_at = 0.0
-
-
-def send_reading(http: httpx.Client, tokens: TokenClient, endpoint: str, payload: dict) -> None:
-    stamp = datetime.now(ICT).strftime("%H:%M:%S")
-    m = payload["metrics"]
-    for attempt in (1, 2):
+    # Thử lấy token từ localhost nếu keycloak URL mặc định là docker internal
+    kc_url = args.keycloak
+    if "keycloak:8080" in kc_url:
+        # Nếu chạy ngoài container, đổi sang localhost:8081
         try:
-            headers = {"Authorization": f"Bearer {tokens.get(http)}"}
-            resp = http.post(endpoint, json=payload, headers=headers, timeout=5.0)
-        except (RuntimeError, httpx.HTTPError) as exc:
-            print(f"[{stamp}] Lỗi kết nối hoặc xác thực: {exc}")
-            return
-        if resp.status_code == 401 and attempt == 1:
-            tokens.invalidate()
-            continue
-        if resp.status_code == 201:
-            alerts = resp.json().get("alerts", [])
-            flag = f" [CẢNH BÁO: {len(alerts)}]" if alerts else ""
-            print(f"[{stamp}] {payload['site_id']} ({payload['device_id']}): "
-                  f"ồn={m['laeq_dba']} dBA, PM10={m['pm10']}, PM2.5={m['pm25']}{flag}")
-        else:
-            print(f"[{stamp}] Lỗi gửi bản tin: HTTP {resp.status_code} {resp.text[:200]}")
+            with httpx.Client(timeout=1.0) as cl:
+                r = cl.get("http://localhost:8081/auth/realms/dxos")
+                if r.status_code == 200:
+                    kc_url = "http://localhost:8081/auth"
+        except Exception as probe_err:
+            logger.debug(f"Không thể kết nối localhost:8081 Keycloak: {probe_err}")
+
+    token = get_sensor_token(kc_url, args.tenant)
+    if not token:
+        # Thử lại với localhost nếu chưa thành công
+        token = get_sensor_token("http://localhost:8081/auth", args.tenant)
+
+    print("==========================================================")
+    print(" [DX-OS] KHỞI ĐỘNG CẢM BIẾN GIẢ LẬP CÔNG TRƯỜNG IOT ")
+    if args.spike:
+        print(" CHẾ ĐỘ: ĐỘT BIẾN TIẾNG ỒN (VƯỢT NGƯỠNG)")
+        print(f" Thời gian phát: {args.duration} giây | Chu kỳ: {args.interval} giây")
+    else:
+        print(" CHẾ ĐỘ: HOẠT ĐỘNG BÌNH THƯỜNG")
+    if token:
+        print(f" Xác thực OAuth2: Đã lấy token Bearer thành công cho {args.tenant}.")
+    else:
+        print(" [CẢNH BÁO] Không lấy được token Keycloak, gửi không xác thực.")
+    print("==========================================================")
+
+    if args.site:
+        dev_id = f"DEV-NOISE-{args.site}"
+        send_reading(args.endpoint, args.site, dev_id, args.laeq, 85.0, 45.0, tenant=args.tenant, token=token)
+        print(f"[HOÀN TẤT] Đã phát bản tin mô phỏng cảm biến cho {args.site} với tiếng ồn {args.laeq} dBA.")
         return
 
+    start_time = time.time()
+    devices = [("CT-01", "DEV-NOISE-01"), ("CT-02", "DEV-NOISE-02")]
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="DX-OS: giả lập cảm biến bụi/tiếng ồn công trường")
-    p.add_argument("--endpoint", default=os.getenv("DX_INGEST_URL", "http://localhost:8080/api/v1/ingest"))
-    p.add_argument("--keycloak", default=os.getenv("KEYCLOAK_URL", "http://localhost:8080/auth"),
-                   help="URL Keycloak qua APISIX")
-    p.add_argument("--tenant", default=os.getenv("DX_TENANT", "phuong-a"))
-    p.add_argument("--site", choices=sorted(SITES), help="Chỉ phát cho một công trường")
-    p.add_argument("--spike", action="store_true", help="Phát đột biến 84-86.5 dBA")
-    p.add_argument("--duration", type=int, default=120, help="Thời gian chạy (giây); 0 = chạy mãi")
-    p.add_argument("--interval", type=int, default=5, help="Chu kỳ giữa các bản tin (giây)")
-    p.add_argument("--dry-run", action="store_true", help="Chỉ in payload, không gửi, không cần secret")
-    return p.parse_args()
+    while True:
+        elapsed = time.time() - start_time
+        if args.spike and elapsed >= args.duration:
+            print(f"\n[HOÀN TẤT] Đã hoàn thành phát chuỗi đột biến {args.duration} giây.")
+            break
 
+        for site_id, dev_id in devices:
+            if args.spike and site_id == "CT-01":
+                # Đột biến vượt ngưỡng 85 dBA
+                laeq = random.uniform(84.0, 86.5)
+                pm10 = random.uniform(80.0, 115.0)
+                pm25 = random.uniform(40.0, 55.0)
+            else:
+                laeq = random.uniform(55.0, 64.0)
+                pm10 = random.uniform(30.0, 45.0)
+                pm25 = random.uniform(15.0, 25.0)
 
-def main() -> int:
-    utf8_console()
-    args = parse_args()
+            send_reading(args.endpoint, site_id, dev_id, laeq, pm10, pm25, tenant=args.tenant, token=token)
 
-    client_id = f"dxos-sensor-{args.tenant}"
-    token_url = f"{args.keycloak.rstrip('/')}/realms/dxos/protocol/openid-connect/token"
-    tokens = None
-    if not args.dry_run:
-        tokens = TokenClient(token_url, client_id, load_sensor_secret(args.tenant))
-
-    sites = [args.site] if args.site else list(SITES)
-    spike_site = args.site or "CT-01"
-
-    print("=" * 58)
-    print(" [DX-OS] GIẢ LẬP CẢM BIẾN CÔNG TRƯỜNG")
-    print(f" Chế độ: {'ĐỘT BIẾN' if args.spike else 'BÌNH THƯỜNG'} | công trường: {', '.join(sites)}")
-    print("=" * 58)
-
-    start = time.time()
-    with httpx.Client() as http:
-        while True:
-            if args.duration and time.time() - start >= args.duration:
-                print("[HOÀN TẤT] Đã hết thời gian chạy.")
-                break
-            for site_id in sites:
-                spike = args.spike and site_id == spike_site
-                payload = build_payload(args.tenant, site_id, SITES[site_id], spike)
-                if args.dry_run:
-                    print(payload)
-                else:
-                    send_reading(http, tokens, args.endpoint, payload)
-            time.sleep(args.interval)
-    return 0
+        time.sleep(args.interval)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
