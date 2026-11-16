@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 > **Hệ điều hành Chuyển đổi số bằng Công nghệ Lõi nguồn mở**  
 > *Dự án dự thi Olympic Tin học Sinh viên Việt Nam 2026 – Khối Phần mềm nguồn mở (PMNM)*  
-> *Đội thi: DX-CORE Team | Trường: Đại học Bách khoa Hà Nội (mẫu)*  
+> *Đội thi: DX-CORE Team | Trường: Đại học Phenikaa*  
 > *Ghi chú quan trọng: Mọi thông tin về tổ chức, người dùng, hồ sơ và giấy phép trong hệ thống là hư cấu phục vụ mô phỏng cuộc thi và không có giá trị pháp lý.*
 
 ---
@@ -463,5 +463,5 @@ Tại chân trang (footer) của tất cả ứng dụng web trong hệ sinh th�
 ## 19. Thông tin Đội thi
 
 - **Đội thi:** DX-CORE Team
-- **Đơn vị:** Đại học Bách khoa Hà Nội (mẫu)
+- **Đơn vị:** Đại học Phenikaa
 - **Email liên hệ:** contact@dxos.example.org (mẫu)
