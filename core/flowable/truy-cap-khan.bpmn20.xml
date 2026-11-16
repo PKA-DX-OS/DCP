@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/core">
+  <process id="truy-cap-khan" name="Quy trình Yêu cầu Truy cập Khẩn cấp (Break-Glass)" isExecutable="true">
+    <documentation>Biến vào: lyDo (lý do xin truy cập), thoiHanTruyCap (ISO 8601, mặc định PT2H).
+Biến ra: quyetDinh = 'dong_y' hoặc 'tu_choi'. Quyền thực tế ghi ở core.break_glass; bước hết hạn đóng quy trình khi quyền hết hiệu lực.</documentation>
+
+    <startEvent id="startEvent" name="Bắt đầu yêu cầu truy cập khẩn"/>
+
+    <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="taskPheDuyetTruyCapKhan"/>
+
+    <userTask id="taskPheDuyetTruyCapKhan" name="Lãnh đạo Phê duyệt Truy cập Khẩn cấp"
+              flowable:candidateGroups="dx:tenant-admin">
+      <documentation>Lãnh đạo xem xét lý do khẩn cấp và quyết định phê duyệt cấp quyền tạm thời.</documentation>
+    </userTask>
+
+    <sequenceFlow id="flow2" sourceRef="taskPheDuyetTruyCapKhan" targetRef="gatewayQuyetDinh"/>
+
+    <exclusiveGateway id="gatewayQuyetDinh" name="Quyết định Phê duyệt?" default="flowRejected"/>
+
+    <sequenceFlow id="flowApproved" name="Đồng ý" sourceRef="gatewayQuyetDinh" targetRef="timerHetHan">
+      <conditionExpression>${execution.getVariable('quyetDinh') == 'dong_y'}</conditionExpression>
+    </sequenceFlow>
+
+    <sequenceFlow id="flowRejected" name="Từ chối" sourceRef="gatewayQuyetDinh" targetRef="endRejected"/>
+
+    <intermediateCatchEvent id="timerHetHan" name="Chờ hết thời hạn truy cập">
+      <timerEventDefinition>
+        <timeDuration>${execution.getVariable('thoiHanTruyCap') != null ? execution.getVariable('thoiHanTruyCap') : 'PT2H'}</timeDuration>
+      </timerEventDefinition>
+    </intermediateCatchEvent>
+
+    <sequenceFlow id="flow3" sourceRef="timerHetHan" targetRef="endExpired"/>
+
+    <endEvent id="endExpired" name="Quyền truy cập khẩn hết hạn"/>
+    <endEvent id="endRejected" name="Yêu cầu bị từ chối"/>
+  </process>
+</definitions>
