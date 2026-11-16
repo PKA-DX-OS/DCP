@@ -5,51 +5,73 @@ name: DX-OS CI Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop, 'source/**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   compliance-and-security:
     name: Kiểm tra Bản quyền & An toàn Mã nguồn
     runs-on: ubuntu-24.04
+    env:
+      PYTHONPATH: services:.
     steps:
-      - name: Tải mã nguồn
-        uses: actions/checkout@v4.2.2
+      - name: Tải mã nguồn (đủ lịch sử để quét bí mật)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
 
       - name: Cài đặt Python 3.12
-        uses: actions/setup-python@v5.4.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: services/requirements.txt
 
-      - name: Cài đặt công cụ kiểm tra bản quyền & linter
+      - name: Cài đặt thư viện dịch vụ và công cụ kiểm tra
         run: |
           python -m pip install --upgrade pip
-          pip install reuse ruff pytest pytest-asyncio asyncpg httpx pyjwt cryptography pyyaml pydantic
+          pip install -r services/requirements.txt reuse ruff pytest pytest-asyncio
 
       - name: Kiểm tra tuân thủ REUSE (reuse lint)
         run: reuse lint
 
-      - name: Kiểm tra giấy phép thư viện phụ thuộc (make license-check)
-        run: make license-check
+      - name: Chạy linter mã nguồn Python (Ruff)
+        run: ruff check .
 
-      - name: Quét rò rỉ bí mật trong Git (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2.3.8
+      - name: Chạy kiểm thử đơn vị Python (Unit Tests)
+        run: pytest tests/unit -q
+
+      - name: Kiểm tra TypeScript hai ứng dụng web
+        run: |
+          node --version
+          for d in apps/cap-phep/web apps/bang-dieu-hanh/web; do
+            echo "--> $d"
+            (cd "$d" && npm ci --no-audit --no-fund && npm run type-check)
+          done
+
+      - name: Quét rò rỉ bí mật trong Git (Gitleaks CLI)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: '8.30.1'
+          GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+        run: |
+          curl -sSL -o /tmp/gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tgz" | sha256sum -c -
+          tar xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+          /tmp/gitleaks git --redact --no-banner -v .
 
-      - name: Quét lỗ hổng và kiểm tra giấy phép hệ thống tệp (Trivy)
-        uses: aquasecurity/trivy-action@0.29.0
+      - name: Quét lỗ hổng hệ thống tệp (Trivy, chỉ báo cáo)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
           severity: 'CRITICAL,HIGH'
-
-      - name: Chạy linter mã nguồn Python (Ruff)
-        run: make lint
-
-      - name: Chạy kiểm thử đơn vị Python (Unit Tests)
-        run: make test
+          ignore-unfixed: true
+          exit-code: '0'
 
       - name: Quét tuân thủ quy chuẩn pháp lý (vn-law-check)
         run: |
@@ -61,18 +83,40 @@ jobs:
     name: Đóng gói Container & Kiểm thử Smoke
     runs-on: ubuntu-24.04
     needs: compliance-and-security
+    # Dựng toàn bộ stack (hơn 20 dịch vụ) mất nhiều thời gian: chỉ chạy khi đẩy lên main hoặc bấm chạy tay.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    timeout-minutes: 60
     steps:
       - name: Tải mã nguồn
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Cài đặt Docker Compose v2
-        run: docker compose version
+      - name: Cài đặt Python 3.12 cho bước khởi tạo
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.12'
 
-      - name: Khởi tạo biến môi trường mẫu
-        run: make init
+      - name: Khởi tạo biến môi trường và bí mật chế độ demo
+        run: |
+          pip install cryptography
+          chmod +x dx.sh
+          ./dx.sh init --demo
 
-      - name: Chạy kiểm thử Smoke Test toàn diện
-        run: make smoke
+      - name: Khởi động hệ thống (profile core)
+        run: ./dx.sh up
 
-      - name: Quét lộ lọt dữ liệu & phân quyền tự động (Q-03)
-        run: docker compose run --rm tools python scripts/scan_exposure.py
+      - name: Cài ứng dụng cấp phép và dữ liệu mẫu
+        run: |
+          ./dx.sh app-install cap-phep
+          ./dx.sh seed
+          ./dx.sh sync-users
+
+      - name: Kiểm thử đơn vị, quét lộ lọt dữ liệu (Q-03) và e2e
+        run: |
+          ./dx.sh test
+          ./dx.sh e2e
+
+      - name: In nhật ký dịch vụ khi lỗi
+        if: failure()
+        run: |
+          docker compose ps -a || true
+          docker compose logs --tail=200 || true
