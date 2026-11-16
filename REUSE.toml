@@ -1,44 +1,56 @@
 version = 1
 
 [[annotations]]
-path = ["REUSE.toml", "LICENSE", "LICENSES/**", ".gitignore", ".gitattributes", ".dockerignore", "pyproject.toml", "pytest.ini", "*.toml", "*.ini"]
+path = ["REUSE.toml", "LICENSE", "LICENSES/**", ".gitignore", ".gitattributes"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
 [[annotations]]
 path = ["*.json", "**/*.json", "*.env*", "**/*.env*", "*.pub", "**/*.pub", "**/*.crt", "**/*.key", "**/*.pem", "**/*.pyc", "**/__pycache__/**"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
 path = ["docs/**", "*.md", "**/*.md"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["core/apisix/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The Apache Software Foundation"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["core/postgrest/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 PostgREST Team"
+SPDX-License-Identifier = "MIT"
 
 [[annotations]]
 path = ["**/*.txt", "**/*.csv"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 
 [[annotations]]
 path = ["apps/**/dist/**", "**/dist/**", "**/*.svg", "**/*.ico", "**/*.png", "**/*.woff*", "**/*.ttf"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 # Thư mục sinh tự động khi chạy demo/kiểm thử, không phải mã nguồn
 [[annotations]]
 path = ["secrets/**", ".pytest_cache/**", ".ruff_cache/**", "**/node_modules/**", "backups/**", "logs/**", "dist/**"]
 precedence = "override"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
 [[annotations]]
 path = ["tests/**"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-FileCopyrightText = "2026 DX-OS Open-Core contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"

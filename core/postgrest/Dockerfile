@@ -5,3 +5,4 @@ FROM postgrest/postgrest:v12.2.8
 COPY --from=busybox:musl /bin/sh /bin/sh
 COPY --from=busybox:musl /bin/wget /bin/wget
 COPY --from=busybox:musl /bin/busybox /bin/busybox
+

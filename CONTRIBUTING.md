@@ -1,11 +1,11 @@
 <!--
-SPDX-FileCopyrightText: 2026 DCP contributors
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Hướng Dẫn Đóng Góp (Contributing Guidelines)
 
-Cảm ơn bạn đã quan tâm và muốn đóng góp cho dự án **DCP**! Chúng tôi trân trọng mọi đóng góp nhằm xây dựng một hệ điều hành chuyển đổi số nguồn mở an toàn, minh bạch và bền vững.
+Cảm ơn bạn đã quan tâm và muốn đóng góp cho dự án **DX-OS Open-Core**! Chúng tôi trân trọng mọi đóng góp nhằm xây dựng một hệ điều hành chuyển đổi số nguồn mở an toàn, minh bạch và bền vững.
 
 ---
 
@@ -51,7 +51,7 @@ Ví dụ:
 Dự án tuân thủ nghiêm ngặt chuẩn **REUSE 3.0**:
 - Mọi tệp nguồn có thể chứa chú thích (`.py`, `.ts`, `.vue`, `.js`, `.sql`, `.yaml`, `.yml`, `Dockerfile`, `Makefile`, `.sh`, `.bpmn20.xml`, `.css`, `.html`) bắt buộc phải có tiêu đề bản quyền:
   ```
-  SPDX-FileCopyrightText: 2026 DCP contributors
+  SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
   SPDX-License-Identifier: AGPL-3.0-or-later
   ```
 - Tài liệu và dữ liệu mẫu sử dụng giấy phép `CC-BY-4.0`.

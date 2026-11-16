@@ -8,38 +8,38 @@ from pydantic import BaseModel, Field
 class Settings(BaseModel):
     public_base_url: str = Field(default_factory=lambda: os.getenv("PUBLIC_BASE_URL", "http://localhost:8080"))
     source_url: str = Field(default_factory=lambda: os.getenv("SOURCE_URL", "https://github.com/dxos-core/dxos"))
-
+    
     # Cơ sở dữ liệu PostgreSQL
     postgres_host: str = Field(default_factory=lambda: os.getenv("POSTGRES_HOST", "postgres"))
     postgres_port: int = Field(default_factory=lambda: int(os.getenv("POSTGRES_PORT", "5432")))
     postgres_db: str = Field(default_factory=lambda: os.getenv("POSTGRES_DB", "dxos"))
     postgres_user: str = Field(default_factory=lambda: os.getenv("DB_USER", os.getenv("POSTGRES_USER", "dxos_svc")))
     postgres_password: str = Field(default_factory=lambda: os.getenv("DB_PASSWORD", ""))
-
+    
     # Keycloak
     keycloak_url: str = Field(default_factory=lambda: os.getenv("KEYCLOAK_URL", "http://localhost:8080/auth"))
     keycloak_internal_url: str = Field(default_factory=lambda: os.getenv("KEYCLOAK_INTERNAL_URL", "http://keycloak:8080/auth"))
     keycloak_realm: str = Field(default_factory=lambda: os.getenv("KEYCLOAK_REALM", "dxos"))
     keycloak_admin: str = Field(default_factory=lambda: os.getenv("KEYCLOAK_ADMIN", "admin"))
     keycloak_admin_password: str = Field(default_factory=lambda: os.getenv("KEYCLOAK_ADMIN_PASSWORD", ""))
-
+    
     # Flowable
     flowable_url: str = Field(default_factory=lambda: os.getenv("FLOWABLE_URL", "http://flowable:8080/flowable-rest"))
     flowable_user: str = Field(default_factory=lambda: os.getenv("FLOWABLE_USER", "rest-admin"))
     flowable_password: str = Field(default_factory=lambda: os.getenv("FLOWABLE_PASSWORD", "test"))
-
+    
     # NATS
     nats_url: str = Field(default_factory=lambda: os.getenv("NATS_URL", "nats://nats:4222"))
-
+    
     # SeaweedFS S3
     s3_endpoint: str = Field(default_factory=lambda: os.getenv("SEAWEEDFS_S3_ENDPOINT", "http://seaweedfs:8333"))
     s3_access_key: str = Field(default_factory=lambda: os.getenv("SEAWEEDFS_ACCESS_KEY", "dxos_dev_s3_key_2026"))
     s3_secret_key: str = Field(default_factory=lambda: os.getenv("SEAWEEDFS_SECRET_KEY", "dxos_dev_s3_secret_2026"))
-
+    
     # ClamAV
     clamav_host: str = Field(default_factory=lambda: os.getenv("CLAMAV_HOST", "clamav"))
     clamav_port: int = Field(default_factory=lambda: int(os.getenv("CLAMAV_PORT", "3310")))
-
+    
     # OpenBao
     openbao_addr: str = Field(default_factory=lambda: os.getenv("OPENBAO_ADDR", "http://openbao:8200"))
     openbao_token: str = Field(default_factory=lambda: os.getenv("OPENBAO_TOKEN", ""))

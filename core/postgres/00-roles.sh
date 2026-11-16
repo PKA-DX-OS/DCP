@@ -57,3 +57,4 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "flowable" <<-EOSQL
     ALTER DATABASE flowable OWNER TO flowable;
     GRANT ALL ON SCHEMA public TO flowable;
 EOSQL
+

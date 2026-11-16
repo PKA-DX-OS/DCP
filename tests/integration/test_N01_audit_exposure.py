@@ -98,7 +98,7 @@ def test_N01_lay_nhat_ky_ho_so_access_control():
     with pytest.raises(urllib.error.HTTPError) as exc_info:
         urllib.request.urlopen(req_lan, timeout=5)
     assert exc_info.value.code in (403, 404, 400), f"cdt.lan phải bị từ chối truy cập: {exc_info.value.code}"
-
+    
     # Kiểm tra có ghi nhận audit access.denied
     audit_denied_after = int(run_sql(f"SELECT count(*) FROM core.audit_log WHERE action='access.denied' AND object_id='{hoso_id}';") or "0")
     assert audit_denied_after >= audit_denied_before + 1, "Phải ghi nhận audit access.denied khi truy cập trái phép nhật ký hồ sơ"

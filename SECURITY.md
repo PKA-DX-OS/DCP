@@ -1,11 +1,11 @@
 <!--
-SPDX-FileCopyrightText: 2026 DCP contributors
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Chính Sách An Toàn Thông Tin (Security Policy)
 
-Dự án **DCP** áp dụng mô hình bảo mật nhiều lớp (defense-in-depth) và Zero-Trust nhằm đảm bảo an toàn cho hạ tầng chuyển đổi số công vụ.
+Dự án **DX-OS Open-Core** áp dụng mô hình bảo mật nhiều lớp (defense-in-depth) và Zero-Trust nhằm đảm bảo an toàn cho hạ tầng chuyển đổi số công vụ.
 
 ---
 
@@ -20,20 +20,20 @@ Dự án **DCP** áp dụng mô hình bảo mật nhiều lớp (defense-in-dept
 
 ## Báo Cáo Lỗ Hổng Bảo Mật
 
-Nếu bạn phát hiện bất kỳ vấn đề hoặc lỗ hổng bảo mật nào trong mã nguồn hoặc kiến trúc của DCP, vui lòng **không công khai** trên các kênh mở hoặc Issue tracker của GitHub.
+Nếu bạn phát hiện bất kỳ vấn đề hoặc lỗ hổng bảo mật nào trong mã nguồn hoặc kiến trúc của DX-OS, vui lòng **không công khai** trên các kênh mở hoặc Issue tracker của GitHub.
 
 Quy trình báo cáo có trách nhiệm:
-1. Gửi email thông báo chi tiết đến hòm thư: `security@dcp.example.org` (mẫu).
+1. Gửi email thông báo chi tiết đến hòm thư: `security@dxos.example.org` (mẫu).
 2. Nội dung bao gồm:
    - Mô tả chi tiết lỗ hổng và phạm vi ảnh hưởng.
    - Các bước tái hiện (proof-of-concept).
    - Tác động tiềm ẩn đối với hệ thống.
-3. Nhóm bảo mật DCP sẽ phản hồi trong vòng **48 giờ** làm việc và cập nhật tiến độ khắc phục.
+3. Nhóm bảo mật DX-OS sẽ phản hồi trong vòng **48 giờ** làm việc và cập nhật tiến độ khắc phục.
 4. Sau khi bản vá được phát hành chính thức trong phiên bản mới, thông tin lỗ hổng và người báo cáo (nếu được đồng ý) sẽ được ghi nhận trong phần ghi chú phát hành (Security Advisory).
 
 ---
 
-## Các Nguyên Tắc Bảo Mật Cốt Lõi Được Áp Dụng Trong DCP
+## Các Nguyên Tắc Bảo Mật Cốt Lõi Được Áp Dụng Trong DX-OS
 
 1. **Không có bí mật trong Git:** Không lưu khóa mã hóa, mật khẩu, JWT secret trong kho mã nguồn. Mọi cấu hình nhạy cảm được sinh ngẫu nhiên khi khởi tạo (`make init`) hoặc mã hóa qua SOPS.
 2. **Kiểm soát truy cập đa lớp:** APISIX kiểm tra JWT; PostgREST và các microservices xác thực lại token; PostgreSQL thực thi Row-Level Security (RLS) ở tầng nhân DB.

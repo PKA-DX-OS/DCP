@@ -121,7 +121,7 @@ class OpenBaoClient:
                         encoding=serialization.Encoding.PEM,
                         format=serialization.PublicFormat.SubjectPublicKeyInfo,
                     ).decode("utf-8")
-
+                
                 logger.error(f"OpenBao trả lỗi lấy khóa công khai: HTTP {resp.status_code} - {resp.text}")
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

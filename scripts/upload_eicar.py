@@ -12,7 +12,7 @@ def main():
         "object_type": "ho_so",
         "object_id": "00000000-0000-0000-0000-000000000000"
     }
-
+    
     print("--> Đang gửi tệp kiểm thử mã độc EICAR tới dịch vụ quét ClamAV qua APISIX...")
     try:
         r = httpx.post("http://apisix:8080/api/v1/files", files=files, data=data, timeout=10.0)
@@ -24,3 +24,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

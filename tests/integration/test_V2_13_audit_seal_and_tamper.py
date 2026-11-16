@@ -83,7 +83,7 @@ async def test_seal_audit_head_valid_returns_200():
          patch("services.audit.main.verify_audit_chain", new_callable=AsyncMock) as mock_verify, \
          patch("services.audit.main.storage_client") as mock_storage, \
          patch("services.audit.main.get_db_connection", return_value=MockDbCtx()):
-
+        
         mock_verify.return_value = mock_valid_verification
         mock_storage.put_object = MagicMock(return_value="key")
 
