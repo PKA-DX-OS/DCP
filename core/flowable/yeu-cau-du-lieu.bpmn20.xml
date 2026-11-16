@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/core">
+  <process id="yeu-cau-du-lieu" name="Quy trình Xử lý Yêu cầu Dữ liệu Cá nhân (DSAR)" isExecutable="true">
+    <startEvent id="startEvent" name="Chủ thể dữ liệu gửi yêu cầu"/>
+    
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="taskPhanHoiBanDau"/>
+    
+    <!-- Bước 1: Phản hồi xác nhận tiếp nhận trong vòng 2 ngày làm việc -->
+    <userTask id="taskPhanHoiBanDau" name="Xác nhận Tiếp nhận Yêu cầu DSAR"
+              flowable:candidateGroups="dx:tenant-admin,dx:privacy-officer">
+      <documentation>Cán bộ kiểm tra tính hợp lệ và phản hồi tiếp nhận cho công dân trong 2 ngày làm việc.</documentation>
+    </userTask>
+    
+    <sequenceFlow id="f2" sourceRef="taskPhanHoiBanDau" targetRef="taskXuLyChinh"/>
+    
+    <!-- Bước 2: Cán bộ chuyên môn xử lý yêu cầu trong thời hạn quy định -->
+    <userTask id="taskXuLyChinh" name="Xử lý Yêu cầu Dữ liệu (Xem/Sửa/Xóa/Rút)"
+              flowable:candidateGroups="dx:tenant-admin,dx:privacy-officer">
+      <documentation>Xử lý theo loại: access/rectify (10 ngày), withdraw/restrict (15 ngày), erase (20 ngày).</documentation>
+    </userTask>
+    
+    <sequenceFlow id="f3" sourceRef="taskXuLyChinh" targetRef="serviceCapNhatDSAR"/>
+    
+    <serviceTask id="serviceCapNhatDSAR" name="Đóng Yêu cầu và Gửi Thông báo"
+                 flowable:expression="#{flowHelper.closeDsarRequest(execution)}"/>
+                 
+    <sequenceFlow id="f4" sourceRef="serviceCapNhatDSAR" targetRef="endSuccess"/>
+    
+    <endEvent id="endSuccess" name="Hoàn tất xử lý yêu cầu"/>
+  </process>
+</definitions>
