@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+code: bang-dieu-hanh
+name: Bảng Điều hành Lãnh đạo và Trợ lý Tra cứu Chính sách (D & I)
+version: 1.0.0
+schema: core_api
+
+roles:
+  - code: lanh-dao
+    name: Lãnh đạo Đô thị
+    description: Xem bảng chỉ số điều hành và phả hệ dữ liệu
+
+metrics:
+  - code: ho_so_moi
+    name: Hồ sơ mới trong kỳ
+    unit: hồ sơ
+    query_type: lakehouse
+  - code: ty_le_dung_han
+    name: Tỷ lệ giải quyết đúng hạn
+    unit: '%'
+    query_type: hybrid
+  - code: ho_so_qua_han
+    name: Hồ sơ quá hạn
+    unit: hồ sơ
+    query_type: transactional
+  - code: canh_bao_cong_truong
+    name: Cảnh báo vượt ngưỡng công trường
+    unit: lượt
+    query_type: transactional
+  - code: truy_cap_tu_choi
+    name: Lượt truy cập bị từ chối (403)
+    unit: lượt
+    query_type: audit

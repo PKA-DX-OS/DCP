@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: DX-OS Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-sign-release:
+    name: Build, Sign & Publish Release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4.2.2
+
+      - name: Cài đặt cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Cài đặt Syft (Tạo SBOM)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Đăng nhập GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Đóng gói và gắn thẻ hình ảnh container
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "Releasing version $VERSION"
+          docker build -t ghcr.io/${{ github.repository }}/dxos-services:$VERSION -f services/Dockerfile .
+          docker push ghcr.io/${{ github.repository }}/dxos-services:$VERSION
+          
+          IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ github.repository }}/dxos-services:$VERSION)
+          echo "IMAGE_DIGEST=$IMAGE_DIGEST" >> $GITHUB_ENV
+
+      - name: Ký số Container Image bằng Cosign
+        run: |
+          cosign sign --yes ${{ env.IMAGE_DIGEST }}
+
+      - name: Tạo định danh thành phần phần mềm (SBOM SPDX)
+        run: |
+          mkdir -p sbom dist
+          syft dir:. -o spdx-json=sbom/dxos-${GITHUB_REF#refs/tags/}.spdx.json
+
+      - name: Đóng gói kho mã nguồn lưu trữ (.tar.gz và SHA256SUMS)
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          git archive --format=tar.gz --prefix=dxos-$VERSION/ -o dist/dxos-$VERSION.tar.gz HEAD
+          cd dist && sha256sum dxos-$VERSION.tar.gz > SHA256SUMS && cd ..
+
+      - name: Tạo GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/dxos-*.tar.gz
+            dist/SHA256SUMS
+            sbom/*.spdx.json
+          generate_release_notes: true

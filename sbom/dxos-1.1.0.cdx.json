@@ -1,0 +1,390 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:56eab938-a097-47f7-9a22-2a7e8960dafb",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-10T09:50:48.668861+00:00",
+    "tools": [
+      {
+        "vendor": "DX-OS",
+        "name": "scripts/sbom.py",
+        "version": "1.1.0"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "name": "dxos-open-core",
+      "version": "1.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "fastapi",
+      "version": "0.115.8",
+      "purl": "pkg:pypi/fastapi@0.115.8",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "uvicorn",
+      "version": "0.34.0",
+      "purl": "pkg:pypi/uvicorn@0.34.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pydantic",
+      "version": "2.10.6",
+      "purl": "pkg:pypi/pydantic@2.10.6",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "asyncpg",
+      "version": "0.30.0",
+      "purl": "pkg:pypi/asyncpg@0.30.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "httpx",
+      "version": "0.28.1",
+      "purl": "pkg:pypi/httpx@0.28.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "PyJWT",
+      "version": "2.10.1",
+      "purl": "pkg:pypi/pyjwt@2.10.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "nats-py",
+      "version": "2.9.0",
+      "purl": "pkg:pypi/nats-py@2.9.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "boto3",
+      "version": "1.37.9",
+      "purl": "pkg:pypi/boto3@1.37.9",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "PyYAML",
+      "version": "6.0.2",
+      "purl": "pkg:pypi/pyyaml@6.0.2",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "prometheus-client",
+      "version": "0.21.1",
+      "purl": "pkg:pypi/prometheus-client@0.21.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cryptography",
+      "version": "50.0.2",
+      "purl": "pkg:pypi/cryptography@50.0.2",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "qrcode",
+      "version": "8.0",
+      "purl": "pkg:pypi/qrcode@8.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "reportlab",
+      "version": "4.4.1",
+      "purl": "pkg:pypi/reportlab@4.4.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "duckdb",
+      "version": "1.2.0",
+      "purl": "pkg:pypi/duckdb@1.2.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pyarrow",
+      "version": "19.0.1",
+      "purl": "pkg:pypi/pyarrow@19.0.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sse-starlette",
+      "version": "2.2.1",
+      "purl": "pkg:pypi/sse-starlette@2.2.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "python-multipart",
+      "version": "0.0.20",
+      "purl": "pkg:pypi/python-multipart@0.0.20",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pyhanko",
+      "version": "0.38.1",
+      "purl": "pkg:pypi/pyhanko@0.38.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "python-pkcs11",
+      "version": "0.10.1",
+      "purl": "pkg:pypi/python-pkcs11@0.10.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "asn1crypto",
+      "version": "1.5.1",
+      "purl": "pkg:pypi/asn1crypto@1.5.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "pgvector/pgvector",
+      "version": "0.8.0-pg16",
+      "purl": "pkg:docker/pgvector/pgvector@0.8.0-pg16",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "chrislusf/seaweedfs",
+      "version": "3.85",
+      "purl": "pkg:docker/chrislusf/seaweedfs@3.85",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "clamav/clamav",
+      "version": "1.4.3",
+      "purl": "pkg:docker/clamav/clamav@1.4.3",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "openbao/openbao",
+      "version": "2.2.0",
+      "purl": "pkg:docker/openbao/openbao@2.2.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "nats",
+      "version": "2.10.26-alpine",
+      "purl": "pkg:docker/nats@2.10.26-alpine",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "flowable/flowable-rest",
+      "version": "7.1.0",
+      "purl": "pkg:docker/flowable/flowable-rest@7.1.0",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "quay.io/keycloak/keycloak",
+      "version": "26.1.3",
+      "purl": "pkg:docker/quay.io/keycloak/keycloak@26.1.3",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "apache/apisix",
+      "version": "3.11.0-debian",
+      "purl": "pkg:docker/apache/apisix@3.11.0-debian",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "name": "ollama/ollama",
+      "version": "0.5.12",
+      "purl": "pkg:docker/ollama/ollama@0.5.12",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "compose.yaml"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "curl",
+      "version": "debian",
+      "purl": "pkg:deb/debian/curl",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\Dockerfile"
+        }
+      ]
+    }
+  ]
+}
