@@ -4,7 +4,7 @@
 import json
 import subprocess
 import urllib.request
-from tests.integration.conftest import get_token, GATEWAY_URL
+from tests.integration._auth import get_token, GATEWAY_URL
 
 
 def test_S04_audit_tamper_detected():
