@@ -1,0 +1,266 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+code: cap-phep
+name: Cấp phép xây dựng nhà ở riêng lẻ và hậu kiểm công trường
+version: 1.0.0
+schema: app_cap_phep
+# Các phường (tenant) dùng ứng dụng; app_manager deploy BPMN, nạp tri thức và seed theo danh sách này
+tenants: [phuong-a, phuong-b]
+migrations: db/migrations
+
+roles:
+  - code: chu-dau-tu
+    name: Chủ đầu tư nộp hồ sơ
+    description: Công dân hoặc tổ chức nộp hồ sơ xin cấp phép
+  - code: mot-cua
+    name: Cán bộ Tiếp nhận Một cửa
+    description: Tiếp nhận, kiểm tra hồ sơ ban đầu
+  - code: tham-dinh
+    name: Thẩm định viên
+    description: Thẩm định nội dung kỹ thuật hồ sơ
+  - code: lanh-dao
+    name: Lãnh đạo phê duyệt
+    description: Phân công thẩm định và duyệt cấp giấy phép
+  - code: trat-tu-xd
+    name: Cán bộ Trật tự xây dựng
+    description: Hậu kiểm công trường và xử lý cảnh báo cảm biến
+
+bpmn:
+  - bpmn/cap-phep.bpmn20.xml
+  - bpmn/hau-kiem.bpmn20.xml
+
+doc_templates:
+  - doc_type: giay-phep-xay-dung
+    template_file: templates/giay-phep.html
+    title: Giấy phép xây dựng nhà ở riêng lẻ
+  - doc_type: giay_phep
+    template_file: templates/giay-phep.html
+    title: Giấy phép xây dựng nhà ở riêng lẻ
+
+object_access:
+  ho_so: app_cap_phep_private.can_access_ho_so
+
+break_glass:
+  object_types: ["ho_so"]
+  requester_roles: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua", "app:cap-phep:trat-tu-xd", "dx:auditor"]
+  approver_roles: ["app:cap-phep:lanh-dao", "dx:approver", "dx:tenant-admin", "dx:platform-admin"]
+
+flow_policies:
+  # Mô phỏng cảm biến (chỉ DEMO_MODE): vai được phép và hàm kiểm vị trí thuộc địa bàn (U-04)
+  demo_sensor:
+    roles:
+      - "app:cap-phep:trat-tu-xd"
+    site_check: app_cap_phep_private.vi_tri_thuoc_dia_ban
+  # Biến quy trình được trả kèm danh sách nhiệm vụ cho giao diện (U-07)
+  task_list_variables: [ho_so_id, ma_ho_so, business_key, phieu_id, object_id, object_type]
+  submitter_roles:
+    - "app:cap-phep:chu-dau-tu"
+  staff_roles:
+    - "app:cap-phep:mot-cua"
+    - "app:cap-phep:tham-dinh"
+    - "app:cap-phep:lanh-dao"
+    - "app:cap-phep:trat-tu-xd"
+  submitter_var_names:
+    - "chu_dau_tu_sub"
+    - "chuDauTuSub"
+    - "submitter_sub"
+    - "cdt_sub"
+  owner_var_names:
+    - "chu_dau_tu_sub"
+    - "chuDauTuSub"
+    - "submitter_sub"
+    - "initiator"
+    - "owner_sub"
+    - "object_owner_sub"
+    - "cdt_sub"
+  task_variables:
+    taskKiemTraHopLe: [hoSoHopLe, lyDoTra, lyDoBoSung]
+    taskPhanCong: [nguoiThamDinh, lanhDaoPhanCong]
+    taskThamDinh: [ketQuaThamDinh, noiDungThamDinh]
+    taskThamDinhNhanh: [ketQuaThamDinh, noiDungThamDinh]
+    taskThamDinhChuyenSau: [ketQuaThamDinh, noiDungThamDinh]
+    taskThamDinhDonGian: [ketQuaThamDinh, noiDungThamDinh]
+    taskDuyetCapPhep: [pheDuyet, dongYCapPhep, yKienPheDuyet]
+    taskPheDuyet: [pheDuyet, dongYCapPhep, yKienPheDuyet]
+    taskPheDuyetTruyCapKhan: [quyetDinh, lyDoTuChoi, p_ho_so_id, ho_so_id]
+    taskChoBoSung: [noiDungBoSung, taiLieuBoSung]
+  submitter_tasks: ["taskChoBoSung"]
+  variable_roles:
+    noiDungBoSung: ["app:cap-phep:chu-dau-tu"]
+    taiLieuBoSung: ["app:cap-phep:chu-dau-tu"]
+    nguoiThamDinh: ["app:cap-phep:lanh-dao"]
+    lanhDaoPhanCong: ["app:cap-phep:lanh-dao"]
+    ketQuaThamDinh: ["app:cap-phep:tham-dinh"]
+    noiDungThamDinh: ["app:cap-phep:tham-dinh"]
+    dongYCapPhep: ["app:cap-phep:lanh-dao"]
+    yKienPheDuyet: ["app:cap-phep:lanh-dao"]
+    pheDuyet: ["app:cap-phep:lanh-dao"]
+    hoSoHopLe: ["app:cap-phep:mot-cua"]
+    lyDoTra: ["app:cap-phep:mot-cua"]
+    lyDoBoSung: ["app:cap-phep:mot-cua"]
+  sod_rules:
+    taskDuyetCapPhep:
+      exclude_variable: nguoiThamDinh
+    taskPheDuyet:
+      exclude_variable: nguoiThamDinh
+  initial_task: taskKiemTraHopLe
+  task_transitions:
+    taskKiemTraHopLe: taskPhanCong
+    taskChoBoSung: taskKiemTraHopLe
+    taskPhanCong: taskThamDinh
+    taskThamDinh: taskDuyetCapPhep
+    taskThamDinhNhanh: taskDuyetCapPhep
+  sla:
+    taskKiemTraHopLe: P3D
+    taskPhanCong: P2D
+    taskThamDinh: P7D
+    taskThamDinhNhanh: P5D
+    taskDuyetCapPhep: P3D
+  on_timer: app_cap_phep_private.ghi_qua_han
+  sync_state_sql: app_cap_phep_private.sync_flow_state
+  on_task_complete:
+    taskDuyetCapPhep:
+      when: { dongYCapPhep: true }
+      guard_sql: app_cap_phep_private.kiem_tra_hook_ky
+      sign:
+        doc_type: giay-phep-xay-dung
+        data_sql: app_cap_phep_private.du_lieu_giay_phep
+        object_type: ho_so
+        object_id_field: ho_so_id
+      after_sql: app_cap_phep_private.cap_giay_phep
+    taskPheDuyet:
+      when: { pheDuyet: true }
+      guard_sql: app_cap_phep_private.kiem_tra_hook_ky
+      sign:
+        doc_type: giay-phep-xay-dung
+        data_sql: app_cap_phep_private.du_lieu_giay_phep
+        object_type: ho_so
+        object_id_field: ho_so_id
+      after_sql: app_cap_phep_private.cap_giay_phep
+
+doc_signers:
+  giay-phep-xay-dung:
+    sign_roles: ["app:cap-phep:lanh-dao"]
+    revoke_roles: ["app:cap-phep:lanh-dao"]
+  giay_phep:
+    sign_roles: ["app:cap-phep:lanh-dao"]
+    revoke_roles: ["app:cap-phep:lanh-dao"]
+
+alert_hooks:
+  hau-kiem:
+    on_alert: "app_cap_phep_private.tao_phieu_kiem_tra"
+    on_process_started: "app_cap_phep_private.gan_quy_trinh_phieu"
+
+ingest_rules:
+  rules_file: rules/nguong.yaml
+
+knowledge:
+  dir: knowledge/
+
+# Manifest giấy tờ bắt buộc theo thủ tục (P1 - Poka-yoke)
+# UI sinh checklist động từ đây; RPC nop_ho_so kiểm tra lại ở server (fail-closed).
+document_manifest:
+  thu_tuc: cap-phep-nha-o-rieng-le
+  ten: Cấp phép xây dựng nhà ở riêng lẻ
+  requirements:
+    - loai: don
+      ten: Đơn xin cấp phép xây dựng
+      bat_buoc: true
+      yeu_cau_hieu_luc: false
+      thong_tin: [ho_ten, cccd]
+    - loai: giay_to_dat
+      ten: Giấy chứng nhận quyền sử dụng đất
+      bat_buoc: true
+      yeu_cau_hieu_luc: true
+      thong_tin: [so_thua, dien_tich]
+    - loai: ban_ve_mat_bang
+      ten: Bản vẽ mặt bằng
+      bat_buoc: true
+      yeu_cau_hieu_luc: false
+      thong_tin: []
+    - loai: ban_ve_tang
+      ten: Bản vẽ tầng
+      bat_buoc: true
+      yeu_cau_hieu_luc: false
+      thong_tin: [so_tang]
+    - loai: ban_ve_mong
+      ten: Bản vẽ móng
+      bat_buoc: true
+      yeu_cau_hieu_luc: false
+      thong_tin: []
+    - loai: cam_ket_an_toan
+      ten: Cam kết an toàn và môi trường
+      bat_buoc: true
+      yeu_cau_hieu_luc: false
+      thong_tin: []
+    - loai: pccc
+      ten: Giấy thẩm duyệt PCCC
+      bat_buoc: false
+      yeu_cau_hieu_luc: true
+      thong_tin: []
+    - loai: nha_thau
+      ten: Chứng chỉ năng lực nhà thầu
+      bat_buoc: false
+      yeu_cau_hieu_luc: true
+      thong_tin: []
+    - loai: le_phi
+      ten: Biên lai lệ phí
+      bat_buoc: false
+      yeu_cau_hieu_luc: false
+      thong_tin: []
+    - loai: tham_tra
+      ten: Tài liệu phục vụ kiểm tra
+      bat_buoc: false
+      yeu_cau_hieu_luc: false
+      thong_tin: []
+    - loai: tai_lieu_bo_sung
+      ten: Tài liệu bổ sung theo yêu cầu
+      bat_buoc: false
+      yeu_cau_hieu_luc: false
+      thong_tin: []
+
+metrics:
+  - code: ho_so_moi
+    name: Hồ sơ mới trong kỳ
+    unit: hồ sơ
+    query_type: lakehouse
+    sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1"
+  - code: ho_so_dang_xu_ly
+    name: Hồ sơ đang xử lý
+    unit: hồ sơ
+    query_type: transactional
+    sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')"
+  - code: ho_so_qua_han
+    name: Hồ sơ quá hạn
+    unit: hồ sơ
+    query_type: transactional
+    sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND (han_tong_at < now() OR qua_han = true) AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')"
+  - code: thoi_gian_xu_ly_tb
+    name: Thời gian xử lý trung bình
+    unit: ngày
+    query_type: hybrid
+    sql: "SELECT COALESCE(round(avg(EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400.0)::numeric, 1), 0) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai = 'DA_CAP'"
+  - code: truy_cap_tu_choi
+    name: Lượt truy cập bị từ chối (403)
+    unit: lượt
+    query_type: audit
+    sql: "SELECT count(*) FROM core.audit_log WHERE tenant = $1 AND action = 'access.denied'"
+  - code: phieu_kiem_tra
+    name: Số phiếu kiểm tra hiện trường
+    unit: phiếu
+    query_type: transactional
+    sql: "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1"
+  - code: canh_bao_cong_truong
+    name: Cảnh báo vượt ngưỡng công trường
+    unit: lượt
+    query_type: transactional
+    sql: "SELECT count(*) FROM core.outbox WHERE tenant = $1 AND topic = 'alert.threshold'"
+  - code: vi_pham
+    name: Số vụ vi phạm đã kết luận
+    unit: vụ
+    query_type: transactional
+    sql: "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1 AND ket_luan = 'Có vi phạm'"
+
+seed:
+  script: seed/seed.py
