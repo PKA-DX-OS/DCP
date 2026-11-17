@@ -55,7 +55,7 @@ async def test_outbox_relay_publishes_and_reconnects():
     with patch.object(outbox_main, "get_db_pool", new_callable=AsyncMock) as mock_get_pool, \
          patch("nats.connect", new_callable=AsyncMock) as mock_nats_connect, \
          patch("asyncio.sleep", side_effect=mock_sleep):
-        
+
         mock_get_pool.return_value = mock_pool
         mock_nats_connect.return_value = mock_nc
 
