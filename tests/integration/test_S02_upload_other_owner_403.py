@@ -4,7 +4,7 @@
 import json
 import urllib.request
 import urllib.error
-from tests.integration.conftest import get_token, GATEWAY_URL
+from tests.integration._auth import get_token, GATEWAY_URL
 
 
 def test_S02_upload_other_owner_403():

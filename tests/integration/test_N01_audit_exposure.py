@@ -13,7 +13,7 @@ import subprocess
 import urllib.request
 import urllib.error
 import pytest
-from tests.integration.conftest import GATEWAY_URL, get_token
+from tests.integration._auth import GATEWAY_URL, get_token
 
 
 def parse_sub(tok: str) -> str:

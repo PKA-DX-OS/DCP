@@ -4,7 +4,7 @@
 import subprocess
 import urllib.request
 import urllib.error
-from tests.integration.conftest import GATEWAY_URL, get_token
+from tests.integration._auth import GATEWAY_URL, get_token
 
 
 def test_V3_05_file_download_403_records_access_denied_audit():
