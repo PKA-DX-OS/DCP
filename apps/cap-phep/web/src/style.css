@@ -1,0 +1,62 @@
+/* SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mã màu chỉ khai báo ở đây. Mặc định là nền đêm; data-theme="light" là nền sáng */
+:root {
+  --nen: #0b1220;
+  --chu: #e2e8f0;
+  --phu: #94a3b8;
+  --vien: rgba(226, 232, 240, 0.14);
+  --kinh: rgba(15, 23, 42, 0.62);
+  --son: #60a5fa;
+  --nhan-nen: #e2e8f0;
+  --nhan-chu: #0f172a;
+  --canh-bao: #fca5a5;
+}
+:root[data-theme="light"] {
+  --nen: #f8fafc;
+  --chu: #0f172a;
+  --phu: #475569;
+  --vien: rgba(15, 23, 42, 0.12);
+  --kinh: rgba(255, 255, 255, 0.72);
+  --son: #1d4ed8;
+  --nhan-nen: #1e293b;
+  --nhan-chu: #ffffff;
+  --canh-bao: #b91c1c;
+}
+
+html, body { background: var(--nen); color: var(--chu); }
+:focus-visible { outline: 2px solid var(--son); outline-offset: 2px; }
+
+.the, .chi-so {
+  background: var(--kinh);
+  border: 1px solid var(--vien);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.tieu-de-trang { @apply text-xl font-semibold; }
+.text-phu { color: var(--phu); }
+.text-son { color: var(--son); }
+.canh-bao { color: var(--canh-bao); }
+.goi-y { @apply text-xs; color: var(--phu); }
+.nhan { @apply block text-sm font-semibold; }
+.nhan-nen { background: var(--nhan-nen); color: var(--nhan-chu); }
+.border-vien-nhat { border-color: var(--vien); }
+.o { @apply rounded border px-2 py-1; border-color: var(--vien); background: transparent; color: var(--chu); }
+.btn { @apply rounded border px-3 py-2 text-sm; border-color: var(--vien); color: var(--chu); }
+.btn-sm { @apply rounded border px-2 py-1 text-xs; border-color: var(--vien); color: var(--chu); }
+.btn-chinh { @apply rounded px-4 py-2 text-sm font-semibold; background: var(--nhan-nen); color: var(--nhan-chu); }
+.btn-chinh:disabled { opacity: 0.5; }
+.nut-dong { @apply rounded px-2 py-1 text-sm; color: var(--phu); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .the, .chi-so { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--nen); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
