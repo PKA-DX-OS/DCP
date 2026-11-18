@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Cài: sao chép vào /etc/systemd/system/, sửa WorkingDirectory cho đúng thư mục repo,
+# rồi `systemctl daemon-reload && systemctl enable --now dxos-reconciler.timer`.
+
+[Unit]
+Description=DX-OS GitOps reconciler (đối soát trạng thái, mặc định chỉ báo lệch)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+# oneshot: timer không kích hoạt lần mới khi lần trước còn chạy; reconciler giữ thêm khóa logs/reconciler.lock
+Type=oneshot
+User=dxos
+Group=docker
+WorkingDirectory=/opt/dxos
+ExecStart=/usr/bin/python3 ops/reconciler/reconciler.py
+# Mã 3 = phát hiện lệch, không phải lỗi dịch vụ
+SuccessExitStatus=3
+TimeoutStartSec=300
+StandardOutput=journal
+StandardError=journal

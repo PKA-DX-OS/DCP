@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[Unit]
+Description=Chạy DX-OS GitOps reconciler mỗi 5 phút
+
+[Timer]
+OnBootSec=2min
+# Đếm từ lúc lần trước kết thúc nên các lần chạy không chồng lên nhau
+OnUnitInactiveSec=5min
+AccuracySec=30s
+Unit=dxos-reconciler.service
+
+[Install]
+WantedBy=timers.target
