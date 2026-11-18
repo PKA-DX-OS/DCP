@@ -10,14 +10,16 @@ khác tạo, nên chạy riêng lẻ hay đảo thứ tự đều được.
 
 import base64
 import json
+import os
 import re
 import subprocess
 import time
 import uuid
+from pathlib import Path
 
 import httpx
 
-from tests.integration._auth import GATEWAY_URL, get_token
+from tests.integration._auth import GATEWAY_URL, ROOT, get_token
 
 __all__ = [
     "GATEWAY_URL",
@@ -25,6 +27,7 @@ __all__ = [
     "build_tep",
     "cap_phep_den_buoc_duyet",
     "complete_task",
+    "flowable",
     "get_token",
     "make_pdf",
     "normalize_payload",
@@ -46,6 +49,8 @@ REQUIRED_DOC_LOAI = [
     "ban_ve_mong",
     "cam_ket_an_toan",
 ]
+
+FLOWABLE_HOST_URL = os.getenv("FLOWABLE_HOST_URL", "http://localhost:8082/flowable-rest")
 
 
 # --- CSDL ---------------------------------------------------------------
@@ -263,3 +268,22 @@ def cap_phep_den_buoc_duyet(cdt: str, payload: dict, tag_prefix: str) -> dict:
 
     task = wait_task(tok["ld.hoa"], proc_id, "taskDuyetCapPhep")
     return {"ho_so": ho_so, "proc_id": proc_id, "task": task, "tokens": tok}
+
+
+def _flowable_creds() -> tuple[str, str]:
+    user = os.getenv("FLOWABLE_USER")
+    pw = os.getenv("FLOWABLE_PASSWORD")
+    env_file = Path(ROOT) / ".env"
+    if (not user or not pw) and env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if not user and line.startswith("FLOWABLE_USER="):
+                user = line.split("=", 1)[1].strip()
+            elif not pw and line.startswith("FLOWABLE_PASSWORD="):
+                pw = line.split("=", 1)[1].strip()
+    assert pw, "Thiếu FLOWABLE_PASSWORD (biến môi trường hoặc .env)"
+    return user or "rest-admin", pw
+
+
+def flowable() -> httpx.Client:
+    """Client REST quản trị Flowable (cổng 127.0.0.1:8082 của stack) để kiểm tra trạng thái engine."""
+    return httpx.Client(base_url=FLOWABLE_HOST_URL, auth=_flowable_creds(), timeout=15.0)

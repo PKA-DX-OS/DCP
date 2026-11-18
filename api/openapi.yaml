@@ -1,0 +1,1293 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS Open-Core API — app cấp phép xây dựng
+  version: 1.0.0
+  summary: Hợp đồng API mà web cấp phép và test tích hợp dùng qua cổng APISIX.
+  description: |
+    Mọi yêu cầu đi qua APISIX (`:8080`). APISIX chuyển:
+
+    - `/api/v1/rest/*` tới PostgREST (schema mặc định `app_cap_phep`), bỏ tiền tố `/api/v1/rest`;
+    - `/api/v1/files*` tới `files`, `/api/v1/docs*` và `/kiem-tra/*` tới `doc-sign`;
+    - `/api/v1/flow*` và `/api/v1/events*` tới `flow`.
+
+    Quyền đọc/ghi dữ liệu do RLS trong PostgreSQL quyết định theo `sub`, `tenant`, `roles` của JWT.
+
+    ## Lỗi
+
+    Có ba dạng thân lỗi, tùy nơi phát sinh:
+
+    | Nơi | Dạng | Ví dụ |
+    |---|---|---|
+    | Dịch vụ FastAPI (`files`, `doc-sign`, `flow`) dùng `HTTPException` | `LoiDichVu`: `{"detail": {"loi": "...", "ma_loi": "..."}}` | 401 token sai, 403 không đúng người xử lý |
+    | Dịch vụ trả `JSONResponse` trực tiếp (quét mã độc, ClamAV quá tải) | `LoiTrucTiep`: `{"loi": "...", ...}` | 422 tệp nhiễm mã độc, 503 ClamAV |
+    | PostgREST (`/api/v1/rest/*`) | `LoiPostgrest`: `{"code", "message", "details", "hint"}` | 403 RLS, 422 thiếu giấy tờ |
+
+    Mã `ma_loi` dịch vụ dùng: `TOKEN_INVALID` (401, `dxos_core.jwt`). RPC `mo_ho_so` trả thân
+    JSON với `ma_loi` `ACCESS_DENIED`, `FORBIDDEN_TENANT` hoặc `NOT_FOUND` kèm mã HTTP tương ứng.
+
+    Mã SQLSTATE do hàm SQL ném và mã HTTP PostgREST trả:
+
+    | SQLSTATE | HTTP | Ý nghĩa |
+    |---|---|---|
+    | `42501` | 403 | Không có quyền (RLS, sai vai, sai địa bàn) |
+    | `22023` | 400 | Tham số không hợp lệ |
+    | `23505` | 409 | Trùng khóa (mã hồ sơ) |
+    | `PT404` | 404 | Không tìm thấy yêu cầu truy cập khẩn đang chờ |
+    | `PT422` | 422 | Không đạt kiểm tra nghiệp vụ; `details` là chuỗi JSON danh sách `LoiGiayTo` |
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+    description: APISIX trên máy chạy stack
+
+security:
+  - bearer: []
+
+tags:
+  - name: ho-so
+    description: Hồ sơ cấp phép và giấy tờ
+  - name: giay-phep
+    description: Giấy phép đã ký và tra cứu công khai
+  - name: cong-trinh
+    description: Công trình và phiếu kiểm tra hậu kiểm
+  - name: quy-trinh
+    description: Việc trong quy trình Flowable
+  - name: truy-cap-khan
+    description: Xin và duyệt truy cập khẩn (break-glass)
+  - name: du-lieu-ca-nhan
+    description: Đồng ý xử lý dữ liệu và yêu cầu DSAR
+  - name: tep
+    description: Tải lên và tải về tệp đính kèm
+  - name: thong-bao
+    description: Thông báo lưu trữ và luồng SSE
+
+paths:
+  # ---------------------------------------------------------------- hồ sơ
+  /api/v1/rest/v_ho_so:
+    get:
+      tags: [ho-so]
+      summary: Danh sách hồ sơ người dùng được thấy
+      description: RLS lọc theo vai; chủ đầu tư chỉ thấy hồ sơ của mình. Hỗ trợ bộ lọc PostgREST (`id=eq.<uuid>`, `order`, `limit`).
+      parameters:
+        - $ref: "#/components/parameters/PgId"
+        - $ref: "#/components/parameters/PgOrder"
+        - $ref: "#/components/parameters/PgLimit"
+      responses:
+        "200":
+          description: Mảng hồ sơ (có thể rỗng)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/HoSo" }
+        "401": { $ref: "#/components/responses/ChuaXacThucPostgrest" }
+
+  /api/v1/rest/rpc/nop_ho_so:
+    post:
+      tags: [ho-so]
+      summary: Nộp hồ sơ kèm danh sách giấy tờ đã tải lên
+      description: Chỉ vai `app:cap-phep:chu-dau-tu`. Server kiểm tra lại đủ giấy bắt buộc, hạn hiệu lực, trùng SHA-256, khớp thông tin chéo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NopHoSo" }
+      responses:
+        "200":
+          description: Đã nộp
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, id, ma_ho_so]
+                properties:
+                  status: { const: success }
+                  id: { type: string, format: uuid }
+                  ma_ho_so: { type: string, examples: [CP-2026-123456] }
+                  so_tep: { type: integer }
+                  message: { type: string }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+        "409": { $ref: "#/components/responses/LoiPostgrest" }
+        "422": { $ref: "#/components/responses/KhongDatGiayTo" }
+
+  /api/v1/rest/rpc/bo_sung_ho_so:
+    post:
+      tags: [ho-so]
+      summary: Chủ đầu tư bổ sung thông tin hồ sơ đang CAN_BO_SUNG
+      description: Chỉ cập nhật dữ liệu; trạng thái đổi khi chủ đầu tư hoàn thành việc `taskChoBoSung`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_dia_chi_cong_trinh: { type: [string, "null"] }
+                p_thua_dat: { type: [string, "null"] }
+                p_so_tang: { type: [integer, "null"] }
+                p_dien_tich_san_m2: { type: [number, "null"] }
+                p_khu_quan_ly_kien_truc: { type: [boolean, "null"] }
+      responses:
+        "200": { $ref: "#/components/responses/KetQuaRpc" }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+
+  /api/v1/rest/rpc/mo_ho_so:
+    post:
+      tags: [ho-so]
+      summary: Mở chi tiết hồ sơ, ghi audit truy cập
+      description: Cán bộ chưa được phân công nhận 403 kèm `can_xin_truy_cap_khan`; lần từ chối được ghi audit `access.denied`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [p_id]
+                  properties: { p_id: { type: string, format: uuid } }
+                - type: object
+                  required: [p_ma_ho_so]
+                  properties: { p_ma_ho_so: { type: string } }
+      responses:
+        "200":
+          description: Bản ghi `v_ho_so`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HoSo" }
+        "403":
+          description: Không được phân công hoặc khác địa bàn
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TuChoiHoSo" }
+        "404":
+          description: Không tìm thấy hồ sơ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TuChoiHoSo" }
+
+  /api/v1/rest/rpc/dinh_kem_tep:
+    post:
+      tags: [ho-so]
+      summary: Gắn tệp đã quét sạch vào hồ sơ (phiên bản mới nếu đã có loại giấy đó)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id, p_file_id, p_loai]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_file_id: { type: string, format: uuid }
+                p_loai: { type: string, examples: [ban_ve_mat_bang] }
+                p_ngay_cap: { type: [string, "null"], format: date }
+                p_ngay_het_han: { type: [string, "null"], format: date }
+                p_thong_tin: { type: object }
+      responses:
+        "200":
+          description: Đã gắn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: success }
+                  tep_id: { type: string, format: uuid }
+                  loai: { type: string }
+                  version: { type: integer }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+        "422": { $ref: "#/components/responses/LoiPostgrest" }
+
+  /api/v1/rest/rpc/danh_gia_tep:
+    post:
+      tags: [ho-so]
+      summary: Cán bộ đánh giá từng tệp của hồ sơ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_tep_id, p_trang_thai]
+              properties:
+                p_tep_id: { type: string, format: uuid }
+                p_trang_thai: { type: string, enum: [dat, khong_dat] }
+                p_ly_do: { type: [string, "null"] }
+      responses:
+        "200": { $ref: "#/components/responses/KetQuaRpc" }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+
+  /api/v1/rest/v_ho_so_tep:
+    get:
+      tags: [ho-so]
+      summary: Tệp đính kèm của hồ sơ
+      parameters:
+        - name: ho_so_id
+          in: query
+          required: true
+          schema: { type: string, examples: ["eq.4f0c..."] }
+      responses:
+        "200":
+          description: Mảng tệp
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TepHoSo" }
+
+  /api/v1/rest/document_manifest:
+    get:
+      tags: [ho-so]
+      summary: Checklist giấy tờ theo hồ sơ (view `document_manifest`)
+      parameters:
+        - name: ho_so_id
+          in: query
+          schema: { type: string, examples: ["eq.4f0c..."] }
+      responses:
+        "200":
+          description: Mỗi dòng là một loại giấy với tình trạng
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DongManifest" }
+
+  /api/v1/rest/document_requirements:
+    get:
+      tags: [ho-so]
+      summary: Danh mục loại giấy tờ (nạp từ `app.yaml`)
+      responses:
+        "200":
+          description: Mảng loại giấy
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LoaiGiayTo" }
+
+  /api/v1/rest/rpc/giay_to_con_thieu:
+    post:
+      tags: [ho-so]
+      summary: Các giấy tờ chưa đạt của một hồ sơ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties: { p_ho_so_id: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Mảng loại giấy còn thiếu hoặc không đạt
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DongManifest" }
+
+  /api/v1/rest/rpc/lay_nhat_ky_ho_so:
+    post:
+      tags: [ho-so]
+      summary: Nhật ký truy cập và xử lý một hồ sơ (họ tên cán bộ, lý do truy cập khẩn)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_limit: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Mảng bản ghi nhật ký, mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NhatKy" }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+
+  # ------------------------------------------------------------ giấy phép
+  /api/v1/rest/rpc/thong_tin_giay_phep:
+    post:
+      tags: [giay-phep]
+      summary: Thông tin giấy phép của hồ sơ đã cấp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties: { p_ho_so_id: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Giấy phép
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GiayPhep" }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+
+  /api/v1/docs/sign:
+    post:
+      tags: [giay-phep]
+      summary: Dựng PDF và ký số (vai trong `doc_signers` của app)
+      description: Quy trình cấp phép gọi qua hook khi lãnh đạo duyệt; gọi trực tiếp chỉ khi cần ký tay.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc_type, data]
+              properties:
+                doc_type: { type: string, examples: [giay-phep-xay-dung] }
+                template_name: { type: [string, "null"] }
+                data: { type: object }
+                object_type: { type: [string, "null"] }
+                object_id: { type: [string, "null"] }
+      responses:
+        "201":
+          description: Đã ký
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  doc_id: { type: string, format: uuid }
+                  public_code: { type: string }
+                  object_key: { type: string }
+                  sha256: { type: string }
+                  signature: { type: string }
+                  key_version: {}
+                  status: { const: valid }
+                  verify_url: { type: string, format: uri }
+        "401": { $ref: "#/components/responses/ChuaXacThuc" }
+        "403": { $ref: "#/components/responses/Cam" }
+
+  /api/v1/docs/{doc_id}/revoke:
+    post:
+      tags: [giay-phep]
+      summary: Thu hồi văn bản đã ký
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ly_do]
+              properties: { ly_do: { type: string } }
+      responses:
+        "200":
+          description: Đã thu hồi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: revoked }
+                  doc_id: { type: string }
+                  public_code: { type: string }
+        "403": { $ref: "#/components/responses/Cam" }
+        "404": { $ref: "#/components/responses/KhongThay" }
+
+  /api/v1/docs/{doc_id}/download:
+    get:
+      tags: [giay-phep]
+      summary: Tải bản gốc PDF đã ký (cần quyền đọc đối tượng gắn với văn bản, có audit)
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, contentMediaType: application/pdf }
+        "401": { $ref: "#/components/responses/ChuaXacThuc" }
+        "404": { $ref: "#/components/responses/KhongThay" }
+
+  /kiem-tra/{public_code}:
+    get:
+      tags: [giay-phep]
+      summary: Tra cứu công khai văn bản đã ký (không cần đăng nhập)
+      description: "`Accept: text/html` trả trang HTML; mặc định trả JSON. Không có dữ liệu cá nhân, không tải được bản gốc."
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PublicCode"
+      responses:
+        "200":
+          description: Kết quả xác minh
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TraCuuCongKhai" }
+            text/html:
+              schema: { type: string }
+        "404":
+          description: Không có mã này
+
+  /kiem-tra/{public_code}/verify-file:
+    post:
+      tags: [giay-phep]
+      summary: Đối soát tệp PDF người dân đang giữ với văn bản đã ký
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PublicCode"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, contentMediaType: application/pdf }
+      responses:
+        "200":
+          description: Kết quả đối soát (JSON hoặc HTML theo `Accept`)
+        "404":
+          description: Không có mã này
+
+  # ------------------------------------------------- công trình, hậu kiểm
+  /api/v1/rest/v_cong_trinh:
+    get:
+      tags: [cong-trinh]
+      summary: Công trình đã cấp phép trong địa bàn (kèm mã hồ sơ)
+      parameters:
+        - $ref: "#/components/parameters/PgOrder"
+      responses:
+        "200":
+          description: Mảng công trình
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CongTrinh" }
+
+  /api/v1/rest/v_phieu_kiem_tra:
+    get:
+      tags: [cong-trinh]
+      summary: Phiếu kiểm tra hiện trường
+      parameters:
+        - $ref: "#/components/parameters/PgOrder"
+      responses:
+        "200":
+          description: Mảng phiếu
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PhieuKiemTra" }
+
+  /api/v1/rest/rpc/lap_phieu_kiem_tra:
+    post:
+      tags: [cong-trinh]
+      summary: Cán bộ trật tự xây dựng lập phiếu kiểm tra chủ động
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_cong_trinh_id]
+              properties:
+                p_cong_trinh_id: { type: string, format: uuid }
+                p_ghi_chu: { type: [string, "null"] }
+      responses:
+        "200":
+          description: Đã lập
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: success }
+                  id: { type: string, format: uuid }
+                  phieu_id: { type: string, format: uuid }
+                  cong_trinh_id: { type: string, format: uuid }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+
+  # ------------------------------------------------------------ quy trình
+  /api/v1/flow/tasks:
+    get:
+      tags: [quy-trinh]
+      summary: Việc của người dùng (giao trực tiếp hoặc theo nhóm vai), trong địa bàn của token
+      responses:
+        "200":
+          description: Danh sách việc; `variables` chỉ gồm biến khai báo ở `flow_policies.task_list_variables`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items: { $ref: "#/components/schemas/Viec" }
+                  count: { type: integer }
+                  tenant: { type: string }
+        "401": { $ref: "#/components/responses/ChuaXacThuc" }
+
+  /api/v1/flow/tasks/{task_id}:
+    get:
+      tags: [quy-trinh]
+      summary: Chi tiết một việc
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Việc
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Viec" }
+        "403": { $ref: "#/components/responses/Cam" }
+        "404": { $ref: "#/components/responses/KhongThay" }
+
+  /api/v1/flow/tasks/{task_id}/complete:
+    post:
+      tags: [quy-trinh]
+      summary: Hoàn thành việc
+      description: |
+        Chặn 403 khi: khác địa bàn; việc đã giao người khác; không thuộc nhóm vai ứng viên;
+        người nộp xử lý hồ sơ của mình; vi phạm `sod_rules` (vd. người thẩm định tự phê duyệt).
+        Chặn 400 khi gửi biến không khai báo cho bước đó. 502 khi hook sau bước (ký số) lỗi;
+        lãnh đạo gọi lại bằng `/api/v1/flow/hooks/retry`.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variables:
+                  type: object
+                  examples: [{ hoSoHopLe: true }]
+      responses:
+        "200":
+          description: Đã hoàn thành
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: success }
+                  task_id: { type: string }
+        "400": { $ref: "#/components/responses/YeuCauSai" }
+        "403": { $ref: "#/components/responses/Cam" }
+        "404": { $ref: "#/components/responses/KhongThay" }
+        "502": { $ref: "#/components/responses/LoiHook" }
+
+  /api/v1/flow/processes/start:
+    post:
+      tags: [quy-trinh]
+      summary: Khởi động quy trình (tenant và `initiator` lấy từ token)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KhoiDongQuyTrinh" }
+      responses:
+        "200": { $ref: "#/components/responses/DaKhoiDong" }
+        "401": { $ref: "#/components/responses/ChuaXacThuc" }
+
+  /api/v1/flow/process-instances:
+    post:
+      tags: [quy-trinh]
+      summary: Tên khác của `/api/v1/flow/processes/start`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KhoiDongQuyTrinh" }
+      responses:
+        "200": { $ref: "#/components/responses/DaKhoiDong" }
+
+  /api/v1/flow/hooks/retry:
+    post:
+      tags: [quy-trinh]
+      summary: Chạy lại hook ký số bị lỗi của một bước (vai lãnh đạo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [process_instance_id, task_def]
+              properties:
+                process_instance_id: { type: string }
+                task_def: { type: string, examples: [taskDuyetCapPhep] }
+      responses:
+        "200":
+          description: Hook đã chạy xong
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: success }
+                  process_instance_id: { type: string }
+                  task_def: { type: string }
+                  signed_doc_id: { type: [string, "null"] }
+                  public_code: { type: [string, "null"] }
+        "403": { $ref: "#/components/responses/Cam" }
+        "502": { $ref: "#/components/responses/LoiHook" }
+
+  # -------------------------------------------------------- truy cập khẩn
+  /api/v1/rest/rpc/xin_truy_cap_khan:
+    post:
+      tags: [truy-cap-khan]
+      summary: Cán bộ xin truy cập khẩn một hồ sơ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id, p_ly_do]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_ly_do: { type: string }
+      responses:
+        "200":
+          description: Đã ghi nhận, chờ duyệt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: pending }
+                  request_id: { type: string, format: uuid }
+                  message: { type: string }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+
+  /api/v1/rest/rpc/duyet_truy_cap_khan:
+    post:
+      tags: [truy-cap-khan]
+      summary: Lãnh đạo duyệt hoặc từ chối; người xin không tự duyệt được
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id, p_user_sub]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_user_sub: { type: string, description: "`sub` của người xin" }
+                p_dong_y: { type: boolean, default: true }
+      responses:
+        "200":
+          description: Đã xử lý
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { enum: [approved, rejected] }
+                  request_id: { type: string, format: uuid }
+                  expires_at: { type: string, format: date-time }
+                  message: { type: string }
+        "403": { $ref: "#/components/responses/CamPostgrest" }
+        "404": { $ref: "#/components/responses/LoiPostgrest" }
+
+  /api/v1/rest/rpc/ds_truy_cap_khan:
+    post:
+      tags: [truy-cap-khan]
+      summary: Danh sách yêu cầu truy cập khẩn trong địa bàn
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_trang_thai: { type: [string, "null"], examples: [pending] }
+      responses:
+        "200":
+          description: Mảng yêu cầu
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+
+  # ---------------------------------------------------- dữ liệu cá nhân
+  /api/v1/rest/consents:
+    get:
+      tags: [du-lieu-ca-nhan]
+      summary: Các đồng ý xử lý dữ liệu của người dùng
+      parameters:
+        - $ref: "#/components/parameters/PgOrder"
+      responses:
+        "200":
+          description: Mảng đồng ý
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+
+  /api/v1/rest/dsar_requests:
+    get:
+      tags: [du-lieu-ca-nhan]
+      summary: Yêu cầu của chủ thể dữ liệu (DSAR) đã gửi
+      parameters:
+        - $ref: "#/components/parameters/PgOrder"
+      responses:
+        "200":
+          description: Mảng yêu cầu
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+
+  /api/v1/rest/rpc/dong_y_du_lieu:
+    post:
+      tags: [du-lieu-ca-nhan]
+      summary: Ghi nhận đồng ý một mục đích xử lý
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_purpose]
+              properties:
+                p_purpose: { type: string, examples: [xu_ly_ho_so] }
+                p_text_version: { type: string, default: "1.0" }
+      responses:
+        "200": { $ref: "#/components/responses/KetQuaRpc" }
+
+  /api/v1/rest/rpc/rut_dong_y_du_lieu:
+    post:
+      tags: [du-lieu-ca-nhan]
+      summary: Rút đồng ý một mục đích xử lý
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_purpose]
+              properties:
+                p_purpose: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/KetQuaRpc" }
+
+  /api/v1/rest/rpc/gui_yeu_cau_dsar:
+    post:
+      tags: [du-lieu-ca-nhan]
+      summary: Gửi yêu cầu DSAR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_type]
+              properties:
+                p_type: { type: string, enum: [access, rectification, erasure, withdraw] }
+                p_legal_basis_note: { type: [string, "null"] }
+      responses:
+        "200": { $ref: "#/components/responses/KetQuaRpc" }
+        "400": { $ref: "#/components/responses/LoiPostgrest" }
+
+  # ------------------------------------------------------------------ tệp
+  /api/v1/files:
+    post:
+      tags: [tep]
+      summary: Tải tệp lên; quét ClamAV trước khi lưu
+      description: Tối đa 20 MB; phần mở rộng phải khớp nội dung (magic bytes).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, object_type, object_id]
+              properties:
+                file: { type: string, contentMediaType: application/octet-stream }
+                object_type: { type: string, examples: [draft.ho_so, ho_so] }
+                object_id: { type: string }
+      responses:
+        "201":
+          description: Tệp sạch, đã lưu
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [file_id, status]
+                properties:
+                  file_id: { type: string, format: uuid }
+                  object_key: { type: string }
+                  sha256: { type: string }
+                  size: { type: integer }
+                  status: { const: clean }
+        "400": { $ref: "#/components/responses/YeuCauSai" }
+        "403": { $ref: "#/components/responses/Cam" }
+        "413": { $ref: "#/components/responses/YeuCauSai" }
+        "422":
+          description: Tệp nhiễm mã độc, đã cách ly
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoiTrucTiep" }
+        "503":
+          description: ClamAV không sẵn sàng; thử lại sau `Retry-After` giây
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoiTrucTiep" }
+    get:
+      tags: [tep]
+      summary: 50 tệp mới nhất của địa bàn
+      responses:
+        "200":
+          description: Mảng tệp
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+
+  /api/v1/files/{file_id}:
+    get:
+      tags: [tep]
+      summary: Đường tải có chữ ký, hiệu lực 5 phút
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: Đường tải
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_id: { type: string }
+                  download_url: { type: string, format: uri }
+                  sha256: { type: string }
+                  size: { type: integer }
+                  mime: { type: string }
+        "403": { $ref: "#/components/responses/Cam" }
+        "404": { $ref: "#/components/responses/KhongThay" }
+
+  /api/v1/files/{file_id}/download:
+    get:
+      tags: [tep]
+      summary: Tải nội dung tệp; ghi audit `file.read`, từ chối ghi `access.denied`
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: Nội dung tệp
+          content:
+            application/octet-stream:
+              schema: { type: string, contentMediaType: application/octet-stream }
+        "403": { $ref: "#/components/responses/Cam" }
+        "404": { $ref: "#/components/responses/KhongThay" }
+
+  # ------------------------------------------------------------- thông báo
+  /api/v1/rest/rpc/lay_thong_bao:
+    post:
+      tags: [thong-bao]
+      summary: Thông báo đã lưu của người dùng
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200":
+          description: Mảng thông báo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    title: { type: string }
+                    body: { type: string }
+                    link: { type: [string, "null"] }
+                    read_at: { type: [string, "null"], format: date-time }
+
+  /api/v1/rest/rpc/danh_dau_da_doc:
+    post:
+      tags: [thong-bao]
+      summary: Đánh dấu một (hoặc mọi, khi bỏ `p_id`) thông báo đã đọc
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_id: { type: [string, "null"], format: uuid }
+      responses:
+        "200": { $ref: "#/components/responses/KetQuaRpc" }
+
+  /api/v1/events/ticket:
+    post:
+      tags: [thong-bao]
+      summary: Xin vé SSE dùng một lần, hiệu lực 30 giây
+      description: "`EventSource` không gửi được header Authorization nên giao diện đổi token lấy vé."
+      responses:
+        "200":
+          description: Vé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expires_in]
+                properties:
+                  ticket: { type: string }
+                  expires_in: { const: 30 }
+        "401": { $ref: "#/components/responses/ChuaXacThuc" }
+
+  /api/v1/events:
+    get:
+      tags: [thong-bao]
+      summary: Luồng sự kiện SSE
+      description: |
+        Xác thực bằng header Authorization hoặc `?ticket=`. Truyền token qua `?token=` bị từ chối 401;
+        vé đã dùng hoặc hết hạn cũng 401. Sự kiện: `connected`, `notification`, `ping`.
+      security:
+        - bearer: []
+        - {}
+      parameters:
+        - name: ticket
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Luồng `text/event-stream`
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/ChuaXacThuc" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token Keycloak realm `dxos`, có claim `sub`, `tenant`, `roles`.
+
+  parameters:
+    PgId:
+      name: id
+      in: query
+      description: Bộ lọc PostgREST, vd. `eq.<uuid>`
+      schema: { type: string }
+    PgOrder:
+      name: order
+      in: query
+      schema: { type: string, examples: [created_at.desc] }
+    PgLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1 }
+    DocId:
+      name: doc_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FileId:
+      name: file_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema: { type: string }
+    PublicCode:
+      name: public_code
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[A-Za-z0-9_-]{6,64}$" }
+
+  responses:
+    KetQuaRpc:
+      description: Kết quả RPC
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status: { type: string }
+              message: { type: string }
+            additionalProperties: true
+    DaKhoiDong:
+      description: Đã khởi động
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [status, process_id]
+            properties:
+              status: { const: started }
+              process_id: { type: string }
+              process_key: { type: string }
+    ChuaXacThuc:
+      description: Thiếu token, token sai hoặc hết hạn (`ma_loi` `TOKEN_INVALID`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiDichVu" }
+    Cam:
+      description: Không có quyền
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiDichVu" }
+    KhongThay:
+      description: Không tìm thấy
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiDichVu" }
+    YeuCauSai:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiDichVu" }
+    LoiHook:
+      description: Dịch vụ phía sau (doc-sign) lỗi; bước đã ghi `core.hook_runs` trạng thái FAILED
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiDichVu" }
+    ChuaXacThucPostgrest:
+      description: JWT không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiPostgrest" }
+    CamPostgrest:
+      description: SQLSTATE 42501
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiPostgrest" }
+    LoiPostgrest:
+      description: Lỗi từ hàm SQL
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiPostgrest" }
+    KhongDatGiayTo:
+      description: SQLSTATE PT422; `details` là chuỗi JSON mảng `LoiGiayTo`
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiPostgrest" }
+
+  schemas:
+    LoiDichVu:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: object
+              required: [loi]
+              properties:
+                loi: { type: string }
+                ma_loi: { type: string, examples: [TOKEN_INVALID] }
+                chi_tiet: {}
+              additionalProperties: true
+    LoiTrucTiep:
+      type: object
+      required: [loi]
+      properties:
+        loi: { type: string }
+        chi_tiet: {}
+        virus: { type: string }
+        request_id: { type: string }
+    LoiPostgrest:
+      type: object
+      properties:
+        code: { type: string, examples: ["42501", PT422] }
+        message: { type: string }
+        details: { type: [string, "null"] }
+        hint: { type: [string, "null"] }
+    LoiGiayTo:
+      type: object
+      required: [field, reason, action]
+      properties:
+        loai_giay: { type: string }
+        field: { type: string }
+        reason: { type: string, examples: ["Tệp đã tồn tại trong hồ sơ (trùng SHA-256)"] }
+        action: { type: string }
+    TuChoiHoSo:
+      type: object
+      required: [loi, ma_loi]
+      properties:
+        loi: { type: string }
+        ma_loi: { enum: [ACCESS_DENIED, FORBIDDEN_TENANT, NOT_FOUND] }
+        ho_so_id: { type: string, format: uuid }
+        ma_ho_so: { type: string }
+        can_xin_truy_cap_khan: { type: boolean }
+    NopHoSo:
+      type: object
+      required: [ho_ten, cccd, dien_thoai, dia_chi_cong_trinh, thua_dat]
+      properties:
+        ho_ten: { type: string }
+        cccd: { type: string, pattern: "^[0-9]{12}$" }
+        dien_thoai: { type: string }
+        dia_chi_cong_trinh: { type: string }
+        thua_dat: { type: string }
+        so_tang: { type: integer, default: 1 }
+        dien_tich_san_m2: { type: number, default: 100.0 }
+        khu_quan_ly_kien_truc: { type: boolean, default: true }
+        p_ho_so_id: { type: string, format: uuid, description: Id hồ sơ đã dùng khi tải tệp (`draft.ho_so`) }
+        p_tep:
+          type: array
+          items:
+            type: object
+            required: [file_id, loai]
+            properties:
+              file_id: { type: string, format: uuid }
+              loai: { type: string }
+              thong_tin: { type: object }
+              ngay_cap: { type: [string, "null"], format: date }
+              ngay_het_han: { type: [string, "null"], format: date }
+    HoSo:
+      type: object
+      description: Một dòng `app_cap_phep.v_ho_so` (liệt kê các cột giao diện dùng)
+      properties:
+        id: { type: string, format: uuid }
+        ma_ho_so: { type: string }
+        tenant: { type: string }
+        trang_thai:
+          enum: [DA_NOP, CHO_TIEP_NHAN, TIEP_NHAN, CAN_BO_SUNG, DUOC_PHAN_CONG, DANG_THAM_DINH, CHO_DUYET, CHO_KY, DA_CAP, TU_CHOI]
+        buoc: { type: string }
+        ho_ten: { type: string }
+        cccd: { type: string }
+        dia_chi_cong_trinh: { type: string }
+        thua_dat: { type: string }
+        so_tang: { type: integer }
+        dien_tich_san_m2: { type: number }
+        khu_quan_ly_kien_truc: { type: boolean }
+        han_tong_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+      additionalProperties: true
+    TepHoSo:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ho_so_id: { type: string, format: uuid }
+        loai: { type: string }
+        version: { type: integer }
+        status: { type: string, examples: [clean] }
+        trang_thai_kiem_tra: { enum: [cho_kiem_tra, dat, khong_dat, cach_ly] }
+      additionalProperties: true
+    LoaiGiayTo:
+      type: object
+      properties:
+        loai: { type: string }
+        ten: { type: string }
+        bat_buoc: { type: boolean }
+        yeu_cau_hieu_luc: { type: boolean }
+        thong_tin: { type: array, items: { type: string } }
+        thu_tu: { type: integer }
+      additionalProperties: true
+    DongManifest:
+      type: object
+      properties:
+        ho_so_id: { type: string, format: uuid }
+        loai: { type: string }
+        ten: { type: string }
+        bat_buoc: { type: boolean }
+        tinh_trang: { enum: [thieu, khong_dat, cach_ly, het_han, co] }
+      additionalProperties: true
+    NhatKy:
+      type: object
+      description: Chủ hồ sơ không thấy `actor_sub`; `detail` của họ chỉ còn `ly_do`, `trang_thai_moi`
+      properties:
+        at: { type: string, format: date-time }
+        action: { type: string, examples: [break_glass.requested] }
+        actor_sub: { type: [string, "null"] }
+        actor_name: { type: string }
+        actor_roles: { type: [array, "null"], items: { type: string } }
+        object_type: { type: string }
+        object_id: { type: string }
+        detail: { type: object }
+    GiayPhep:
+      type: object
+      properties:
+        so_giay_phep: { type: string, examples: [GPXD-phuong-a-2026-000001] }
+        ma_ho_so: { type: string }
+        ngay_cap: { type: string }
+        nguoi_ky: { type: string, description: Họ tên từ `core.users_directory` }
+        thuat_toan: { type: string }
+        trang_thai: { type: string }
+        ma_cong_khai: { type: string }
+        ma_bam: { type: string }
+        chu_ky: { type: string }
+        khoa_phien_ban: {}
+        url_kiem_tra: { type: string }
+        file_url: { type: string, description: "`/api/v1/docs/{doc_id}/download`, cần token" }
+    TraCuuCongKhai:
+      type: object
+      properties:
+        public_code: { type: string }
+        doc_type: { type: string }
+        tenant: { type: string }
+        trang_thai: { enum: [Hop_le, Da_thu_hoi] }
+        issued_at: { type: string }
+        revoked_at: { type: [string, "null"] }
+        sha256: { type: string }
+        algorithm: { type: string }
+        key_version: { type: string }
+        signature_type: { type: string }
+    CongTrinh:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ma_cong_trinh: { type: string }
+        ma_ho_so: { type: string }
+        tenant: { type: string }
+        created_at: { type: string, format: date-time }
+      additionalProperties: true
+    PhieuKiemTra:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        cong_trinh_id: { type: string, format: uuid }
+        nguon: { type: string }
+        ket_luan: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+      additionalProperties: true
+    Viec:
+      type: object
+      description: Task Flowable kèm biến được phép hiển thị
+      properties:
+        id: { type: string }
+        name: { type: string }
+        taskDefinitionKey: { type: string, examples: [taskKiemTraHopLe] }
+        processInstanceId: { type: string }
+        tenantId: { type: string }
+        assignee: { type: [string, "null"] }
+        variables:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              value: {}
+      additionalProperties: true
+    KhoiDongQuyTrinh:
+      type: object
+      required: [process_key]
+      properties:
+        process_key: { type: string, examples: [cap-phep, hau-kiem, truy-cap-khan] }
+        business_key: { type: [string, "null"] }
+        variables: { type: object }
