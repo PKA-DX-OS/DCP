@@ -39,13 +39,14 @@ export function useNotifications(getUserSub: () => string | undefined) {
         trangThai.value = "da_ket_noi";
         lanThu = 0;
       };
-      es.onmessage = (ev) => {
+      // Server gửi sự kiện có tên "notification" (kèm "connected", "ping"); onmessage chỉ nhận sự kiện không tên
+      es.addEventListener("notification", (ev) => {
         try {
-          xuLy(JSON.parse(ev.data));
+          xuLy(JSON.parse((ev as MessageEvent).data));
         } catch {
           /* sự kiện không đúng định dạng: bỏ qua */
         }
-      };
+      });
       es.onerror = () => {
         es?.close();
         es = null;

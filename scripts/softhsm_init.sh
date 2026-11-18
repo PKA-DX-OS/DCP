@@ -4,11 +4,14 @@
 #
 # Khởi tạo SoftHSM2 + test CA cho chế độ SIGNING_MODE=pkcs11.
 # Đây là mô phỏng kỹ thuật, không phải CA/HSM có giá trị pháp lý.
+# Chạy lại an toàn: token đã có (.initialized) thì bỏ qua, không tạo lại khóa.
 
 set -eu
 
 TOKEN_LABEL="${SOFTHSM_TOKEN:-dxos}"
 PIN="${SOFTHSM_PIN:-1234}"
+# SO PIN riêng nếu có; mặc định dùng PIN người dùng (môi trường demo). Không in PIN ra log.
+SO_PIN="${SOFTHSM_SO_PIN:-$PIN}"
 TOKEN_DIR="/var/lib/softhsm/tokens"
 CERT_DIR="/certs"
 LIB="$(find /usr/lib -name 'libsofthsm2.so' 2>/dev/null | head -n 1)"
@@ -22,7 +25,7 @@ mkdir -p "$TOKEN_DIR" "$CERT_DIR"
 
 if [ ! -f "$TOKEN_DIR/.initialized" ]; then
   echo "[softhsm-init] Khởi tạo token $TOKEN_LABEL..."
-  softhsm2-util --init-token --free --label "$TOKEN_LABEL" --so-pin 1234 --pin "$PIN"
+  softhsm2-util --init-token --free --label "$TOKEN_LABEL" --so-pin "$SO_PIN" --pin "$PIN"
 
   echo "[softhsm-init] Tạo test CA + leaf certificate..."
   openssl req -x509 -newkey rsa:2048 -nodes \
@@ -54,6 +57,8 @@ EOF
   pkcs11-tool --module "$LIB" --token-label "$TOKEN_LABEL" --login --pin "$PIN" \
     --write-object /tmp/leaf.der --type cert --id 01 --label doc-sign
 
+  # Khóa riêng đã nằm trong token; xóa bản tạm trên đĩa
+  rm -f /tmp/leaf.key /tmp/leaf-pkcs8.key /tmp/leaf.csr /tmp/leaf.ext /tmp/leaf.der
   touch "$TOKEN_DIR/.initialized"
   echo "[softhsm-init] Hoàn tất."
 else

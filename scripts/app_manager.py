@@ -346,7 +346,7 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                     json.dumps(manifest.break_glass),
                 )
 
-            for m in manifest.metrics:
+            for thu_tu, m in enumerate(manifest.metrics, start=1):
                 await conn.execute(
                     """
                     INSERT INTO core.app_policies (app_code, policy_type, policy_key, policy_data)
@@ -355,7 +355,7 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                     """,
                     app_code,
                     m.code,
-                    json.dumps(m.model_dump()),
+                    json.dumps({**m.model_dump(), "thu_tu": thu_tu}, ensure_ascii=False),
                 )
             print("  [PASS] Đã đồng bộ chính sách app policies vào core.")
 

@@ -7,9 +7,18 @@ Kịch bản phục hồi thảm họa (Disaster Recovery) và đo lường ch�
 Khôi phục dữ liệu thực tế từ bản sao lưu gần nhất:
 1. Nạp lại cơ sở dữ liệu PostgreSQL.
 2. Tải lại toàn bộ đối tượng S3 lên SeaweedFS.
-3. Đo lường và báo cáo thời gian RTO thực tế.
+3. Phục hồi OpenBao và SoftHSM, đo thời gian RTO thực tế.
+
+Trước khi ghi bất cứ gì: giải mã snapshot restic vào thư mục tạm, đối chiếu manifest.json
+(SHA-256 từng tệp); sai một tệp là dừng. Ghi đè dữ liệu đang chạy cần xác nhận:
+gõ PHUC HOI khi được hỏi, hoặc truyền --yes. Thư mục tạm luôn được dọn khi kết thúc.
+
+    python scripts/restore.py --list            # liệt kê bản sao lưu
+    python scripts/restore.py --chi-kiem        # giải mã và kiểm mã băm, không ghi gì
+    python scripts/restore.py --id dxos-backup-20261118_101500 --yes
 """
 
+import argparse
 import io
 import os
 import shutil
@@ -18,8 +27,13 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+import json
+
 import boto3
 from botocore.config import Config
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from backup import MANIFEST_NAME, kiem_manifest  # noqa: E402
 
 # Ensure UTF-8 output on all platforms
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -34,8 +48,10 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def get_s3_client():
     endpoint = os.getenv("SEAWEEDFS_S3_ENDPOINT", "http://seaweedfs:8333")
-    access_key = os.getenv("SEAWEEDFS_ACCESS_KEY", "dxos_dev_s3_key_2026")
-    secret_key = os.getenv("SEAWEEDFS_SECRET_KEY", "dxos_dev_s3_secret_2026")
+    access_key = os.getenv("SEAWEEDFS_ACCESS_KEY")
+    secret_key = os.getenv("SEAWEEDFS_SECRET_KEY")
+    if not access_key or not secret_key:
+        raise SystemExit("[ERROR] Thiếu SEAWEEDFS_ACCESS_KEY/SEAWEEDFS_SECRET_KEY (đọc từ .env khi chạy qua dx)")
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
@@ -65,56 +81,101 @@ def get_backup_dir() -> Path:
     return local_dir
 
 
-def find_latest_backup() -> tuple[Path, Path | None]:
-    backup_root = get_backup_dir()
-    if not backup_root.exists():
-        raise FileNotFoundError(f"Thư mục sao lưu {backup_root} chưa tồn tại")
-
-    # 1. Thử phục hồi từ Restic Repository nếu có
-    restic_repo = backup_root / "restic_repo"
+def restic_env() -> dict | None:
     pw = os.getenv("RESTIC_PASSWORD")
     if not pw:
         pw_file = ROOT / "secrets" / "restic-password.txt"
         if pw_file.exists():
             pw = pw_file.read_text(encoding="utf-8").strip()
+    if not pw:
+        return None
+    env = os.environ.copy()
+    env["RESTIC_PASSWORD"] = pw
+    env["RESTIC_REPOSITORY"] = str(get_backup_dir() / "restic_repo")
+    return env
 
-    if restic_repo.exists() and pw:
+
+def list_snapshots() -> list[dict]:
+    env = restic_env()
+    if env is None:
+        raise FileNotFoundError("Thiếu RESTIC_PASSWORD hoặc secrets/restic-password.txt")
+    r = subprocess.run(["restic", "snapshots", "--json"], env=env, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"Không đọc được kho restic: {r.stderr.strip()[:300]}")
+    return sorted(json.loads(r.stdout or "[]"), key=lambda x: x.get("time", ""))
+
+
+def giai_ma(backup_id: str | None) -> tuple[Path, Path]:
+    """Giải mã snapshot (mới nhất hoặc theo tag backup_id) vào thư mục tạm; trả (thư mục dữ liệu, thư mục tạm)."""
+    snaps = list_snapshots()
+    if backup_id:
+        snaps = [x for x in snaps if backup_id in (x.get("tags") or [])]
+    if not snaps:
+        raise FileNotFoundError(f"Không có bản sao lưu {backup_id or ''} trong kho restic".strip())
+    snap = snaps[-1]
+    staging = Path(tempfile.mkdtemp(prefix="dxos_restored_"))
+    r = subprocess.run(
+        ["restic", "restore", snap["id"], "--target", str(staging)],
+        env=restic_env(), capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise RuntimeError(f"Giải mã snapshot thất bại: {r.stderr.strip()[:300]}")
+    found = next(iter(staging.rglob(MANIFEST_NAME)), None)
+    if found is None:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise FileNotFoundError(f"Snapshot {snap['short_id']} không có {MANIFEST_NAME}")
+    print(f"  [OK] Đã giải mã snapshot {snap['short_id']} ({', '.join(snap.get('tags') or [])})")
+    return found.parent, staging
+
+
+def xac_nhan(yes: bool) -> bool:
+    if yes:
+        return True
+    if not sys.stdin.isatty():
+        print("[ERROR] Phục hồi sẽ ghi đè dữ liệu đang chạy. Chạy lại với --yes để xác nhận.", file=sys.stderr)
+        return False
+    ans = input("Phục hồi sẽ ghi đè cơ sở dữ liệu, kho tệp, OpenBao và SoftHSM đang chạy. Gõ PHUC HOI để tiếp tục: ")
+    return ans.strip() == "PHUC HOI"
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="Phục hồi DX-OS từ bản sao lưu restic (dx restore)")
+    ap.add_argument("--id", help="backup_id cần phục hồi (mặc định: bản mới nhất)")
+    ap.add_argument("--list", action="store_true", help="Liệt kê bản sao lưu rồi thoát")
+    ap.add_argument("--chi-kiem", action="store_true", help="Chỉ giải mã và kiểm mã băm, không ghi gì")
+    ap.add_argument("--yes", action="store_true", help="Xác nhận ghi đè dữ liệu đang chạy")
+    args = ap.parse_args(argv)
+
+    if args.list:
         try:
-            r_check = subprocess.run(["restic", "version"], capture_output=True, text=True)
-            if r_check.returncode == 0:
-                restore_staging = Path(tempfile.mkdtemp(prefix="dxos_restored_"))
-                r_env = os.environ.copy()
-                r_env["RESTIC_PASSWORD"] = pw
-                r_env["RESTIC_REPOSITORY"] = str(restic_repo)
-                r_run = subprocess.run(
-                    ["restic", "restore", "latest", "--target", str(restore_staging)],
-                    env=r_env,
-                    capture_output=True,
-                    text=True,
-                )
-                if r_run.returncode == 0:
-                    for sql in restore_staging.rglob("postgres_dump.sql"):
-                        print("  [OK] Đã giải mã thành công bản sao lưu từ Restic repository.")
-                        return sql.parent, restore_staging
+            for x in list_snapshots():
+                print(f"{x['short_id']}  {x['time'][:19]}  {', '.join(x.get('tags') or [])}")
         except Exception as e:
-            print(f"  [INFO] Không thể phục hồi từ Restic repo ({e}), kiểm tra thư mục sao lưu...")
+            print(f"[ERROR] {e}", file=sys.stderr)
+            return 1
+        return 0
 
-    # 2. Tìm thư mục bản sao lưu dxos-backup-*
-    dirs = [d for d in backup_root.iterdir() if d.is_dir() and d.name.startswith("dxos-backup-")]
-    if not dirs:
-        raise FileNotFoundError(f"Không tìm thấy bản sao lưu nào trong {backup_root}")
-    return max(dirs, key=lambda d: d.stat().st_mtime), None
-
-
-def main():
     staging_cleanup: Path | None = None
     try:
-        backup_path, staging_cleanup = find_latest_backup()
+        backup_path, staging_cleanup = giai_ma(args.id)
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     try:
+        sai = kiem_manifest(backup_path)
+        if sai:
+            print(f"[ERROR] Bản sao lưu không khớp manifest ({len(sai)} lỗi), dừng, không ghi gì:", file=sys.stderr)
+            for m in sai[:20]:
+                print(f"  - {m}", file=sys.stderr)
+            return 1
+        print("  [OK] Mã băm mọi tệp khớp manifest.")
+        if args.chi_kiem:
+            return 0
+        if not xac_nhan(args.yes):
+            return 1
+
         print("==========================================================")
         print(" [RESTORE] BẮT ĐẦU DIỄN TẬP PHỤC HỒI THẢM HỌA THỰC TẾ ")
         print(f" Thư mục phục hồi: {backup_path.name}")
@@ -200,7 +261,7 @@ def main():
         bao_snapshot = backup_path / "openbao_snapshot.tar"
         t_bao_start = time.time()
         if bao_snapshot.exists():
-            openbao_dir = Path("/openbao-data")
+            openbao_dir = Path(os.getenv("OPENBAO_DATA_DIR", "/openbao-data"))
             if not openbao_dir.exists():
                 openbao_dir = Path("/openbao/file")
 
@@ -279,7 +340,7 @@ def main():
         # Giai đoạn 4: Phục hồi SoftHSM token + test CA
         print("--> Giai đoạn 4: Phục hồi SoftHSM token + test CA...")
         import tarfile
-        for name, dest in (("softhsm_tokens", "/softhsm-tokens"), ("softhsm_certs", "/softhsm-certs")):
+        for name, dest in (("softhsm_tokens", os.getenv("SOFTHSM_TOKENS_DIR", "/softhsm-tokens")), ("softhsm_certs", os.getenv("SOFTHSM_CERTS_DIR", "/softhsm-certs"))):
             tar_path = backup_path / f"{name}.tar"
             dest_path = Path(dest)
             if not tar_path.exists():
@@ -323,8 +384,8 @@ def main():
         print("==========================================================")
         print(" [SUCCESS] PHỤC HỒI THẢM HỌA HOÀN TẤT THÀNH CÔNG! ")
         print(f" TỔNG THỜI GIAN PHỤC HỒI ĐO ĐƯỢC (RTO): {total_rto:.2f} GIÂY ")
-        print(" TIÊU CHUẨN ĐẠT: RTO < 3 PHÚT (VƯỢT CHỈ TIÊU)")
         print("==========================================================")
+        return 0
 
     finally:
         if staging_cleanup and staging_cleanup.exists():
@@ -332,4 +393,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Kiểm thử cấu hình chỉ số điều hành dạng JSON (C04).
 
-Không cần database: thay get_db_connection và verify_jwt_token bằng bản giả lập.
+Chỉ số do app khai báo trong apps/cap-phep/app.yaml (lõi không giữ danh sách nghiệp vụ);
+test đọc qua hợp đồng app như app_manager. Không cần database: thay get_db_connection
+và verify_jwt_token bằng bản giả lập.
 """
 
 import importlib.util
@@ -38,25 +40,42 @@ def _load():
 
 m = _load()
 
+from dxos_core.app_contract import load_app_manifest  # noqa: E402
+
+# Giống app_manager: mỗi chỉ số là model_dump() kèm thu_tu theo thứ tự khai báo
+POLICIES = [
+    {**d.model_dump(), "thu_tu": i}
+    for i, d in enumerate(load_app_manifest(ROOT / "apps" / "cap-phep").metrics, start=1)
+]
+
 
 # ---------- cấu hình JSON ----------
 
 def test_dung_8_chi_so_dung_ma():
-    assert [p["code"] for p in m.METRIC_POLICIES] == EXPECTED_CODES
+    assert [p["code"] for p in POLICIES] == EXPECTED_CODES
+
+
+def test_moi_chi_so_co_pha_he():
+    for p in POLICIES:
+        assert p["lineage_job"] and p["bang_nguon"] and p["dieu_kien_loc"], p["code"]
+
+
+def test_loi_khong_giu_danh_sach_chi_so_nghiep_vu():
+    assert not hasattr(m, "METRIC_POLICIES")
 
 
 def test_moi_cau_hinh_serialize_duoc_thanh_json():
-    for p in m.METRIC_POLICIES:
+    for p in POLICIES:
         json.dumps(p, ensure_ascii=False)
 
 
 def test_moi_cau_hinh_hop_le():
-    for p in m.METRIC_POLICIES:
+    for p in POLICIES:
         assert m.validate_metric_policy(p) is None, p["code"]
 
 
 def test_sql_chi_la_select_va_co_tham_so_tenant():
-    for p in m.METRIC_POLICIES:
+    for p in POLICIES:
         sql = p["sql"].strip().lower()
         assert sql.startswith("select"), p["code"]
         assert "$1" in p["sql"], p["code"]
@@ -70,13 +89,13 @@ def test_sql_chi_la_select_va_co_tham_so_tenant():
     "UPDATE app_cap_phep.ho_so SET x = 1 WHERE tenant = $1",
 ])
 def test_tu_choi_sql_khong_an_toan(bad_sql):
-    policy = dict(m.METRIC_POLICIES[0], sql=bad_sql)
+    policy = dict(POLICIES[0], sql=bad_sql)
     assert m.validate_metric_policy(policy) is not None
 
 
 def test_tu_choi_thieu_truong_va_query_type_la():
     assert m.validate_metric_policy({"code": "x"}) is not None
-    policy = dict(m.METRIC_POLICIES[0], query_type="khong_co")
+    policy = dict(POLICIES[0], query_type="khong_co")
     assert m.validate_metric_policy(policy) is not None
 
 
@@ -118,7 +137,7 @@ class _FakeConn:
 def _rows(codes=EXPECTED_CODES):
     return [
         {"policy_key": p["code"], "policy_data": json.dumps(p, ensure_ascii=False)}
-        for p in m.METRIC_POLICIES if p["code"] in codes
+        for p in POLICIES if p["code"] in codes
     ]
 
 
@@ -166,8 +185,35 @@ def test_mot_chi_so_loi_khong_lam_hong_ca_phan_hoi(monkeypatch):
     assert by_code["ho_so_moi"]["value"] == 3
 
 
-def test_chi_so_chua_nap_cau_hinh_tra_loi_ro_rang(monkeypatch):
-    conn = _FakeConn(_rows(codes=EXPECTED_CODES[:7]))
-    r = _client(monkeypatch, "phuong-a", conn).get("/api/v1/metrics", headers={"Authorization": "Bearer x"})
+def test_chi_tra_chi_so_da_nap_theo_thu_tu(monkeypatch):
+    rows = list(reversed(_rows(codes=EXPECTED_CODES[:7])))
+    r = _client(monkeypatch, "phuong-a", _FakeConn(rows)).get("/api/v1/metrics", headers={"Authorization": "Bearer x"})
+    assert [x["code"] for x in r.json()["metrics"]] == EXPECTED_CODES[:7]
+
+
+def test_chua_cai_app_thi_danh_sach_rong(monkeypatch):
+    r = _client(monkeypatch, "phuong-a", _FakeConn([])).get("/api/v1/metrics", headers={"Authorization": "Bearer x"})
+    assert r.status_code == 200 and r.json()["metrics"] == []
+
+
+def test_cau_hinh_sai_tra_loi_ro_rang(monkeypatch):
+    rows = _rows()
+    hong = dict(POLICIES[-1], sql="DELETE FROM x WHERE tenant = $1")
+    rows[-1] = {"policy_key": hong["code"], "policy_data": json.dumps(hong, ensure_ascii=False)}
+    r = _client(monkeypatch, "phuong-a", _FakeConn(rows)).get("/api/v1/metrics", headers={"Authorization": "Bearer x"})
     by_code = {x["code"]: x for x in r.json()["metrics"]}
-    assert by_code["vi_pham"]["error"] == "chua_nap_cau_hinh"
+    assert by_code["vi_pham"]["value"] is None and by_code["vi_pham"]["error"].startswith("cau_hinh_sai")
+
+
+def test_pha_he_lay_tu_cau_hinh_va_404_khi_khong_co(monkeypatch):
+    async def fake_hist(job, limit=10):
+        return [{"job": job, "facets": {"tenant": "phuong-a"}}, {"job": job, "facets": {"tenant": "phuong-b"}}]
+
+    monkeypatch.setattr(m, "get_lineage_history", fake_hist)
+    c = _client(monkeypatch, "phuong-a", _FakeConn(_rows()))
+    r = c.get("/api/v1/metrics/canh_bao_cong_truong/lineage", headers={"Authorization": "Bearer x"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["job"] == "iot_ingest" and body["bang_nguon"] == ["core.outbox"]
+    assert len(body["lineage_events"]) == 1
+    assert c.get("/api/v1/metrics/khong_co/lineage", headers={"Authorization": "Bearer x"}).status_code == 404

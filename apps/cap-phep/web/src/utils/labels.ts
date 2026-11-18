@@ -81,10 +81,12 @@ export function tenNhiemVu(task: { taskDefinitionKey?: string; name?: string } |
   return (task.taskDefinitionKey && NHIEM_VU[task.taskDefinitionKey]) || task.name || "Nhiệm vụ";
 }
 
+// Mã loại yêu cầu khớp core_api.gui_yeu_cau_dsar
 const DSAR: Record<string, string> = {
   access: "Cung cấp dữ liệu",
-  rectification: "Chỉnh sửa dữ liệu",
-  erasure: "Xóa dữ liệu",
+  rectify: "Chỉnh sửa dữ liệu",
+  erase: "Xóa dữ liệu",
+  restrict: "Hạn chế xử lý",
   withdraw: "Rút đồng thuận",
 };
 export function tenYeuCauDuLieu(t: string): string {

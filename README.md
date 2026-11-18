@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC-BY-4.0
 > Dự án phục vụ cuộc thi Olympic Tin học Sinh viên Việt Nam 2026 — Khối Phần mềm Nguồn mở (OLP PMNM 2026).
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Status: bootstrap](https://img.shields.io/badge/status-bootstrap-orange.svg)](#trạng-thái)
+[![Status: bootstrap](https://img.shields.io/badge/status-bootstrap-orange.svg)](#2-trạng-thái)
 
 ---
 

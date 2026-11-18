@@ -108,7 +108,7 @@ defineExpose({ taiViec });
       <li v-for="t in danhSachLoc" :key="t.id" class="the flex flex-wrap items-center gap-3 p-4">
         <div class="min-w-0 flex-1">
           <div class="font-semibold">{{ t.name || t.taskDefinitionKey || "Nhiệm vụ" }}</div>
-          <div class="goi-y">Mã hồ sơ: {{ t.businessKey || "—" }} · Hạn: {{ dinhDangHan(t) }}</div>
+          <div class="goi-y">Mã hồ sơ: {{ hoSoCuaViec(t)?.ma || "—" }} · Hạn: {{ dinhDangHan(t) }}</div>
         </div>
         <button
           v-if="hoSoCuaViec(t)"

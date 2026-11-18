@@ -49,7 +49,7 @@ routes:
           X-Content-Type-Options: nosniff
           Referrer-Policy: same-origin
           # U-02: trang công khai không được chạy script nào
-          Content-Security-Policy: "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          Content-Security-Policy: "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
     upstream:
       type: roundrobin
       nodes:

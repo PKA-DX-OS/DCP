@@ -1,126 +1,364 @@
 # SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""
-Tiếp nhận telemetry bụi/tiếng ồn từ cảm biến (C02).
-
-- POST /api/v1/ingest: xác thực JWT, kiểm tra vai dx:device và tenant khớp.
-- Ghi 3 chỉ số vào core.timeseries (entity_id = device_id).
-- Tạo cảnh báo khi ồn vượt ngưỡng ban ngày/ban đêm; ghi audit cho cảnh báo.
-"""
-
+import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
-
+import re
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+import yaml
 from fastapi import FastAPI, Header, HTTPException, status
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel
 from dxos_core.middleware import setup_standard_service
 from dxos_core.jwt import verify_jwt_token
 from dxos_core.db import get_db_connection
+from dxos_core.outbox import emit_outbox_event
 from dxos_core.audit import log_audit_event
+from dxos_core.lineage import record_lineage_event
 
-logger = logging.getLogger("dxos.ingest")
+logger = logging.getLogger("dxos-ingest")
 
-app = FastAPI(title="DX-OS Ingest Service", version="1.0.0")
+app = FastAPI(title="DX-OS IoT Data Ingestion Service", version="1.0.0")
 setup_standard_service(app, "ingest")
 
-ICT = timezone(timedelta(hours=7))
-REQUIRED_METRICS = ("laeq_dba", "pm10", "pm25")
+_CACHED_RULES: Dict[str, Any] = {}
 
-# Ngưỡng ồn (dBA). Đọc từ môi trường; giá trị mặc định cần nhóm trưởng xác nhận.
-NOISE_DAY_MAX = float(os.getenv("INGEST_NOISE_DAY_MAX", "70"))
-NOISE_NIGHT_MAX = float(os.getenv("INGEST_NOISE_NIGHT_MAX", "55"))
+try:
+    import zoneinfo
+    VN_TZ = zoneinfo.ZoneInfo("Asia/Ho_Chi_Minh")
+except Exception:
+    VN_TZ = timezone(timedelta(hours=7))
 
 
 class SensorReading(BaseModel):
-    tenant: str = Field(min_length=1, max_length=64)
-    site_id: str = Field(min_length=1, max_length=64)
-    device_id: str = Field(min_length=1, max_length=128)
-    source: str = Field(default="sensor", max_length=32)
-    ts: Optional[datetime] = None
-    metrics: Dict[str, float]
+    tenant: str
+    site_id: str
+    device_id: str
+    ts: Optional[str] = None
+    metrics: Dict[str, float]  # e.g. {"laeq_dba": 78.5, "pm10": 45.0, "pm25": 22.0}
 
 
-def _noise_limit(local_hour: int) -> float:
-    if local_hour >= 21 or local_hour < 6:
-        return NOISE_NIGHT_MAX
-    return NOISE_DAY_MAX
+def load_rules() -> Dict[str, Any]:
+    global _CACHED_RULES
+    if _CACHED_RULES:
+        return _CACHED_RULES
+    rule_paths = list(Path("apps").glob("*/rules/*.yaml"))
+    for p in rule_paths:
+        try:
+            data = yaml.safe_load(p.read_text(encoding="utf-8"))
+            if data and "rules" in data:
+                _CACHED_RULES.update(data["rules"])
+        except Exception as e:
+            logger.warning(f"Không thể nạp tệp quy tắc {p}: {e}")
+    return _CACHED_RULES
 
 
-def _as_utc(ts: datetime) -> datetime:
-    if ts.tzinfo is None:
-        return ts.replace(tzinfo=timezone.utc)
-    return ts.astimezone(timezone.utc)
+def check_threshold_breach(metric: str, value: float, ts: datetime) -> Optional[Dict[str, Any]]:
+    """
+    Đánh giá vi phạm ngưỡng hoàn toàn dựa trên cấu hình khai báo trong apps/*/rules/*.yaml.
+    Thời gian được quy đổi chính xác theo múi giờ Asia/Ho_Chi_Minh.
+    """
+    rules = load_rules()
+    ts_vn = ts.astimezone(VN_TZ)
+    hour = ts_vn.hour
+
+    for _, rule in rules.items():
+        if not isinstance(rule, dict) or rule.get("metric") != metric:
+            continue
+
+        unit = rule.get("unit", "")
+        window_minutes = rule.get("window_minutes", 60)
+        action = rule.get("action", {})
+        trigger_process = action.get("trigger_process")
+        alert_topic = action.get("alert_topic", "alert.threshold")
+
+        # Trường hợp quy tắc có ngưỡng theo khung giờ (ví dụ tiếng ồn ngày/đêm)
+        if "thresholds" in rule and isinstance(rule["thresholds"], dict):
+            day_cfg = rule["thresholds"].get("day", {})
+            night_cfg = rule["thresholds"].get("night", {})
+            from_h = day_cfg.get("from_hour", 6)
+            to_h = day_cfg.get("to_hour", 21)
+            is_daytime = from_h <= hour < to_h
+            active_cfg = day_cfg if is_daytime else night_cfg
+            limit = active_cfg.get("limit")
+            time_window = "day" if is_daytime else "night"
+            if limit is not None and value > float(limit):
+                return {
+                    "metric": metric,
+                    "value": value,
+                    "threshold": float(limit),
+                    "time_window": time_window,
+                    "window_minutes": window_minutes,
+                    "unit": unit,
+                    "trigger_process": trigger_process,
+                    "alert_topic": alert_topic,
+                }
+
+        # Trường hợp quy tắc có ngưỡng cố định (ví dụ bụi mịn PM10, PM2.5)
+        elif "limit" in rule:
+            limit = rule.get("limit")
+            if limit is not None and value > float(limit):
+                return {
+                    "metric": metric,
+                    "value": value,
+                    "threshold": float(limit),
+                    "time_window": f"{window_minutes}m",
+                    "window_minutes": window_minutes,
+                    "unit": unit,
+                    "trigger_process": trigger_process,
+                    "alert_topic": alert_topic,
+                }
+
+    return None
 
 
 @app.post("/api/v1/ingest", status_code=status.HTTP_201_CREATED)
-async def ingest_reading(
-    payload: SensorReading,
+async def ingest_sensor_data(
+    reading: SensorReading,
     authorization: str = Header(...),
 ):
+    """
+    Nhận dữ liệu cảm biến IoT từ HTTP/Gateway, xác thực bắt buộc vai trò dx:device hoặc dx:service,
+    kiểm tra chặt chẽ tính toàn vẹn đa thuê ước (tenant isolation), ghi vào core.timeseries,
+    cập nhật core.entity_state và đánh giá ngưỡng cảnh báo theo quy tắc động.
+    """
     claims = verify_jwt_token(authorization)
-
-    if not (claims.has_role("dx:device") or claims.has_role("dx:service")):
+    allowed_roles = {"dx:device", "dx:service", "dx:platform-admin"}
+    if not any(r in allowed_roles for r in claims.roles):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"loi": "Token không có vai trò thiết bị"},
+            detail={"loi": "Chỉ thiết bị cảm biến (dx:device) hoặc dịch vụ hệ thống mới được đẩy dữ liệu"},
         )
-    if claims.tenant != payload.tenant:
+
+    tenant = claims.tenant
+    if not tenant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"loi": "Tenant trong token không khớp với tenant của bản tin"},
+            detail={"loi": "Token xác thực không chứa thông tin tenant"},
         )
 
-    missing = [m for m in REQUIRED_METRICS if m not in payload.metrics]
-    if missing:
+    # Chống giả mạo tenant (Z-05): nếu body chỉ định tenant khác claims -> từ chối 403 và ghi audit
+    if reading.tenant and reading.tenant != tenant:
+        await log_audit_event(
+            tenant=tenant,
+            action="ingest.tenant_mismatch",
+            actor_sub=claims.sub,
+            object_type="device",
+            object_id=reading.device_id,
+            detail={
+                "claimed_tenant": tenant,
+                "body_tenant": reading.tenant,
+                "site_id": reading.site_id,
+            },
+        )
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"loi": f"Thiếu chỉ số: {', '.join(missing)}"},
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"loi": f"Đơn vị (tenant) trong nội dung gửi ({reading.tenant}) không khớp với token ({tenant})"},
         )
 
-    ts_utc = _as_utc(payload.ts) if payload.ts else datetime.now(timezone.utc)
-    local_hour = ts_utc.astimezone(ICT).hour
+    now = datetime.now(timezone.utc)
+    ts = datetime.fromisoformat(reading.ts.replace("Z", "+00:00")) if reading.ts else now
+    entity_id = f"urn:ngsi-ld:Site:{reading.site_id}"
 
-    rows = [
-        (payload.tenant, payload.device_id, metric, ts_utc, float(payload.metrics[metric]))
-        for metric in REQUIRED_METRICS
-    ]
+    async with get_db_connection(claims) as conn:
+        # 1. Ghi nhận chuỗi thời gian timeseries
+        for metric_name, val in reading.metrics.items():
+            await conn.execute(
+                """
+                INSERT INTO core.timeseries (tenant, entity_id, metric, ts, value)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                tenant,
+                entity_id,
+                metric_name,
+                ts,
+                float(val),
+            )
 
-    # Không truyền claims: ghi bằng kết nối dịch vụ, tenant đã được kiểm tra ở trên.
+        # 2. Cập nhật trạng thái thực thể entity_state
+        state_attrs = {
+            metric: {"type": "Property", "value": val, "observedAt": ts.isoformat()}
+            for metric, val in reading.metrics.items()
+        }
+        state_attrs["device_id"] = {"type": "Property", "value": reading.device_id}
+        state_attrs["status"] = {"type": "Property", "value": "ONLINE"}
+
+        await conn.execute(
+            """
+            INSERT INTO core.entity_state (tenant, entity_id, entity_type, attrs, updated_at)
+            VALUES ($1, $2, 'Site', $3::jsonb, $4)
+            ON CONFLICT (tenant, entity_id)
+            DO UPDATE SET attrs = core.entity_state.attrs || EXCLUDED.attrs, updated_at = EXCLUDED.updated_at
+            """,
+            tenant,
+            entity_id,
+            json.dumps(state_attrs, ensure_ascii=False),
+            ts,
+        )
+
+    # 3. Đánh giá vượt ngưỡng động theo quy tắc và phát cảnh báo outbox
+    alerts = []
+    for metric_name, val in reading.metrics.items():
+        breach = check_threshold_breach(metric_name, val, ts)
+        if breach:
+            alerts.append(breach)
+            await emit_outbox_event(
+                tenant=tenant,
+                topic=breach.get("alert_topic", "alert.threshold"),
+                payload={
+                    "tenant": tenant,
+                    "site_id": reading.site_id,
+                    "device_id": reading.device_id,
+                    "breach": breach,
+                    "window_minutes": breach.get("window_minutes", 60),
+                    "entity_id": entity_id,
+                    "ts": ts.isoformat(),
+                },
+            )
+
+    # 4. Ghi nhận phả hệ OpenLineage qua HTTP
+    await record_lineage_event(
+        job="iot_ingest",
+        inputs=[{"name": f"http:api/v1/ingest/site/{reading.site_id}"}],
+        outputs=[{"name": "core.timeseries"}, {"name": "core.entity_state"}],
+        facets={"metrics_count": len(reading.metrics), "alerts_triggered": len(alerts)},
+    )
+
+    return {
+        "status": "ingested",
+        "tenant": tenant,
+        "site_id": reading.site_id,
+        "metrics_recorded": len(reading.metrics),
+        "alerts": alerts,
+    }
+
+
+_FUNC_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$")
+
+
+async def _demo_sensor_policies() -> List[Dict[str, Any]]:
+    """Đọc cấu hình demo_sensor do các app khai báo trong flow_policies (vai được phép, hàm kiểm vị trí)."""
+    result: List[Dict[str, Any]] = []
     async with get_db_connection() as conn:
-        await conn.executemany(
+        rows = await conn.fetch(
+            "SELECT policy_data FROM core.app_policies WHERE policy_type = 'flow_policies'"
+        )
+    for row in rows:
+        data = row["policy_data"]
+        data = json.loads(data) if isinstance(data, str) else (data or {})
+        cfg = data.get("demo_sensor")
+        if isinstance(cfg, dict):
+            result.append(cfg)
+    return result
+
+
+@app.post("/api/v1/ingest/demo-sensor")
+async def demo_sensor_endpoint(
+    req: Dict[str, Any],
+    authorization: str = Header(...),
+):
+    """
+    Phát một số đo mô phỏng phía máy chủ (chỉ khi DEMO_MODE=true).
+    Vai được phép và hàm kiểm tra vị trí thuộc địa bàn do app khai báo (flow_policies.demo_sensor).
+    Cảnh báo chỉ phát khi luật ngưỡng thật báo vượt; không tự tạo cảnh báo (U-04).
+    """
+    demo_mode = os.environ.get("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+    if not demo_mode:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"loi": "Chức năng mô phỏng chỉ hoạt động khi DEMO_MODE=true"},
+        )
+
+    claims = verify_jwt_token(authorization)
+    tenant = claims.tenant
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"loi": "Token không chứa địa bàn hợp lệ"},
+        )
+
+    policies = await _demo_sensor_policies()
+    allowed_roles = {"dx:platform-admin", "dx:tenant-admin"}
+    for cfg in policies:
+        allowed_roles.update(cfg.get("roles", []))
+    if not any(r in allowed_roles for r in claims.roles):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"loi": "Bạn không có quyền phát số đo mô phỏng"},
+        )
+
+    target_site = str(req.get("site_id") or "").strip()
+    if not target_site or len(target_site) > 128:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"loi": "Thiếu mã vị trí (site_id)"},
+        )
+
+    metric_name = str(req.get("metric") or "laeq_dba")
+    raw_value = req.get("value", req.get(metric_name))
+    try:
+        metric_val = float(raw_value)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"loi": "Thiếu hoặc sai giá trị đo (value)"},
+        )
+
+    # Vị trí phải thuộc địa bàn của người gọi: hỏi hàm kiểm tra do app khai báo
+    site_ok = False
+    async with get_db_connection() as conn:
+        for cfg in policies:
+            fn = cfg.get("site_check")
+            if not fn or not _FUNC_NAME_RE.fullmatch(fn):
+                continue
+            if await conn.fetchval(f"SELECT {fn}($1, $2)", target_site, tenant):
+                site_ok = True
+                break
+    if not site_ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"loi": "Không tìm thấy vị trí này trong địa bàn của bạn"},
+        )
+
+    now = datetime.now(timezone.utc)
+    entity_id = f"urn:ngsi-ld:Site:{target_site}"
+
+    async with get_db_connection(claims) as conn:
+        await conn.execute(
             """
             INSERT INTO core.timeseries (tenant, entity_id, metric, ts, value)
             VALUES ($1, $2, $3, $4, $5)
             """,
-            rows,
+            tenant,
+            entity_id,
+            metric_name,
+            now,
+            metric_val,
         )
 
-    limit = _noise_limit(local_hour)
-    alerts: List[Dict] = []
-    noise = float(payload.metrics["laeq_dba"])
-    if noise > limit:
-        alert = {
-            "rule": "noise_threshold",
-            "metric": "laeq_dba",
-            "value": noise,
-            "limit": limit,
-            "site_id": payload.site_id,
-            "device_id": payload.device_id,
-            "ts": ts_utc.isoformat(),
-        }
-        alerts.append(alert)
-        await log_audit_event(
-            tenant=payload.tenant,
-            action="ingest.alert",
-            actor_sub=claims.sub,
-            actor_type="device",
-            object_type="sensor",
-            object_id=payload.device_id,
-            detail=alert,
+    breach = check_threshold_breach(metric_name, metric_val, now)
+    if breach:
+        await emit_outbox_event(
+            tenant=tenant,
+            topic=breach.get("alert_topic", "alert.threshold"),
+            payload={
+                "tenant": tenant,
+                "site_id": target_site,
+                "device_id": f"demo-sensor-{target_site}",
+                "breach": breach,
+                "window_minutes": breach.get("window_minutes", 60),
+                "entity_id": entity_id,
+                "ts": now.isoformat(),
+            },
         )
 
-    return {"status": "accepted", "alerts": alerts}
+    return {
+        "status": "breach" if breach else "within_limit",
+        "tenant": tenant,
+        "site_id": target_site,
+        "metric": metric_name,
+        "value": metric_val,
+        "breach": breach,
+    }

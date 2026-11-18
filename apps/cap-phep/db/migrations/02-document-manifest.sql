@@ -756,6 +756,8 @@ AS $$
     ORDER BY m.thu_tu, m.loai;
 $$;
 
-GRANT EXECUTE ON FUNCTION app_cap_phep.giay_to_con_thieu(uuid) TO web_user, svc, dxos_svc, dxos_owner;
+-- Chỉ dịch vụ nền dùng; giao diện đọc document_manifest trực tiếp nên không mở RPC này cho web_user.
+REVOKE ALL ON FUNCTION app_cap_phep.giay_to_con_thieu(uuid) FROM PUBLIC, web_user;
+GRANT EXECUTE ON FUNCTION app_cap_phep.giay_to_con_thieu(uuid) TO svc, dxos_svc, dxos_owner;
 
 NOTIFY pgrst, 'reload schema';

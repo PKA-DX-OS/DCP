@@ -799,7 +799,7 @@ paths:
               type: object
               required: [p_type]
               properties:
-                p_type: { type: string, enum: [access, rectification, erasure, withdraw] }
+                p_type: { type: string, enum: [access, rectify, erase, restrict, withdraw] }
                 p_legal_basis_note: { type: [string, "null"] }
       responses:
         "200": { $ref: "#/components/responses/KetQuaRpc" }

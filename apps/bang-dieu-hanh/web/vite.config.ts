@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.DEV_API_TARGET || "http://localhost:8080";
 
   return {
+    // Bảng điều hành được APISIX phục vụ dưới /dieu-hanh/ (route cắt tiền tố trước khi tới nginx);
+    // thiếu base thì trình duyệt tải /assets/... từ cap-phep-web và nhận HTML thay cho JS/CSS
+    base: "/dieu-hanh/",
     plugins: [vue()],
     define: {
       // Liên kết mã nguồn (AGPL-3.0 Mục 13)
