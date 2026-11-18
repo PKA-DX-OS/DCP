@@ -3,7 +3,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { canViewDashboard, getUser, login, logout, readRoles } from "./auth";
+import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles } from "./auth";
 import { ApiError, apiGet, apiPost } from "./api";
 import { dinhDangGiaTri, formatThoiDiem, nhanChiSo } from "./utils/metrics";
 import { useTheme } from "./composables/useTheme";
@@ -148,10 +148,16 @@ async function ask(): Promise<void> {
   askError.value = "";
   answer.value = null;
   try {
-    answer.value = await apiPost<AskResponse>("/assistant/ask", {
+    const res = await apiPost<AskResponse>("/assistant/ask", {
       question: q,
       app: APP_CODE,
     });
+    res.citations = (res.citations || []).map((c: any, i: number) =>
+      typeof c === "string"
+        ? { so: i + 1, nguon: c, chunk_id: `src-${i}`, trich: "" }
+        : c,
+    );
+    answer.value = res;
   } catch (e) {
     askError.value = e instanceof Error ? e.message : "Lỗi không xác định";
   } finally {
@@ -169,6 +175,7 @@ const answerText = computed(() => {
 });
 
 onMounted(async () => {
+  await handleCallbackIfNeeded();
   const user = await getUser();
   if (!user || user.expired) {
     auth.value = "chua_dang_nhap";

@@ -48,13 +48,28 @@ export async function getValidToken(minSeconds = 30): Promise<string | null> {
   }
 }
 
+export async function handleCallbackIfNeeded(): Promise<User | null> {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has("code") && urlParams.has("state")) {
+    try {
+      const user = await userManager.signinCallback();
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return user || null;
+    } catch (err) {
+      console.error("Lỗi xác thực OIDC Callback:", err);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+  return await getUser();
+}
+
 /** Đọc vai từ access token (realm_access.roles). */
 export function readRoles(accessToken: string | null | undefined): string[] {
   if (!accessToken) return [];
   try {
     const part = accessToken.split(".")[1] || "";
-    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
-    const roles = json?.realm_access?.roles ?? [];
+    const json = JSON.parse(decodeURIComponent(escape(atob(part.replace(/-/g, "+").replace(/_/g, "/")))));
+    const roles = json?.realm_access?.roles ?? json?.roles ?? [];
     return Array.isArray(roles) ? roles.map(String) : [];
   } catch {
     return [];
