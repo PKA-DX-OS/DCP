@@ -1,0 +1,81 @@
+/* SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Mã màu chỉ khai báo ở đây; mã khác dùng biến này */
+:root {
+  color-scheme: light;
+  --mau-nen: #f8fafc;
+  --mau-chu: #0f172a;
+  --mau-chu-phu: #475569;
+  --mau-mat-kinh: rgba(255, 255, 255, 0.72);
+  --mau-vien: rgba(15, 23, 42, 0.12);
+  --mau-nhan: #1e293b;
+  --mau-nhan-chu: #ffffff;
+  --mau-tieu-diem: #2563eb;
+  --mau-canh-bao: #b91c1c;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mau-nen: #0b1220;
+  --mau-chu: #e2e8f0;
+  --mau-chu-phu: #94a3b8;
+  --mau-mat-kinh: rgba(15, 23, 42, 0.62);
+  --mau-vien: rgba(226, 232, 240, 0.14);
+  --mau-nhan: #e2e8f0;
+  --mau-nhan-chu: #0f172a;
+  --mau-tieu-diem: #60a5fa;
+  --mau-canh-bao: #fca5a5;
+}
+
+html,
+body {
+  background: var(--mau-nen);
+  color: var(--mau-chu);
+}
+
+/* Hiệu ứng kính: giữ mức blur vừa phải để nhẹ máy */
+.kinh {
+  background: var(--mau-mat-kinh);
+  border: 1px solid var(--mau-vien);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.chu-phu {
+  color: var(--mau-chu-phu);
+}
+
+.nhan-chinh {
+  background: var(--mau-nhan);
+  color: var(--mau-nhan-chu);
+}
+
+.canh-bao {
+  color: var(--mau-canh-bao);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mau-tieu-diem);
+  outline-offset: 2px;
+}
+
+/* Người dùng bật "giảm hiệu ứng trong suốt" thì bỏ kính */
+@media (prefers-reduced-transparency: reduce) {
+  .kinh {
+    background: var(--mau-nen);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Người dùng bật "giảm chuyển động" thì tắt chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
