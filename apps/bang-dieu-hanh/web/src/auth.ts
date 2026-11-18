@@ -4,6 +4,8 @@
 import { UserManager, WebStorageStateStore, User } from "oidc-client-ts";
 
 const origin = window.location.origin;
+// Quay lại đúng trang bảng điều hành (/dieu-hanh/) sau khi đăng nhập/đăng xuất, không về cap-phep-web
+const appUrl = `${origin}${import.meta.env.BASE_URL}`;
 const REALM = import.meta.env.VITE_OIDC_REALM || "dxos";
 const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || "dxos-web";
 
@@ -11,8 +13,8 @@ const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || "dxos-web";
 export const userManager = new UserManager({
   authority: `${origin}/auth/realms/${REALM}`,
   client_id: CLIENT_ID,
-  redirect_uri: `${origin}/`,
-  post_logout_redirect_uri: `${origin}/`,
+  redirect_uri: appUrl,
+  post_logout_redirect_uri: appUrl,
   response_type: "code",
   scope: "openid",
   userStore: new WebStorageStateStore({ store: window.sessionStorage }),
