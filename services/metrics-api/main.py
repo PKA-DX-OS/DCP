@@ -4,10 +4,11 @@
 """
 API 8 chỉ số điều hành cho lãnh đạo và phả hệ dữ liệu (C04).
 
-- GET /api/v1/metrics                      : 8 chỉ số của tenant trong token
+- GET /api/v1/metrics                      : các chỉ số của tenant trong token
 - GET /api/v1/metrics/{code}/lineage       : phả hệ của một chỉ số
 
-Cấu hình chỉ số nằm trong core.app_policies với policy_type = 'metrics'.
+Danh sách chỉ số không nằm trong lõi: app khai báo ở khóa `metrics` của app.yaml,
+app_manager nạp vào core.app_policies (policy_type = 'metrics', kèm `thu_tu`).
 Mỗi chỉ số chạy trong savepoint riêng: một chỉ số lỗi chỉ ảnh hưởng chính nó.
 Chỉ trả số liệu tổng hợp (đếm, trung bình), không trả dữ liệu chi tiết cá nhân.
 """
@@ -37,90 +38,6 @@ FORBIDDEN_SQL = re.compile(
     re.IGNORECASE,
 )
 
-# 8 chỉ số điều hành (khớp apps/cap-phep/app.yaml). Dùng để nạp vào core.app_policies.
-METRIC_POLICIES: List[Dict[str, Any]] = [
-    {
-        "code": "ho_so_moi",
-        "name": "Hồ sơ mới trong kỳ",
-        "unit": "hồ sơ",
-        "query_type": "lakehouse",
-        "sql": "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1",
-        "lineage_job": "export_warm_lakehouse",
-        "bang_nguon": ["app_cap_phep.ho_so"],
-        "dieu_kien_loc": "tenant = <tenant từ token>",
-    },
-    {
-        "code": "ho_so_dang_xu_ly",
-        "name": "Hồ sơ đang xử lý",
-        "unit": "hồ sơ",
-        "query_type": "transactional",
-        "sql": "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')",
-        "lineage_job": "export_warm_lakehouse",
-        "bang_nguon": ["app_cap_phep.ho_so"],
-        "dieu_kien_loc": "tenant = <tenant>; trạng thái không phải DA_CAP hoặc TU_CHOI",
-    },
-    {
-        "code": "ho_so_qua_han",
-        "name": "Hồ sơ quá hạn",
-        "unit": "hồ sơ",
-        "query_type": "transactional",
-        "sql": "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND (han_tong_at < now() OR qua_han = true) AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')",
-        "lineage_job": "export_warm_lakehouse",
-        "bang_nguon": ["app_cap_phep.ho_so"],
-        "dieu_kien_loc": "tenant = <tenant>; quá hạn tổng hoặc qua_han = true; chưa đóng",
-    },
-    {
-        "code": "thoi_gian_xu_ly_tb",
-        "name": "Thời gian xử lý trung bình",
-        "unit": "ngày",
-        "query_type": "hybrid",
-        "sql": "SELECT COALESCE(round(avg(EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400.0)::numeric, 1), 0) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai = 'DA_CAP'",
-        "lineage_job": "export_warm_lakehouse",
-        "bang_nguon": ["app_cap_phep.ho_so"],
-        "dieu_kien_loc": "tenant = <tenant>; trạng thái DA_CAP; trung bình (updated_at - created_at)",
-    },
-    {
-        "code": "truy_cap_tu_choi",
-        "name": "Lượt truy cập bị từ chối (403)",
-        "unit": "lượt",
-        "query_type": "audit",
-        "sql": "SELECT count(*) FROM core.audit_log WHERE tenant = $1 AND action = 'access.denied'",
-        "lineage_job": "audit_verification",
-        "bang_nguon": ["core.audit_log"],
-        "dieu_kien_loc": "tenant = <tenant>; action = 'access.denied'",
-    },
-    {
-        "code": "phieu_kiem_tra",
-        "name": "Số phiếu kiểm tra hiện trường",
-        "unit": "phiếu",
-        "query_type": "transactional",
-        "sql": "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1",
-        "lineage_job": "export_warm_lakehouse",
-        "bang_nguon": ["app_cap_phep.phieu_kiem_tra"],
-        "dieu_kien_loc": "tenant = <tenant>",
-    },
-    {
-        "code": "canh_bao_cong_truong",
-        "name": "Cảnh báo vượt ngưỡng công trường",
-        "unit": "lượt",
-        "query_type": "transactional",
-        "sql": "SELECT count(*) FROM core.outbox WHERE tenant = $1 AND topic = 'alert.threshold'",
-        "lineage_job": "iot_ingest",
-        "bang_nguon": ["core.outbox"],
-        "dieu_kien_loc": "tenant = <tenant>; topic = 'alert.threshold'",
-    },
-    {
-        "code": "vi_pham",
-        "name": "Số vụ vi phạm đã kết luận",
-        "unit": "vụ",
-        "query_type": "transactional",
-        "sql": "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1 AND ket_luan = 'Có vi phạm'",
-        "lineage_job": "export_warm_lakehouse",
-        "bang_nguon": ["app_cap_phep.phieu_kiem_tra"],
-        "dieu_kien_loc": "tenant = <tenant>; ket_luan = 'Có vi phạm'",
-    },
-]
-METRIC_CODES = [p["code"] for p in METRIC_POLICIES]
 
 
 def _policy_data(raw: Any) -> Dict[str, Any]:
@@ -152,7 +69,8 @@ def validate_metric_policy(policy: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-async def _load_policies(conn) -> Dict[str, Dict[str, Any]]:
+async def _load_policies(conn) -> List[Dict[str, Any]]:
+    """Chỉ số đã nạp, theo thứ tự app khai báo (thu_tu), rồi theo mã."""
     rows = await conn.fetch(
         """
         SELECT policy_key, policy_data
@@ -161,11 +79,12 @@ async def _load_policies(conn) -> Dict[str, Dict[str, Any]]:
         """,
         POLICY_TYPE,
     )
-    loaded: Dict[str, Dict[str, Any]] = {}
+    loaded: List[Dict[str, Any]] = []
     for r in rows:
         data = _policy_data(r["policy_data"])
-        code = data.get("code") or r["policy_key"]
-        loaded[code] = data
+        data.setdefault("code", r["policy_key"])
+        loaded.append(data)
+    loaded.sort(key=lambda d: (d.get("thu_tu") if isinstance(d.get("thu_tu"), int) else 10**6, str(d["code"])))
     return loaded
 
 
@@ -178,11 +97,8 @@ async def get_executive_metrics(authorization: str = Header(...)):
     async with get_db_connection(claims) as conn:
         policies = await _load_policies(conn)
         results: List[Dict[str, Any]] = []
-        for code in METRIC_CODES:
-            policy = policies.get(code)
-            if policy is None:
-                results.append({"code": code, "value": None, "error": "chua_nap_cau_hinh"})
-                continue
+        for policy in policies:
+            code = policy["code"]
             problem = validate_metric_policy(policy)
             if problem:
                 results.append({"code": code, "name": policy.get("name", code), "unit": policy.get("unit", ""),
@@ -205,13 +121,12 @@ async def get_executive_metrics(authorization: str = Header(...)):
 @app.get("/api/v1/metrics/{code}/lineage")
 async def get_metric_lineage(code: str, authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
-    if code not in METRIC_CODES:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail={"loi": "Không có chỉ số này"})
-
     async with get_db_connection(claims) as conn:
         policies = await _load_policies(conn)
-    policy = policies.get(code, next(p for p in METRIC_POLICIES if p["code"] == code))
+    policy = next((p for p in policies if p["code"] == code), None)
+    if policy is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail={"loi": "Không có chỉ số này"})
 
     job = policy.get("lineage_job", "export_warm_lakehouse")
     events = await get_lineage_history(job, limit=10)

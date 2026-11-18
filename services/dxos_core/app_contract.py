@@ -33,6 +33,10 @@ class MetricDef(BaseModel):
     unit: str
     query_type: str  # lakehouse, transactional, hybrid, audit
     sql: Optional[str] = None
+    # Phả hệ hiển thị trên bảng điều hành: job OpenLineage, bảng nguồn, điều kiện lọc
+    lineage_job: Optional[str] = None
+    bang_nguon: List[str] = []
+    dieu_kien_loc: Optional[str] = None
 
 
 class SeedDef(BaseModel):

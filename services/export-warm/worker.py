@@ -10,7 +10,7 @@ Worker xuất chuỗi thời gian core.timeseries ra Parquet theo lô (C05).
 
 Ví dụ:
   python worker.py --month 2026-11                 # mọi tenant, ghi vào bucket lake
-  python worker.py --month 2026-11 --tenant phuong-a --local-out dist/warm/export.parquet
+  python worker.py --month 2026-11 --tenant <tenant> --local-out dist/warm/export.parquet
 """
 
 import argparse

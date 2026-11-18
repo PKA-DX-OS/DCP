@@ -100,7 +100,7 @@ Các khóa sau được lưu nguyên dạng JSON vào `core.app_policies` để 
 | `flow_policies` | `flow_policies` | `flow`: biến được phép theo task, vai được đặt biến, SoD, SLA, hook khi hoàn thành task |
 | `doc_signers` | `doc_signers` | `doc-sign`, `flow`: vai được ký và thu hồi theo loại tài liệu |
 | `break_glass` | `break_glass` | `core_api.xin_truy_cap_khan`, `core_api.duyet_truy_cap_khan`: vai được xin và được duyệt truy cập khẩn |
-| `metrics` | `metrics` | `metrics-api`: 8 chỉ số, mỗi chỉ số một câu SQL nhận `$1 = tenant` |
+| `metrics` | `metrics` | `metrics-api`: mỗi chỉ số một câu SQL `SELECT` nhận `$1 = tenant`, trả theo thứ tự khai báo (`thu_tu`); `lineage_job`, `bang_nguon`, `dieu_kien_loc` hiện ở trang phả hệ. Lõi không giữ danh sách chỉ số |
 
 Mỗi lần cài, mọi chính sách cũ của app bị xóa rồi ghi lại.
 

@@ -226,41 +226,65 @@ metrics:
     unit: hồ sơ
     query_type: lakehouse
     sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.ho_so]
+    dieu_kien_loc: "tenant = <tenant từ token>"
   - code: ho_so_dang_xu_ly
     name: Hồ sơ đang xử lý
     unit: hồ sơ
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.ho_so]
+    dieu_kien_loc: "tenant = <tenant>; trạng thái không phải DA_CAP hoặc TU_CHOI"
   - code: ho_so_qua_han
     name: Hồ sơ quá hạn
     unit: hồ sơ
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND (han_tong_at < now() OR qua_han = true) AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.ho_so]
+    dieu_kien_loc: "tenant = <tenant>; quá hạn tổng hoặc qua_han = true; chưa đóng"
   - code: thoi_gian_xu_ly_tb
     name: Thời gian xử lý trung bình
     unit: ngày
     query_type: hybrid
     sql: "SELECT COALESCE(round(avg(EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400.0)::numeric, 1), 0) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai = 'DA_CAP'"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.ho_so]
+    dieu_kien_loc: "tenant = <tenant>; trạng thái DA_CAP; trung bình (updated_at - created_at)"
   - code: truy_cap_tu_choi
     name: Lượt truy cập bị từ chối (403)
     unit: lượt
     query_type: audit
     sql: "SELECT count(*) FROM core.audit_log WHERE tenant = $1 AND action = 'access.denied'"
+    lineage_job: audit_verification
+    bang_nguon: [core.audit_log]
+    dieu_kien_loc: "tenant = <tenant>; action = 'access.denied'"
   - code: phieu_kiem_tra
     name: Số phiếu kiểm tra hiện trường
     unit: phiếu
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.phieu_kiem_tra]
+    dieu_kien_loc: "tenant = <tenant>"
   - code: canh_bao_cong_truong
     name: Cảnh báo vượt ngưỡng công trường
     unit: lượt
     query_type: transactional
     sql: "SELECT count(*) FROM core.outbox WHERE tenant = $1 AND topic = 'alert.threshold'"
+    lineage_job: iot_ingest
+    bang_nguon: [core.outbox]
+    dieu_kien_loc: "tenant = <tenant>; topic = 'alert.threshold'"
   - code: vi_pham
     name: Số vụ vi phạm đã kết luận
     unit: vụ
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1 AND ket_luan = 'Có vi phạm'"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.phieu_kiem_tra]
+    dieu_kien_loc: "tenant = <tenant>; ket_luan = 'Có vi phạm'"
 
 seed:
   script: seed/seed.py
