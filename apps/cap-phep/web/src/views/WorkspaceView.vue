@@ -17,6 +17,15 @@ const boLoc = ref<BoLoc>("tat-ca");
 const dangLam = ref<string | null>(null);
 
 const actions = useDossierActions(getValidToken, () => nguoi.value);
+const emit = defineEmits<{ (e: "mo-ho-so", idHoacMa: string, ma: string): void }>();
+
+/** Hồ sơ gắn với việc: lấy từ biến quy trình ho_so_id, không có thì dùng mã hồ sơ (businessKey). */
+function hoSoCuaViec(t: FlowTask): { id: string; ma: string } | null {
+  const bien = (ten: string) => ((t.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value as string | undefined;
+  const ma = bien("ma_ho_so") || t.businessKey || "";
+  const id = bien("ho_so_id") || ma;
+  return id ? { id, ma } : null;
+}
 
 function hanCuaViec(t: FlowTask): number | null {
   return t.dueDate ? new Date(t.dueDate).getTime() : null;
@@ -101,6 +110,13 @@ defineExpose({ taiViec });
           <div class="font-semibold">{{ t.name || t.taskDefinitionKey || "Nhiệm vụ" }}</div>
           <div class="goi-y">Mã hồ sơ: {{ t.businessKey || "—" }} · Hạn: {{ dinhDangHan(t) }}</div>
         </div>
+        <button
+          v-if="hoSoCuaViec(t)"
+          class="btn"
+          @click="emit('mo-ho-so', hoSoCuaViec(t)!.id, hoSoCuaViec(t)!.ma)"
+        >
+          Xem hồ sơ
+        </button>
         <button
           v-if="actions.laNguoiDuocGiao(t)"
           class="btn-chinh"

@@ -74,7 +74,6 @@ def test_v2_11_app_mounts_staff_screens():
         assert f"<{comp}" in app, f"App.vue chưa gắn {comp}"
 
 
-@pytest.mark.xfail(strict=True, reason="#56 (C10): App.vue mới có giao diện cán bộ, chưa gắn màn hình công dân")
 def test_v2_11_app_mounts_citizen_screens():
     app = _doc("App.vue")
     thieu = [c for c in ("DossiersView", "ConsentView", "CreateDossierModal", "DetailDossierModal",
