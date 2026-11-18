@@ -6,6 +6,13 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, login, logout, readRoles } from "./auth";
 import { ApiError, apiGet, apiPost } from "./api";
 import { dinhDangGiaTri, formatThoiDiem, nhanChiSo } from "./utils/metrics";
+import { useTheme } from "./composables/useTheme";
+
+const { cheDo } = useTheme();
+
+function doiGiaoDien() {
+  cheDo.value = cheDo.value === "toi" ? "sang" : "toi";
+}
 
 interface MetricItem {
   code: string;
@@ -189,16 +196,16 @@ function fmtDate(iso?: string): string {
 </script>
 
 <template>
-  <div v-if="auth === 'dang_kiem_tra'" class="text-slate-500">
+  <div v-if="auth === 'dang_kiem_tra'" class="chu-phu">
     Đang kiểm tra đăng nhập...
   </div>
 
   <div
     v-else-if="auth === 'chua_dang_nhap'"
-    class="rounded-lg bg-white p-6 shadow"
+    class="rounded-lg kinh p-6 shadow"
   >
     <h1 class="text-xl font-semibold">Cần đăng nhập</h1>
-    <p class="mt-2 text-slate-600">
+    <p class="mt-2 chu-phu">
       Đăng nhập bằng tài khoản lãnh đạo để xem bảng điều hành.
     </p>
     <button
@@ -211,10 +218,10 @@ function fmtDate(iso?: string): string {
 
   <div
     v-else-if="auth === 'khong_quyen'"
-    class="rounded-lg bg-white p-6 shadow"
+    class="rounded-lg kinh p-6 shadow"
   >
     <h1 class="text-xl font-semibold">Không có quyền</h1>
-    <p class="mt-2 text-slate-600">
+    <p class="mt-2 chu-phu">
       Tài khoản không có vai trò lãnh đạo. Bảng điều hành chỉ đọc chỉ số.
     </p>
     <button
@@ -228,7 +235,10 @@ function fmtDate(iso?: string): string {
   <div v-else class="space-y-4">
     <header class="flex items-center justify-between">
       <h1 class="text-xl font-semibold">Bảng điều hành lãnh đạo</h1>
-      <button class="text-sm text-slate-600 underline" @click="logout()">
+      <button class="text-sm chu-phu underline" @click="doiGiaoDien()">
+        {{ cheDo === "toi" ? "Giao diện sáng" : "Giao diện tối" }}
+      </button>
+      <button class="text-sm chu-phu underline" @click="logout()">
         Đăng xuất
       </button>
     </header>
@@ -239,7 +249,7 @@ function fmtDate(iso?: string): string {
         :class="
           tab === 'chi-so'
             ? 'border-b-2 border-slate-800 font-semibold'
-            : 'text-slate-500'
+            : 'chu-phu'
         "
         @click="tab = 'chi-so'"
       >
@@ -250,7 +260,7 @@ function fmtDate(iso?: string): string {
         :class="
           tab === 'tro-ly'
             ? 'border-b-2 border-slate-800 font-semibold'
-            : 'text-slate-500'
+            : 'chu-phu'
         "
         @click="tab = 'tro-ly'"
       >
@@ -261,7 +271,7 @@ function fmtDate(iso?: string): string {
     <!-- Tab Chỉ số: dùng v-show để giữ trạng thái khi chuyển tab -->
     <section v-show="tab === 'chi-so'" class="space-y-4">
       <div
-        class="flex flex-wrap items-end gap-4 rounded-lg bg-white p-4 shadow"
+        class="flex flex-wrap items-end gap-4 rounded-lg kinh p-4 shadow"
       >
         <label class="text-sm">
           Tháng
@@ -281,15 +291,15 @@ function fmtDate(iso?: string): string {
             class="ml-2 rounded border px-2 py-1"
           />
         </label>
-        <p class="text-xs text-slate-500">
+        <p class="text-xs chu-phu">
           Bộ lọc cần API hỗ trợ tham số thang và dia_ban; hiện số liệu vẫn theo
           toàn bộ địa bàn của bạn.
         </p>
       </div>
 
-      <p v-if="loading" class="text-slate-500">Đang tải chỉ số...</p>
+      <p v-if="loading" class="chu-phu">Đang tải chỉ số...</p>
 
-      <div v-else-if="loadError" class="rounded-lg bg-white p-4 shadow">
+      <div v-else-if="loadError" class="rounded-lg kinh p-4 shadow">
         <p class="text-red-700">Không tải được số liệu: {{ loadError }}</p>
         <button
           class="mt-2 rounded bg-slate-800 px-3 py-1 text-white"
@@ -301,13 +311,13 @@ function fmtDate(iso?: string): string {
 
       <p
         v-else-if="!data || !data.metrics.length || !hasAnyValue"
-        class="rounded-lg bg-white p-4 text-slate-500 shadow"
+        class="rounded-lg kinh p-4 chu-phu shadow"
       >
         Chưa có số liệu cho bộ lọc này.
       </p>
 
       <template v-else>
-        <p class="text-sm text-slate-500">
+        <p class="text-sm chu-phu">
           Thời điểm tính: {{ fmtDate(data.computed_at) }}
         </p>
 
@@ -315,10 +325,10 @@ function fmtDate(iso?: string): string {
           <button
             v-for="m in data.metrics"
             :key="m.code"
-            class="rounded-lg bg-white p-4 text-left shadow hover:ring-2 hover:ring-slate-300"
+            class="rounded-lg kinh p-4 text-left shadow hover:ring-2 hover:ring-slate-300"
             @click="openLineage(m.code)"
           >
-            <div class="text-sm text-slate-500">{{ nhanChiSo(m.code) }}</div>
+            <div class="text-sm chu-phu">{{ nhanChiSo(m.code) }}</div>
             <div class="mt-1 text-2xl font-semibold">
               {{ dinhDangGiaTri(m) }}
             </div>
@@ -328,8 +338,8 @@ function fmtDate(iso?: string): string {
           </button>
         </div>
 
-        <div class="rounded-lg bg-white p-4 shadow">
-          <h2 class="mb-2 text-sm font-semibold text-slate-600">
+        <div class="rounded-lg kinh p-4 shadow">
+          <h2 class="mb-2 text-sm font-semibold chu-phu">
             Biểu đồ số lượng
           </h2>
           <svg
@@ -368,17 +378,17 @@ function fmtDate(iso?: string): string {
           </svg>
         </div>
 
-        <div v-if="selected" class="rounded-lg bg-white p-4 shadow">
+        <div v-if="selected" class="rounded-lg kinh p-4 shadow">
           <div class="flex items-center justify-between">
             <h2 class="font-semibold">Phả hệ: {{ nhanChiSo(selected) }}</h2>
             <button
-              class="text-sm text-slate-500 underline"
+              class="text-sm chu-phu underline"
               @click="selected = null"
             >
               Đóng
             </button>
           </div>
-          <p v-if="lineageLoading" class="mt-2 text-slate-500">
+          <p v-if="lineageLoading" class="mt-2 chu-phu">
             Đang tải phả hệ...
           </p>
           <p v-else-if="lineageError" class="mt-2 text-red-700">
@@ -386,22 +396,22 @@ function fmtDate(iso?: string): string {
           </p>
           <div v-else-if="lineage" class="mt-2 space-y-1 text-sm">
             <p>
-              <span class="text-slate-500">Bảng nguồn:</span>
+              <span class="chu-phu">Bảng nguồn:</span>
               {{ lineage.bang_nguon.join(", ") || "—" }}
             </p>
             <p>
-              <span class="text-slate-500">Điều kiện lọc:</span>
+              <span class="chu-phu">Điều kiện lọc:</span>
               {{ lineage.dieu_kien_loc || "—" }}
             </p>
             <p>
-              <span class="text-slate-500">Luồng dữ liệu:</span>
+              <span class="chu-phu">Luồng dữ liệu:</span>
               {{ lineage.job }}
             </p>
             <p>
-              <span class="text-slate-500">Thời điểm tính:</span>
+              <span class="chu-phu">Thời điểm tính:</span>
               {{ fmtDate(data.computed_at) }}
             </p>
-            <p class="text-slate-500">
+            <p class="chu-phu">
               Sự kiện lineage: {{ lineage.lineage_events.length }}
             </p>
           </div>
@@ -429,11 +439,11 @@ function fmtDate(iso?: string): string {
       </form>
       <p v-if="askError" class="text-red-700">{{ askError }}</p>
 
-      <div v-if="answer" class="rounded-lg bg-white p-4 shadow">
+      <div v-if="answer" class="rounded-lg kinh p-4 shadow">
         <p class="whitespace-pre-line">{{ answerText }}</p>
         <ol
           v-if="answer.citations.length"
-          class="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600"
+          class="mt-3 list-decimal space-y-1 pl-5 text-sm chu-phu"
         >
           <li v-for="c in answer.citations" :key="c.chunk_id">
             <span class="font-semibold">{{ c.nguon }}</span

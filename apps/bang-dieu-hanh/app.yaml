@@ -4,6 +4,7 @@
 code: bang-dieu-hanh
 name: Bảng điều hành lãnh đạo (chỉ đọc chỉ số)
 version: 1.0.0
+schema: app_bang_dieu_hanh
 # Chỉ số lấy từ ứng dụng cấp phép; ứng dụng này chỉ đọc, không ghi nghiệp vụ
 metrics_app: cap-phep
 roles:
