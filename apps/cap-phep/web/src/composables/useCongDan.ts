@@ -202,9 +202,9 @@ export function useCongDan(getToken: () => Promise<string | null>, getSub: () =>
   }
 
   async function guiYeuCauDuLieu(loai: string, ghiChu?: string): Promise<void> {
-    const p = loai === "erase" ? "erasure" : loai;
     try {
-      await submitDsarRequest(await token(), p, ghiChu || "");
+      // loai: access | rectify | erase | restrict | withdraw (khớp core_api.gui_yeu_cau_dsar)
+      await submitDsarRequest(await token(), loai, ghiChu || "");
       notify("Đã gửi yêu cầu. Phường sẽ xác nhận trong 2 ngày làm việc.", "ok");
       await taiDuLieuCaNhan();
     } catch (e) {

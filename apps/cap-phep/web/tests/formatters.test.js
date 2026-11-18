@@ -128,7 +128,8 @@ describe("nhãn tiếng Việt", () => {
     expect(tenNhiemVu(null)).toBe("");
     expect(tenBuoc("tham_dinh")).toBe("Thẩm định");
     expect(tenBuoc(null)).toBe("");
-    expect(tenYeuCauDuLieu("erasure")).toBe("Xóa dữ liệu");
+    expect(tenYeuCauDuLieu("erase")).toBe("Xóa dữ liệu");
+    expect(tenYeuCauDuLieu("rectify")).toBe("Chỉnh sửa dữ liệu");
   });
 });
 
