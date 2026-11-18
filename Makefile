@@ -1,63 +1,78 @@
 # SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-.PHONY: help init preflight config build up up-full down reset logs ps test test-unit test-integration check-no-fakes license-check sbom verify app-install app-uninstall seed sync-users
+.PHONY: help init init-demo up down reset logs ps doctor backup restore gitops seed sync-users app-install app-uninstall config build test test-unit test-integration test-e2e check-no-fakes license-check sbom verify
 
 APP ?= cap-phep
 PYTHON ?= python3
 COMPOSE ?= docker compose
+DX ?= bash ./dx.sh
 
+# Các mục vận hành gọi ./dx.sh (cùng tập lệnh với dx.ps1 trên Windows), không lặp lại logic ở đây.
 help:
 	@echo "Mục tiêu:"
-	@echo "  make init              Tạo .env từ .env.example (chưa sinh secrets C11)"
-	@echo "  make config            Kiểm tra compose.yaml"
-	@echo "  make build             Build các image profile core"
-	@echo "  make up                Chạy stack profile core"
-	@echo "  make up-full           Chạy core + ai + sim + tools"
-	@echo "  make down              Dừng stack"
-	@echo "  make reset             Dừng và xóa volume"
-	@echo "  make logs / make ps    Xem log / trạng thái"
-	@echo "  make test              Chạy unit test"
-	@echo "  make verify            config + no-fakes + license"
-	@echo "  make app-install APP=cap-phep"
-	@echo "  make seed              Nạp dữ liệu mẫu"
+	@echo "  make init-demo         Sinh .env, bí mật, chứng thư, cấu hình (DEMO_MODE=true)"
+	@echo "  make init              Như trên nhưng DEMO_MODE=false"
+	@echo "  make up                Build, chạy profile core, JWKS, OpenBao, cài app, seed (demo), doctor"
+	@echo "  make down / reset      Dừng (giữ dữ liệu) / xóa toàn bộ dữ liệu (hỏi xác nhận)"
+	@echo "  make doctor / ps / logs"
+	@echo "  make backup / restore / gitops"
+	@echo "  make app-install APP=cap-phep / seed / sync-users"
+	@echo "  make test / test-integration / test-e2e"
+	@echo "  make verify            compose config + no-fakes + license"
+	@echo "Tương đương: ./dx.sh <lệnh>  (./dx.sh help để xem đủ)"
 
 init:
-	@if [ ! -f .env ]; then cp .env.example .env; echo "Đã tạo .env từ .env.example"; else echo ".env đã tồn tại"; fi
-	@echo "Lưu ý: secrets/, chứng thư và cấu hình APISIX do C11 sinh; chưa có thì 'make up' sẽ lỗi."
+	$(DX) init
 
-preflight:
-	@test -f .env || (echo "Thiếu .env: chạy 'make init' trước"; exit 1)
-	@test -d secrets || (echo "Thiếu C11: secrets/; chưa thể up"; exit 1)
-	@test -f scripts/softhsm_init.sh || (echo "Thiếu C11: scripts/softhsm_init.sh; chưa thể up"; exit 1)
-	@test -f core/apisix/apisix.yaml || (echo "Thiếu C11: core/apisix/apisix.yaml; chưa thể up"; exit 1)
-	@test -f core/postgrest/jwks.json || (echo "Thiếu C11: core/postgrest/jwks.json; chưa thể up"; exit 1)
-	@test -d core/nats/certs || (echo "Thiếu C11: core/nats/certs; chưa thể up"; exit 1)
+init-demo:
+	$(DX) init --demo
+
+up:
+	$(DX) up
+
+down:
+	$(DX) down
+
+reset:
+	$(DX) reset
+
+logs:
+	$(DX) logs
+
+ps:
+	$(DX) ps
+
+doctor:
+	$(DX) doctor
+
+backup:
+	$(DX) backup
+
+restore:
+	$(DX) restore
+
+gitops:
+	$(DX) gitops
+
+seed:
+	$(DX) seed
+
+sync-users:
+	$(DX) sync-users
+
+app-install:
+	$(DX) app-install $(APP)
+
+app-uninstall:
+	$(DX) app-uninstall $(APP)
 
 config:
 	$(COMPOSE) config >/dev/null
 	@echo "compose.yaml hợp lệ"
 
 build:
-	$(COMPOSE) --profile core build
-
-up: preflight
-	$(COMPOSE) --profile core up -d
-
-up-full: preflight
-	$(COMPOSE) --profile core --profile ai --profile sim --profile tools up -d
-
-down:
-	$(COMPOSE) down
-
-reset:
-	$(COMPOSE) down -v
-
-logs:
-	$(COMPOSE) logs -f --tail=100
-
-ps:
-	$(COMPOSE) ps
+	$(COMPOSE) --profile core --profile tools build
 
 test: test-unit
 
@@ -66,6 +81,9 @@ test-unit:
 
 test-integration:
 	$(PYTHON) -m pytest tests/integration -q
+
+test-e2e:
+	$(PYTHON) -m pytest tests/e2e tests/e2e-ui -q
 
 check-no-fakes:
 	$(PYTHON) scripts/check_no_fakes.py
@@ -77,15 +95,3 @@ sbom:
 	$(PYTHON) scripts/sbom.py
 
 verify: config check-no-fakes license-check
-
-app-install:
-	$(PYTHON) scripts/app_manager.py install --app $(APP)
-
-app-uninstall:
-	$(PYTHON) scripts/app_manager.py uninstall --app $(APP)
-
-seed:
-	$(PYTHON) apps/cap-phep/seed/seed.py
-
-sync-users:
-	$(PYTHON) scripts/sync_users.py
