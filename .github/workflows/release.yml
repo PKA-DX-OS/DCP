@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: DX-OS Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-sign-release:
+    name: Build, ký và phát hành
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4.2.2
+
+      - name: Cài Python 3.12
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Cài phụ thuộc SBOM
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/requirements.txt
+
+      - name: Sinh SBOM
+        run: |
+          python scripts/sbom.py
+          VERSION="${GITHUB_REF#refs/tags/}"
+          cp sbom/dxos-1.1.0.cdx.json "sbom/dxos-${VERSION}.cdx.json"
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build và push image
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO=$REPO" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          docker build -t "ghcr.io/$REPO/dxos-services:$VERSION" -f services/Dockerfile .
+          docker push "ghcr.io/$REPO/dxos-services:$VERSION"
+
+          docker build -t "ghcr.io/$REPO/dxos-cap-phep-web:$VERSION" apps/cap-phep/web
+          docker push "ghcr.io/$REPO/dxos-cap-phep-web:$VERSION"
+
+          docker build -t "ghcr.io/$REPO/dxos-bang-dieu-hanh-web:$VERSION" apps/bang-dieu-hanh/web
+          docker push "ghcr.io/$REPO/dxos-bang-dieu-hanh-web:$VERSION"
+
+      - name: Cài cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Ký image
+        run: |
+          for name in dxos-services dxos-cap-phep-web dxos-bang-dieu-hanh-web; do
+            digest=$(docker inspect --format='{{index .RepoDigests 0}}' "ghcr.io/$REPO/$name:$VERSION")
+            cosign sign --yes "$digest"
+          done
+
+      - name: Đóng gói mã nguồn
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="dxos-$VERSION/" -o "dist/dxos-$VERSION.tar.gz" HEAD
+          cd dist
+          sha256sum "dxos-$VERSION.tar.gz" > SHA256SUMS
+
+      - name: Tạo GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/dxos-*.tar.gz
+            dist/SHA256SUMS
+            sbom/*.cdx.json
+          generate_release_notes: true

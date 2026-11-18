@@ -1,0 +1,100 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: DX-OS CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  static-and-unit:
+    name: Kiểm tra tĩnh và unit test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4.2.2
+
+      - name: Cài Python 3.12
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Cài phụ thuộc
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/requirements.txt
+          pip install pytest pytest-asyncio reuse
+
+      - name: Biên dịch Python
+        run: python -m compileall -q services apps scripts tools tests
+
+      - name: Chặn mã giả và placeholder
+        run: python scripts/check_no_fakes.py
+
+      - name: Kiểm tra giấy phép
+        run: python scripts/license_check.py
+
+      - name: Unit test
+        run: python -m pytest tests/unit -q
+
+      - name: Kiểm tra thu thập test tích hợp
+        run: python -m pytest --collect-only -q tests/integration
+
+      - name: Sinh và kiểm tra SBOM
+        run: |
+          python scripts/sbom.py
+          python -c "import json; json.load(open('sbom/dxos-1.1.0.cdx.json'))"
+
+  web:
+    name: Build hai ứng dụng web
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4.2.2
+
+      - name: Cài Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            apps/cap-phep/web/package-lock.json
+            apps/bang-dieu-hanh/web/package-lock.json
+
+      - name: Web cấp phép
+        working-directory: apps/cap-phep/web
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Bảng điều hành
+        working-directory: apps/bang-dieu-hanh/web
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+  docker-build:
+    name: Build image lõi
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4.2.2
+
+      - name: Tạo .env mẫu
+        run: cp .env.example .env
+
+      - name: Kiểm tra compose
+        run: docker compose config >/dev/null
+
+      - name: Build profile core
+        run: docker compose --profile core build
+
+  # Job test tích hợp được bật sau khi C11/C14 hoàn tất và stack chạy được trong CI.
