@@ -16,8 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Gọi GET có token. Ứng dụng chỉ đọc: không có hàm ghi nghiệp vụ. */
-export async function apiGet<T>(path: string): Promise<T> {
+async function request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
   const token = await getValidToken();
   if (!token) {
     await login();
@@ -26,10 +25,15 @@ export async function apiGet<T>(path: string): Promise<T> {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
   let resp: Response;
   try {
     resp = await fetch(`${API_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
   } catch {
@@ -43,10 +47,20 @@ export async function apiGet<T>(path: string): Promise<T> {
     throw new ApiError(401, "HET_PHIEN", "Phiên đăng nhập đã hết hạn");
   }
   if (resp.status === 403) {
-    throw new ApiError(403, "KHONG_DU_QUYEN", "Bạn không có quyền xem bảng điều hành");
+    throw new ApiError(403, "KHONG_DU_QUYEN", "Bạn không có quyền xem nội dung này");
   }
   if (!resp.ok) {
     throw new ApiError(resp.status, "LOI_MAY_CHU", `Lỗi máy chủ (${resp.status})`);
   }
   return (await resp.json()) as T;
+}
+
+/** Chỉ đọc chỉ số và phả hệ. */
+export function apiGet<T>(path: string): Promise<T> {
+  return request<T>("GET", path);
+}
+
+/** Chỉ dùng cho hỏi đáp trợ lý; không ghi dữ liệu nghiệp vụ. */
+export function apiPost<T>(path: string, body: unknown): Promise<T> {
+  return request<T>("POST", path, body);
 }
