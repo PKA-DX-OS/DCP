@@ -114,20 +114,21 @@ Ví dụ hook ký giấy phép trong `flow_policies.on_task_complete`: khi
 - `alert_hooks`: `outbox-relay` đọc thẳng `app.yaml` khi có cảnh báo, gọi
   `on_alert` để lập phiếu kiểm tra và `on_process_started` để gắn quy trình
   `hau-kiem` vào phiếu.
+- Luật ngưỡng: `ingest` đọc mọi tệp `apps/*/rules/*.yaml` (khóa `rules`). Với
+  `cap-phep` là `rules/nguong.yaml`: tiếng ồn 70 dBA ban ngày (6h–21h), 55 dBA ban
+  đêm theo giờ Việt Nam; PM10 100, PM2.5 50 µg/m³. Số đo vượt ngưỡng sinh sự kiện
+  `alert.threshold` trong `core.outbox`.
+- `flow_policies.demo_sensor`: `ingest` đọc từ `core.app_policies` cho endpoint
+  `POST /api/v1/ingest/demo-sensor` (chỉ khi `DEMO_MODE=true`): vai được phép và hàm
+  kiểm vị trí thuộc địa bàn.
 - `seed.script`: `app_manager` chạy tệp này khi có cờ `--seed`.
 
 ### 2.7 Khóa đã khai báo nhưng chưa có dịch vụ đọc
 
-Các khóa sau được kiểm tra cú pháp khi nạp `app.yaml` nhưng hiện chưa dịch vụ nào
-dùng:
-
 - `doc_templates`: `doc-sign` dựng PDF bằng ReportLab, không đọc
   `templates/giay-phep.html`.
-- `ingest_rules.rules_file`: `ingest` lấy ngưỡng ồn từ biến môi trường
-  `INGEST_NOISE_DAY_MAX` (mặc định 70 dBA) và `INGEST_NOISE_NIGHT_MAX`
-  (mặc định 55 dBA), không đọc `rules/nguong.yaml`.
-- `flow_policies.demo_sensor`: lưu vào `core.app_policies` nhưng `ingest`
-  chưa có endpoint mô phỏng cảm biến.
+- `ingest_rules.rules_file`: chỉ để ghi chú; `ingest` tự quét `apps/*/rules/*.yaml`
+  như mục 2.6, không đọc đường dẫn khai báo ở khóa này.
 
 ## 3. Migration
 
