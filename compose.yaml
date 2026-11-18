@@ -1,0 +1,800 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: dxos
+
+networks:
+  edge:
+    name: dxos-edge
+    driver: bridge
+  app:
+    name: dxos-app
+    driver: bridge
+  data:
+    name: dxos-data
+    driver: bridge
+    internal: false
+
+services:
+  # ============================================================================
+  # 1. HẠ TẦNG DỮ LIỆU & LƯU TRỮ (MẠNG DATA)
+  # ============================================================================
+  postgres:
+    image: pgvector/pgvector:0.8.0-pg16
+    container_name: dxos-postgres
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+    # Cổng 5432 bị đóng khỏi host theo quy định F-07 (dùng compose.override.yaml nếu cần mở)
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?thiếu POSTGRES_SUPERUSER_PASSWORD, chạy dx init}
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?thiếu KEYCLOAK_DB_PASSWORD, chạy dx init}
+      FLOWABLE_DB_USER: ${FLOWABLE_DB_USER:-flowable}
+      FLOWABLE_DB_PASSWORD: ${FLOWABLE_DB_PASSWORD:?thiếu FLOWABLE_DB_PASSWORD, chạy dx init}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD, chạy dx init}
+      AUTHENTICATOR_PASSWORD: ${AUTHENTICATOR_PASSWORD:?thiếu AUTHENTICATOR_PASSWORD, chạy dx init}
+      DXOS_OWNER_PASSWORD: ${DXOS_OWNER_PASSWORD:?thiếu DXOS_OWNER_PASSWORD, chạy dx init}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./core/postgres/00-init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
+      - ./core/postgres/00-roles.sh:/docker-entrypoint-initdb.d/00-roles.sh:ro
+      - ./core/postgres/01-core-schema.sql:/docker-entrypoint-initdb.d/01-core-schema.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-dxos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 1024m
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.85
+    container_name: dxos-seaweedfs
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+    ports:
+      - "127.0.0.1:8333:8333"
+    command: ["server", "-s3", "-dir=/data", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json"]
+    volumes:
+      - ./secrets/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9333/ && nc -z 127.0.0.1 8333 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    mem_limit: 512m
+
+  clamav:
+    image: clamav/clamav:1.4.3
+    container_name: dxos-clamav
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--no-summary", "/etc/hostname"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    mem_limit: 1536m
+
+  openbao:
+    image: openbao/openbao:2.2.0
+    container_name: dxos-openbao
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+    ports:
+      - "127.0.0.1:8200:8200"
+    environment:
+      BAO_ADDR: "http://127.0.0.1:8200"
+      VAULT_ADDR: "http://127.0.0.1:8200"
+    command: ["server", "-config=/openbao/config/config.hcl"]
+    volumes:
+      - ./core/openbao/config.hcl:/openbao/config/config.hcl:ro
+      - openbao-data:/openbao/file
+    healthcheck:
+      test: ["CMD-SHELL", "BAO_ADDR=http://127.0.0.1:8200 bao status > /dev/null 2>&1; ret=$$?; test $$ret -eq 0 -o $$ret -eq 2"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    mem_limit: 256m
+
+  nats:
+    image: nats:2.10.26-alpine
+    container_name: dxos-nats
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+      - app
+    ports:
+      - "127.0.0.1:4222:4222"
+      - "8883:8883"
+    command: ["-c", "/etc/nats/nats-server.conf"]
+    volumes:
+      - ./core/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+      - ./secrets/nats-auth.conf:/etc/nats/auth.conf:ro
+      - ./core/nats/certs:/certs:ro
+      - nats-data:/data/jetstream
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "4222"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+
+  # ============================================================================
+  # 2. HẠ TẦNG QUY TRÌNH & ĐỊNH DANH (MẠNG DATA, APP, EDGE)
+  # ============================================================================
+  flowable:
+    image: flowable/flowable-rest:7.1.0
+    container_name: dxos-flowable
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+      - app
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowable
+      SPRING_DATASOURCE_USERNAME: ${FLOWABLE_DB_USER:-flowable}
+      SPRING_DATASOURCE_PASSWORD: ${FLOWABLE_DB_PASSWORD:?thiếu FLOWABLE_DB_PASSWORD, chạy dx init}
+      FLOWABLE_REST_APP_ADMIN_USER_ID: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_REST_APP_ADMIN_PASSWORD: ${FLOWABLE_PASSWORD:?thiếu FLOWABLE_PASSWORD, chạy dx init}
+      FLOW_INTERNAL_TOKEN: ${FLOW_INTERNAL_TOKEN:?thiếu FLOW_INTERNAL_TOKEN, chạy dx init}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/flowable-rest/docs/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    mem_limit: 1024m
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.3
+    container_name: dxos-keycloak
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+      - app
+      - edge
+    ports:
+      - "127.0.0.1:8081:8080"
+    command: ["start", "--import-realm", "--http-relative-path=/auth"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?thiếu KEYCLOAK_DB_PASSWORD, chạy dx init}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?thiếu KEYCLOAK_ADMIN_PASSWORD, chạy dx init}
+      KC_HOSTNAME: ${PUBLIC_BASE_URL:-http://localhost:8080}/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./secrets/realm-dxos.json:/opt/keycloak/data/import/realm-dxos.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000 && exec 3<&-'"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 20s
+    mem_limit: 1024m
+
+  postgrest:
+    build:
+      context: .
+      dockerfile: core/postgrest/Dockerfile
+    image: dxos/postgrest:12.2.8
+    container_name: dxos-postgrest
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+      - app
+    environment:
+      PGRST_DB_URI: postgresql://authenticator:${AUTHENTICATOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-dxos}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-app_cap_phep,core_api}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: "@${PGRST_JWT_SECRET_FILE:-/etc/postgrest/jwks.json}"
+      PGRST_JWT_AUD: "account"
+      PGRST_DB_EXTRA_SEARCH_PATH: "core,public"
+      PGRST_ADMIN_SERVER_PORT: "3001"
+    volumes:
+      - ./core/postgrest/jwks.json:/etc/postgrest/jwks.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/wget -qO- http://127.0.0.1:3001/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 256m
+
+  # ============================================================================
+  # 3. DỊCH VỤ MỎNG TẦNG 1 (MÃ NGUỒN CỦA TA - PYTHON 3.12 / FASTAPI)
+  # ============================================================================
+  files:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-files
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "files.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      SEAWEEDFS_S3_ENDPOINT: http://seaweedfs:8333
+      SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:?thiếu SEAWEEDFS_ACCESS_KEY}
+      SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:?thiếu SEAWEEDFS_SECRET_KEY}
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  softhsm-init:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-softhsm-init
+    restart: "no"
+    profiles: [core]
+    user: "0:0"
+    networks:
+      - data
+    command: ["sh", "/app/softhsm_init.sh"]
+    env_file: .env
+    volumes:
+      - ./scripts/softhsm_init.sh:/app/softhsm_init.sh:ro
+      - softhsm-tokens:/var/lib/softhsm/tokens
+      - softhsm-certs:/certs
+    mem_limit: 128m
+
+  doc-sign:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-doc-sign
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - edge
+      - app
+      - data
+    command: ["uvicorn", "doc-sign.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      SEAWEEDFS_S3_ENDPOINT: http://seaweedfs:8333
+      SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:?thiếu SEAWEEDFS_ACCESS_KEY}
+      SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:?thiếu SEAWEEDFS_SECRET_KEY}
+      OPENBAO_ADDR: http://openbao:8200
+      OPENBAO_TOKEN: ${OPENBAO_TOKEN:?thiếu OPENBAO_TOKEN}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      SIGNING_MODE: ${SIGNING_MODE:-pkcs11}
+      SOFTHSM_LIB: ${SOFTHSM_LIB:-/usr/lib/softhsm/libsofthsm2.so}
+      SOFTHSM_TOKEN: ${SOFTHSM_TOKEN:-dxos}
+      SOFTHSM_PIN: ${SOFTHSM_PIN:-1234}
+      SOFTHSM_CERT_LABEL: ${SOFTHSM_CERT_LABEL:-doc-sign}
+      SOFTHSM_KEY_LABEL: ${SOFTHSM_KEY_LABEL:-doc-sign}
+      TEST_CA_CERT: ${TEST_CA_CERT:-/certs/ca.crt}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+      - softhsm-tokens:/var/lib/softhsm/tokens
+      - softhsm-certs:/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      openbao:
+        condition: service_healthy
+      softhsm-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  flow:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-flow
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "flow.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      FLOWABLE_URL: ${FLOWABLE_URL:-http://flowable:8080/flowable-rest}
+      FLOWABLE_USER: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_PASSWORD: ${FLOWABLE_PASSWORD:?thiếu FLOWABLE_PASSWORD}
+      FLOW_INTERNAL_TOKEN: ${FLOW_INTERNAL_TOKEN:?thiếu FLOW_INTERNAL_TOKEN, chạy dx init}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  ingest:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-ingest
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "ingest.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  ngsi-ld:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-ngsi-ld
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "ngsi-ld.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  audit:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-audit
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "audit.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      SEAWEEDFS_S3_ENDPOINT: http://seaweedfs:8333
+      SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:?thiếu SEAWEEDFS_ACCESS_KEY}
+      SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:?thiếu SEAWEEDFS_SECRET_KEY}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  outbox-relay:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-outbox-relay
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - data
+      - app
+    command: ["python", "-m", "outbox-relay.main"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      NATS_INGEST_USER: ${NATS_INGEST_USER:-dxos_ingest}
+      NATS_INGEST_PASSWORD: ${NATS_INGEST_PASSWORD:-}
+      FLOWABLE_URL: ${FLOWABLE_URL:-http://flowable:8080/flowable-rest}
+      FLOWABLE_USER: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_PASSWORD: ${FLOWABLE_PASSWORD:?thiếu FLOWABLE_PASSWORD}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?thiếu KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    mem_limit: 128m
+
+  metrics-api:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-metrics-api
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "metrics-api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+  export-warm:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-export-warm
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["python", "services/export-warm/worker.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      SEAWEEDFS_S3_ENDPOINT: http://seaweedfs:8333
+      SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:?thiếu SEAWEEDFS_ACCESS_KEY}
+      SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:?thiếu SEAWEEDFS_SECRET_KEY}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+    mem_limit: 256m
+
+  # ============================================================================
+  # 4. GIAO DIỆN NGƯỜI DÙNG TẦNG 2 & CỔNG BIÊN MẠNG (EDGE)
+  # ============================================================================
+  main-web:
+    build:
+      context: ./apps/cap-phep/web
+      dockerfile: Dockerfile
+    image: dxos/cap-phep-web:1.1.0
+    container_name: dxos-main-web
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - edge
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+
+  bang-dieu-hanh-web:
+    build:
+      context: ./apps/bang-dieu-hanh/web
+      dockerfile: Dockerfile
+    image: dxos/bang-dieu-hanh-web:1.1.0
+    container_name: dxos-bang-dieu-hanh-web
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - edge
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+
+  apisix:
+    image: apache/apisix:3.11.0-debian
+    container_name: dxos-apisix
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - edge
+      - app
+    ports:
+      - "8080:8080"
+    environment:
+      APISIX_OIDC_SECRET: ${APISIX_OIDC_SECRET:?thiếu APISIX_OIDC_SECRET, chạy dx init}
+    volumes:
+      - ./core/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./core/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9092 && exec 3<&-'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    mem_limit: 512m
+
+  # ============================================================================
+  # 5. PROFILE AI: OLLAMA & ASSISTANT RAG
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:0.5.12
+    container_name: dxos-ollama
+    restart: unless-stopped
+    profiles: [ai]
+    networks:
+      - data
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 2048m
+
+  assistant:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1.0
+    container_name: dxos-assistant
+    restart: unless-stopped
+    profiles: [core, ai]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "assistant.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+
+  # ============================================================================
+  # 6. PROFILE SIM: SENSOR SIMULATOR
+  # ============================================================================
+  sensor-sim:
+    build:
+      context: .
+      dockerfile: tools/Dockerfile
+    image: dxos/tools:1.1.0
+    container_name: dxos-sensor-sim
+    restart: unless-stopped
+    profiles: [sim]
+    networks:
+      - app
+      - data
+    command: ["tools/sensor-sim/sim.py"]
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_SENSOR_PASSWORD: ${NATS_SENSOR_B_PASSWORD:?thiếu NATS_SENSOR_B_PASSWORD}
+    depends_on:
+      nats:
+        condition: service_healthy
+    mem_limit: 256m
+
+  # ============================================================================
+  # 7. PROFILE TOOLS: CONTAINER TIỆN ÍCH DÒNG LỆNH
+  # ============================================================================
+  tools:
+    build:
+      context: .
+      dockerfile: tools/Dockerfile
+    image: dxos/tools:1.1.0
+    profiles: [tools, gitops]
+    networks:
+      - edge
+      - app
+      - data
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dxos-backups:/var/backups/dxos
+      - openbao-data:/openbao-data
+      - softhsm-tokens:/softhsm-tokens
+      - softhsm-certs:/softhsm-certs
+    environment:
+      GATEWAY_INTERNAL_URL: http://apisix:8080
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080/auth
+      BACKUP_DIR: /var/backups/dxos
+    env_file: .env
+
+volumes:
+  postgres-data:
+  seaweedfs-data:
+  clamav-db:
+  openbao-data:
+  nats-data:
+  dxos-backups:
+  softhsm-tokens:
+  softhsm-certs:
+  ollama-models:
