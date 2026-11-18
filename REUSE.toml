@@ -1,7 +1,7 @@
 version = 1
 
 [[annotations]]
-path = ["REUSE.toml", "LICENSE", "LICENSES/**", ".gitignore", ".gitattributes", ".dockerignore", "pyproject.toml", "pytest.ini", "*.toml", "*.ini"]
+path = ["REUSE.toml", "LICENSE", "LICENSES/**", ".gitignore", ".gitattributes", ".dockerignore", "**/.dockerignore", "pyproject.toml", "pytest.ini", "*.toml", "*.ini"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 DCP contributors"
 SPDX-License-Identifier = "CC0-1.0"
@@ -25,7 +25,7 @@ SPDX-FileCopyrightText = "2026 DCP contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 
 [[annotations]]
-path = ["apps/**/dist/**", "**/dist/**", "**/*.svg", "**/*.ico", "**/*.png", "**/*.woff*", "**/*.ttf"]
+path = ["apps/**/dist/**", "**/dist/**", "**/*.svg", "**/*.ico", "**/*.png", "**/*.woff*", "**/*.ttf", "**/*.html", "**/*.css"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 DCP contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
@@ -36,6 +36,12 @@ path = ["secrets/**", ".pytest_cache/**", ".ruff_cache/**", "**/node_modules/**"
 precedence = "override"
 SPDX-FileCopyrightText = "2026 DCP contributors"
 SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["apps/cap-phep/web/src/utils/labels.ts"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 DCP contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
 path = ["tests/**"]
