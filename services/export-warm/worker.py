@@ -11,6 +11,7 @@ Worker xuất chuỗi thời gian core.timeseries ra Parquet theo lô (C05).
 Ví dụ:
   python worker.py --month 2026-11                 # mọi tenant, ghi vào bucket lake
   python worker.py --month 2026-11 --tenant <tenant> --local-out dist/warm/export.parquet
+  python worker.py --lap-giay 3600                 # chạy nền (compose): mỗi giờ xuất tháng trước và tháng này
 """
 
 import argparse
@@ -18,7 +19,7 @@ import asyncio
 import io
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, List, Tuple
 
@@ -137,6 +138,24 @@ async def make_db_access():
     return fetch, list_tenants
 
 
+def thang_can_xuat(now: datetime) -> List[str]:
+    """Tháng trước và tháng hiện tại (UTC) theo YYYY-MM; xuất lại tháng trước để chốt dữ liệu cuối tháng."""
+    now = now.astimezone(timezone.utc)
+    truoc = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    return [truoc, now.strftime("%Y-%m")]
+
+
+async def _chay_lap(args) -> int:
+    """Chế độ dịch vụ nền: lỗi một lượt chỉ ghi log, lượt sau chạy lại (ghi đè cùng khóa nên không trùng)."""
+    while True:
+        for month in thang_can_xuat(datetime.now(timezone.utc)):
+            try:
+                await _run(argparse.Namespace(month=month, tenant=args.tenant, local_out=None))
+            except Exception:
+                logger.exception(f"Xuất tháng {month} lỗi, thử lại ở lượt sau")
+        await asyncio.sleep(args.lap_giay)
+
+
 async def _run(args) -> int:
     fetch, list_tenants = await make_db_access()
     start, end = parse_month(args.month)
@@ -159,10 +178,19 @@ async def _run(args) -> int:
 def main(argv=None) -> int:
     logging.basicConfig(level=logging.INFO)
     p = argparse.ArgumentParser(description="Xuất core.timeseries ra Parquet theo lô")
-    p.add_argument("--month", required=True, help="YYYY-MM")
+    p.add_argument("--month", help="YYYY-MM (bắt buộc khi không dùng --lap-giay)")
     p.add_argument("--tenant", action="append", help="Có thể lặp; bỏ trống = mọi tenant")
     p.add_argument("--local-out", help="Ghi ra file cục bộ (chỉ với một tenant)")
+    p.add_argument("--lap-giay", type=int, help="Chạy nền, mỗi N giây xuất tháng trước và tháng này vào bucket lake")
     args = p.parse_args(argv)
+    if args.lap_giay is not None:
+        if args.month or args.local_out:
+            p.error("--lap-giay không dùng cùng --month hoặc --local-out")
+        if args.lap_giay < 60:
+            p.error("--lap-giay tối thiểu 60")
+        return asyncio.run(_chay_lap(args))
+    if not args.month:
+        p.error("cần --month YYYY-MM hoặc --lap-giay N")
     return asyncio.run(_run(args))
 
 

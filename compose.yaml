@@ -600,7 +600,7 @@ services:
     networks:
       - app
       - data
-    command: ["python", "services/export-warm/worker.py"]
+    command: ["python", "services/export-warm/worker.py", "--lap-giay", "3600"]
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
