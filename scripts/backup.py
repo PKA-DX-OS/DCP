@@ -8,8 +8,15 @@ Kịch bản sao lưu toàn diện hệ thống (dx backup / make backup) - O-03
 2. Xuất toàn bộ cơ sở dữ liệu PostgreSQL (dxos, keycloak, flowable).
 3. Sao lưu tệp tin đính kèm và niêm phong WORM trên SeaweedFS S3.
 4. Sao lưu snapshot dữ liệu dịch vụ ký số OpenBao.
-5. Mã hóa bản sao lưu với restic hoặc AES-256 (mật khẩu từ secrets/restic-password.txt).
+5. Ghi manifest.json: SHA-256 và kích thước từng tệp trong bản sao lưu (không chứa bí mật);
+   bản sao manifest để ngoài kho restic tại <thư mục sao lưu>/manifests/<backup_id>.json.
+6. Mã hóa bản sao lưu bằng restic (mật khẩu từ RESTIC_PASSWORD hoặc secrets/restic-password.txt).
+
+Chạy lại an toàn: mỗi lần tạo một snapshot mới gắn tag backup_id, không ghi đè bản cũ.
 """
+
+import argparse
+import hashlib
 
 import json
 import io
@@ -56,8 +63,10 @@ def get_backup_dir() -> Path:
 
 def get_s3_client():
     endpoint = os.getenv("SEAWEEDFS_S3_ENDPOINT", "http://seaweedfs:8333")
-    access_key = os.getenv("SEAWEEDFS_ACCESS_KEY", "dxos_dev_s3_key_2026")
-    secret_key = os.getenv("SEAWEEDFS_SECRET_KEY", "dxos_dev_s3_secret_2026")
+    access_key = os.getenv("SEAWEEDFS_ACCESS_KEY")
+    secret_key = os.getenv("SEAWEEDFS_SECRET_KEY")
+    if not access_key or not secret_key:
+        raise SystemExit("[ERROR] Thiếu SEAWEEDFS_ACCESS_KEY/SEAWEEDFS_SECRET_KEY (đọc từ .env khi chạy qua dx)")
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
@@ -80,7 +89,47 @@ def get_restic_password() -> str:
     sys.exit(1)
 
 
-def main():
+MANIFEST_NAME = "manifest.json"
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def tao_manifest(staging_dir: Path, backup_id: str) -> dict:
+    """Mã băm từng tệp trong bản sao lưu (đường dẫn tương đối, kích thước, SHA-256)."""
+    files = []
+    for f in sorted(staging_dir.rglob("*")):
+        if f.is_file() and f.name != MANIFEST_NAME:
+            files.append({"path": f.relative_to(staging_dir).as_posix(), "size": f.stat().st_size, "sha256": sha256_file(f)})
+    return {"backup_id": backup_id, "algorithm": "sha256", "files": files}
+
+
+def kiem_manifest(backup_path: Path) -> list[str]:
+    """So bản sao lưu đã giải mã với manifest.json; trả danh sách sai lệch (rỗng nghĩa là khớp)."""
+    mf = backup_path / MANIFEST_NAME
+    if not mf.exists():
+        return [f"thiếu {MANIFEST_NAME}"]
+    data = json.loads(mf.read_text(encoding="utf-8"))
+    sai = []
+    co = {f.relative_to(backup_path).as_posix() for f in backup_path.rglob("*") if f.is_file() and f.name != MANIFEST_NAME}
+    for item in data.get("files", []):
+        f = backup_path / item["path"]
+        if not f.is_file():
+            sai.append(f"thiếu {item['path']}")
+        elif f.stat().st_size != item["size"] or sha256_file(f) != item["sha256"]:
+            sai.append(f"sai mã băm {item['path']}")
+        co.discard(item["path"])
+    sai.extend(f"tệp lạ {p}" for p in sorted(co))
+    return sai
+
+
+def main(argv=None):
+    argparse.ArgumentParser(description="Sao lưu toàn bộ hệ thống DX-OS (dx backup)").parse_args(argv)
     now = datetime.now(timezone.utc)
     backup_id = f"dxos-backup-{now.strftime('%Y%m%d_%H%M%S')}"
     base_backup_dir = get_backup_dir()
@@ -158,7 +207,11 @@ def main():
                     continue
                 bucket_dir = s3_dir / b_name
                 bucket_dir.mkdir(parents=True, exist_ok=True)
-                objects = s3.list_objects_v2(Bucket=b_name).get("Contents", [])
+                objects = [
+                    obj
+                    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=b_name)
+                    for obj in page.get("Contents", [])
+                ]
                 for obj in objects:
                     key = obj["Key"]
                     obj_file = bucket_dir / key
@@ -173,7 +226,7 @@ def main():
         # 4. Sao lưu dữ liệu OpenBao (O-03, V2-12, V3-12)
         print("--> 3. Sao lưu dữ liệu dịch vụ ký số OpenBao...")
         bao_file = staging_dir / "openbao_snapshot.tar"
-        openbao_dir = Path("/openbao-data")
+        openbao_dir = Path(os.getenv("OPENBAO_DATA_DIR", "/openbao-data"))
         if not openbao_dir.exists():
             openbao_dir = Path("/openbao/file")
 
@@ -208,7 +261,7 @@ def main():
         # 4b. Sao lưu SoftHSM token + test CA
         print("--> 4. Sao lưu SoftHSM token + test CA...")
         import tarfile
-        for name, src_dir in (("softhsm_tokens", "/softhsm-tokens"), ("softhsm_certs", "/softhsm-certs")):
+        for name, src_dir in (("softhsm_tokens", os.getenv("SOFTHSM_TOKENS_DIR", "/softhsm-tokens")), ("softhsm_certs", os.getenv("SOFTHSM_CERTS_DIR", "/softhsm-certs"))):
             src = Path(src_dir)
             if src.exists() and any(src.iterdir()):
                 tar_path = staging_dir / f"{name}.tar"
@@ -219,8 +272,17 @@ def main():
             else:
                 print(f"  [WARN] Không thấy dữ liệu {src_dir}; bỏ qua")
 
-    # 5. Mã hóa bằng restic (V2-12: bắt buộc có restic và mật khẩu, không để lộ dữ liệu chưa mã hóa)
-        print("--> 4. Mã hóa bản sao lưu bằng Restic...")
+        # 5. Manifest mã băm (ghi vào bản sao lưu và một bản ngoài kho restic để đối chiếu)
+        print("--> 5. Ghi manifest mã băm...")
+        manifest = tao_manifest(staging_dir, backup_id)
+        (staging_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        mf_dir = base_backup_dir / "manifests"
+        mf_dir.mkdir(parents=True, exist_ok=True)
+        (mf_dir / f"{backup_id}.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"  [OK] {len(manifest['files'])} tệp, manifest tại {mf_dir / (backup_id + '.json')}")
+
+        # 6. Mã hóa bằng restic (V2-12: bắt buộc có restic và mật khẩu, không để lộ dữ liệu chưa mã hóa)
+        print("--> 6. Mã hóa bản sao lưu bằng Restic...")
         restic_pw = get_restic_password()
         restic_repo = base_backup_dir / "restic_repo"
 
@@ -242,9 +304,11 @@ def main():
                 print(f"[ERROR] Không thể khởi tạo restic repository: {r_init.stderr}", file=sys.stderr)
                 sys.exit(1)
 
+        # Chạy trong thư mục staging với đường dẫn "." để snapshot không phụ thuộc tên thư mục tạm
         r_backup = subprocess.run(
-            ["restic", "backup", "--tag", backup_id, str(staging_dir)],
+            ["restic", "backup", "--tag", backup_id, "--host", "dxos", "."],
             env=r_env,
+            cwd=str(staging_dir),
             capture_output=True,
             text=True,
         )
@@ -252,7 +316,7 @@ def main():
             print(f"[ERROR] Lỗi thực thi sao lưu restic: {r_backup.stderr}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"  [OK] Đã mã hóa và đồng bộ thành công vào kho Restic: {restic_repo}")
+        print(f"  [OK] Đã mã hóa vào kho Restic {restic_repo}, tag {backup_id}")
 
         print("==========================================================")
         print(f" [BACKUP] HOÀN TẤT SAO LƯU THÀNH CÔNG NGOÀI KHO TẠI: {base_backup_dir}")
