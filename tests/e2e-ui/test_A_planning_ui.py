@@ -77,6 +77,7 @@ def test_A_ui_tab_quy_hoach_nghiem_thu_va_action_bar():
             page.locator("#tab-chi-tiet-block-dossier-planning").click()
             page.get_by_role("heading", name="Quy hoạch và chỉ tiêu xây dựng").wait_for(timeout=10000)
             page.locator("#block-dossier-planning").wait_for(timeout=10000)
+            page.locator(".leaflet-container").first.wait_for(timeout=10000)
 
             page.locator("#tab-chi-tiet-block-dossier-acceptance").click()
             page.get_by_role("heading", name="Nghiệm thu và hoàn công").wait_for(timeout=10000)

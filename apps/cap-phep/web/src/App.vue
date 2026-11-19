@@ -139,7 +139,7 @@ onMounted(async () => {
     <button class="btn btn-sm absolute right-4 top-4" :aria-label="theme === 'dark' ? 'Chuyển nền sáng' : 'Chuyển nền tối'" @click="doiGiaoDien()">
       {{ theme === "dark" ? "Nền sáng" : "Nền tối" }}
     </button>
-    <section id="main" class="brand-hero the" aria-labelledby="brand-title">
+    <main id="main" class="brand-hero the" aria-labelledby="brand-title">
       <div class="flex items-center gap-3">
         <LogoMark :size="52" />
         <div>
@@ -163,7 +163,8 @@ onMounted(async () => {
         <a class="btn inline-flex min-h-[44px]" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
         <a class="btn inline-flex min-h-[44px]" href="/dieu-hanh/" target="_blank" rel="noopener">Bảng điều hành</a>
       </div>
-    </section>
+      <p class="mt-6 mb-0 text-xs text-phu">DX-OS Open-Core v1.0.0 · Mã nguồn mở AGPL-3.0</p>
+    </main>
   </div>
 
   <div v-else-if="trang === 'khong_quyen'" class="the m-6 p-6">

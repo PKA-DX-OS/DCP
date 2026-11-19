@@ -7,7 +7,7 @@ import { createMilestone, fetchAcceptance, submitAcceptanceRecord, submitAsBuilt
 import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { uploadFile } from "../../api/files";
 import { notify } from "../../composables/useToast";
-import { Button } from "../../design-system";
+import { Button, Skeleton } from "../../design-system";
 
 const props = defineProps<{
   dossier: any;
@@ -223,7 +223,10 @@ onMounted(tai);
       <span class="goi-y">Căn cứ NĐ 207/2026/NĐ-CP</span>
     </div>
 
-    <p v-if="loading" class="text-phu m-0">Đang tải nghiệm thu…</p>
+    <div v-if="loading" class="the p-3" role="status" aria-busy="true">
+      <p class="sr-only">Đang tải nghiệm thu…</p>
+      <Skeleton :lines="4" height="2rem" />
+    </div>
     <div v-else-if="error" class="the p-3">
       <p class="canh-bao m-0">{{ error }}</p>
       <button class="btn btn-sm mt-2" @click="tai">Thử lại</button>

@@ -6,7 +6,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { askAssistant, checkPlanning, fetchPlanningDocuments, fetchPlanningParcels, fetchPlanningResults, fetchPlanningZones, type PlanningCheckBody } from "../../api/planning";
 import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { notify } from "../../composables/useToast";
-import { Badge, Button } from "../../design-system";
+import { Badge, Button, Skeleton } from "../../design-system";
 import MapView from "../../components/MapView.vue";
 
 const props = defineProps<{
@@ -216,7 +216,10 @@ onMounted(taiDuLieu);
       <span class="goi-y">Dữ liệu quy hoạch tổng hợp phục vụ demo</span>
     </div>
 
-    <p v-if="loading" class="text-phu m-0">Đang tải dữ liệu quy hoạch…</p>
+    <div v-if="loading" class="the p-3" role="status" aria-busy="true">
+      <p class="sr-only">Đang tải quy hoạch…</p>
+      <Skeleton :lines="4" height="2rem" />
+    </div>
     <div v-else-if="error" class="the p-3">
       <p class="canh-bao m-0">{{ error }}</p>
       <button class="btn btn-sm mt-2" @click="taiDuLieu">Thử lại</button>

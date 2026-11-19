@@ -69,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           :aria-pressed="filter === f.key"
           :class="['chip', filter === f.key && 'chip-chon']"
           @click="filter = f.key"
-        >{{ f.label }}<span v-if="f.count" class="ml-1 opacity-70">{{ f.count }}</span></button>
+        >{{ f.label }}<span v-if="f.count" class="ml-1 font-medium">{{ f.count }}</span></button>
       </div>
 
       <div v-if="loading && dossiers.length === 0" id="loading-dossiers-state" class="px-6 py-10" role="status" aria-live="polite" aria-busy="true">

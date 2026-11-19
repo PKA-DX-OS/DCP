@@ -404,7 +404,7 @@ function fmtDate(iso?: string): string {
     <button class="absolute right-4 top-4 rounded border border-slate-300 px-3 py-2 text-sm" :aria-label="cheDo === 'toi' ? 'Chuyển nền sáng' : 'Chuyển nền tối'" @click="doiGiaoDien()">
       {{ cheDo === "toi" ? "Nền sáng" : "Nền tối" }}
     </button>
-    <section class="brand-hero kinh" aria-labelledby="bdh-title">
+    <main class="brand-hero kinh" aria-labelledby="bdh-title">
       <div class="flex items-center gap-3">
         <LogoMark :size="48" />
         <div>
@@ -420,7 +420,8 @@ function fmtDate(iso?: string): string {
         <a class="inline-flex min-h-[44px] items-center rounded border border-slate-300 px-4 py-2 text-sm" href="/">Về trang cấp phép</a>
         <a class="inline-flex min-h-[44px] items-center rounded border border-slate-300 px-4 py-2 text-sm" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
       </div>
-    </section>
+      <p class="mt-6 mb-0 text-xs chu-phu">DX-OS Open-Core v1.0.0 · Mã nguồn mở AGPL-3.0</p>
+    </main>
   </div>
 
   <div
@@ -439,7 +440,7 @@ function fmtDate(iso?: string): string {
     </button>
   </div>
 
-  <div v-else id="bdh-main" class="space-y-4">
+  <main v-else id="bdh-main" class="space-y-4">
     <header class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-xl font-semibold">Bảng điều hành lãnh đạo</h1>
       <div class="flex flex-wrap items-center gap-2">
@@ -701,5 +702,5 @@ function fmtDate(iso?: string): string {
     <section v-if="laKiemToan" v-show="tab === 'kiem-toan'">
       <AuditorPanel />
     </section>
-  </div>
+  </main>
 </template>
