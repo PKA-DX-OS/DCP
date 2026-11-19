@@ -72,6 +72,9 @@ export interface NopHoSoPayload {
   so_tang?: number;
   dien_tich_san_m2?: number;
   khu_quan_ly_kien_truc?: boolean;
+  doi_tuong?: "ho_gia_dinh_ca_nhan" | "to_chuc";
+  trong_kcn?: boolean;
+  cap_hanh_chinh?: "xa" | "tinh" | "";
 }
 
 export interface DocRequirement {

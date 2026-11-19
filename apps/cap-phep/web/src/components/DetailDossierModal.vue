@@ -18,6 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       </div>
 
       <DossierActionBar v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" @done="hoSoCapNhat = $event" />
+      <DossierWarnings v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" />
 
       <nav class="flex gap-1 px-5 pt-2 border-b border-vien-nhat overflow-x-auto" aria-label="Các phần của hồ sơ">
         <button
@@ -178,6 +179,7 @@ import { useModal } from "../composables/useModal";
 import PlanningPanel from "../features/planning/PlanningPanel.vue";
 import AcceptancePanel from "../features/acceptance/AcceptancePanel.vue";
 import DossierActionBar from "./DossierActionBar.vue";
+import DossierWarnings from "./DossierWarnings.vue";
 import { readRoles } from "../auth";
 import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo } from "../api";
 import { API_BASE } from "../config";

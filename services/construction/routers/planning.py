@@ -25,6 +25,10 @@ class CheckRequest(BaseModel):
     proposal: dict[str, Any] = Field(default_factory=dict)
 
 
+class WarningConfirmRequest(BaseModel):
+    ghi_chu: Optional[str] = Field(default=None, max_length=2000)
+
+
 def _json(value: Any) -> Any:
     if isinstance(value, str):
         try:
@@ -357,6 +361,31 @@ async def kiem_tra_quy_hoach(body: CheckRequest, authorization: str = Header(...
         "proposal": proposal,
         "results": results,
     }
+
+
+@router.get("/validation/{ho_so_id}")
+async def danh_sach_canh_bao(ho_so_id: str, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    async with get_db_connection(claims) as conn:
+        raw = await conn.fetchval("SELECT app_cap_phep.danh_sach_canh_bao_ho_so($1::uuid)", ho_so_id)
+    if isinstance(raw, str):
+        raw = json.loads(raw)
+    return raw or {"items": [], "so_canh_bao": 0, "so_loi": 0}
+
+
+@router.post("/validation/{ho_so_id}/confirm")
+async def xac_nhan_canh_bao(ho_so_id: str, body: WarningConfirmRequest, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    yeu_cau_kiem_tra(claims)
+    async with get_db_connection(claims) as conn:
+        raw = await conn.fetchval(
+            "SELECT app_cap_phep.xac_nhan_canh_bao_ho_so($1::uuid, $2)",
+            ho_so_id,
+            body.ghi_chu,
+        )
+    if isinstance(raw, str):
+        raw = json.loads(raw)
+    return raw or {"items": []}
 
 
 @router.get("/results/{ho_so_id}")

@@ -109,3 +109,24 @@ routes:
       type: roundrobin
       nodes:
         "construction:8000": 1
+
+  - id: route_metrics_on_time
+    uri: /api/v1/metrics/on-time
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1

@@ -3,7 +3,7 @@
 
 import { ref } from "vue";
 import { ApiError } from "../api/client";
-import { fetchDocumentRequirements, fetchHoSo, nopHoSo, openHoSo, supplementHoSo } from "../api/dossiers";
+import { fetchDocumentRequirements, fetchHoSo, nopHoSo, openHoSo, supplementHoSo, updateSubjectAuthority } from "../api/dossiers";
 import { linkDossierFile, uploadFile } from "../api/files";
 import { completeTask, fetchTasks, startWorkflow } from "../api/flow";
 import { fetchConsents, fetchDsarRequests, grantConsent, submitDsarRequest, withdrawConsent } from "../api/dsar";
@@ -82,6 +82,15 @@ export function useCongDan(getToken: () => Promise<string | null>, getSub: () =>
         });
       }
       const res = await nopHoSo(t, form, hoSoId, tep);
+      try {
+        await updateSubjectAuthority(t, res.id, {
+          doi_tuong: form.doi_tuong,
+          trong_kcn: form.trong_kcn,
+          cap_hanh_chinh: form.cap_hanh_chinh,
+        });
+      } catch {
+        notify("Đã nộp hồ sơ nhưng chưa lưu được thông tin thẩm quyền; cán bộ sẽ bổ sung.", "canh_bao");
+      }
       try {
         await startWorkflow(t, "cap-phep", res.ma_ho_so, {
           ho_so_id: res.id,

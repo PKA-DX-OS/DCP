@@ -269,7 +269,8 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
             if pool:
                 async with pool.acquire() as conn:
                     await conn.execute(
-                        "DELETE FROM core.knowledge_chunks WHERE app = $1 AND tenant = ANY($2::text[])",
+                        "DELETE FROM core.knowledge_chunks WHERE app = $1 AND tenant = ANY($2::text[]) "
+                        "AND source NOT LIKE 'legal-pdf/%' AND source NOT LIKE 'legal-analysis/%'",
                         app_code, target_tenants,
                     )
             for md_file in sorted(knowledge_dir.glob("*.md")):
