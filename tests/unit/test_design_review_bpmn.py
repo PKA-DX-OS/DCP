@@ -74,3 +74,4 @@ def test_app_yaml_khai_bao_bpmn_va_chinh_sach_tham_dinh():
     assert policy["task_transitions"]["taskThamDinhBoMon"] == "taskTongHopThietKe"
     assert policy["task_transitions"]["taskBoSungThietKe"] == "taskThamDinhBoMon"
     assert policy["sla"]["taskThamDinhBoMon"] == "P5D"
+    assert "taskBoSungThietKe" in policy["submitter_tasks"]
