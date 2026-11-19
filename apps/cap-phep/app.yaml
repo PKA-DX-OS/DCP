@@ -58,6 +58,9 @@ flow_policies:
   task_list_variables: [ho_so_id, ma_ho_so, business_key, phieu_id, object_id, object_type, dia_chi_cong_trinh, trang_thai_ho_so, do_uu_tien]
   submitter_roles:
     - "app:cap-phep:chu-dau-tu"
+  manager_roles:
+    - "app:cap-phep:lanh-dao"
+    - "app:cap-phep:mot-cua"
   staff_roles:
     - "app:cap-phep:mot-cua"
     - "app:cap-phep:tham-dinh"
@@ -156,6 +159,10 @@ flow_policies:
     taskHoanCong: P3D
   on_timer: app_cap_phep_private.ghi_qua_han
   sync_state_sql: app_cap_phep_private.sync_flow_state
+  sync_state_sql_by_process:
+    cap-phep: app_cap_phep_private.sync_flow_state
+    quy-hoach: app_cap_phep_private.sync_quy_hoach_state
+    nghiem-thu: app_cap_phep_private.sync_nghiem_thu_state
   on_task_complete:
     taskDuyetCapPhep:
       when: { dongYCapPhep: true }
@@ -346,6 +353,14 @@ metrics:
     lineage_job: export_warm_lakehouse
     bang_nguon: [app_construction.moc_nghiem_thu]
     dieu_kien_loc: "tenant = <tenant>"
+  - code: ty_le_dung_han
+    name: Tỷ lệ hồ sơ đã cấp đúng hạn
+    unit: phần trăm
+    query_type: transactional
+    sql: "SELECT COALESCE(round(100.0 * count(*) FILTER (WHERE updated_at <= han_tong_at) / NULLIF(count(*), 0), 1), 0) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai = 'DA_CAP'"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_cap_phep.ho_so]
+    dieu_kien_loc: "tenant = <tenant>; trạng thái DA_CAP; updated_at <= han_tong_at"
   - code: vi_pham
     name: Số vụ vi phạm đã kết luận
     unit: vụ

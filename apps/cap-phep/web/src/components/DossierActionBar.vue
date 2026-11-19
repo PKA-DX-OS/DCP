@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { completeTask, fetchOfficers, fetchTasks } from "../api/flow";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { assignTask, completeTask, fetchOfficers, fetchTasks } from "../api/flow";
 import { openHoSo } from "../api/dossiers";
 import { notify } from "../composables/useToast";
 
@@ -41,6 +41,18 @@ const sub = computed(() => {
   }
 });
 
+const roles = computed<string[]>(() => {
+  try {
+    const part = props.token.split(".")[1] || "";
+    const json = JSON.parse(decodeURIComponent(escape(atob(part.replace(/-/g, "+").replace(/_/g, "/")))));
+    const ds = json?.realm_access?.roles ?? json?.roles ?? [];
+    return Array.isArray(ds) ? ds.map(String) : [];
+  } catch {
+    return [];
+  }
+});
+const laQuanLy = computed(() => roles.value.some((r) => ["app:cap-phep:lanh-dao", "app:cap-phep:mot-cua", "dx:tenant-admin", "dx:platform-admin"].includes(r)));
+
 function bien(task: any, ten: string): any {
   return ((task?.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value;
 }
@@ -59,7 +71,7 @@ function coTheXuLy(t: any): boolean {
   return !t?.assignee || t.assignee === sub.value;
 }
 
-function hanhDongCua(t: any): HanhDong[] {
+function hanhDongCoBan(t: any): HanhDong[] {
   const key = t?.taskDefinitionKey || "";
   if (key === "taskKiemTraHopLe") {
     return [
@@ -100,6 +112,15 @@ function hanhDongCua(t: any): HanhDong[] {
   return [];
 }
 
+function hanhDongCua(t: any): HanhDong[] {
+  const ds = hanhDongCoBan(t);
+  const key = t?.taskDefinitionKey || "";
+  if (laQuanLy.value && t?.assignee && key !== "taskPhanCong") {
+    ds.push({ key: "reassign", nhan: "Phân công lại", variables: {}, canChonCanBo: true, canLyDo: true, varLyDo: "reason", tone: "vang" });
+  }
+  return ds;
+}
+
 function moHanhDong(h: HanhDong) {
   hanhDongChon.value = h;
   lyDo.value = "";
@@ -119,6 +140,21 @@ async function gui() {
   }
   if (h.canChonCanBo && !nguoiThamDinh.value) {
     notify("Chọn cán bộ thẩm định", "canh_bao");
+    return;
+  }
+  if (h.key === "reassign") {
+    dangGui.value = true;
+    try {
+      await assignTask(props.token, t.id, nguoiThamDinh.value, lyDo.value.trim());
+      notify("Đã phân công lại việc", "ok");
+      hanhDongChon.value = null;
+      await tai();
+      window.dispatchEvent(new CustomEvent("dxos:tasks-changed"));
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Không phân công lại được", "loi");
+    } finally {
+      dangGui.value = false;
+    }
     return;
   }
   const variables: Record<string, any> = { ...h.variables };
@@ -157,7 +193,15 @@ function han(t: any): string {
   return t?.dueDate ? new Date(t.dueDate).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Không có hạn";
 }
 
-onMounted(tai);
+function taiKhiThayDoi() {
+  void tai();
+}
+
+onMounted(() => {
+  window.addEventListener("dxos:tasks-changed", taiKhiThayDoi);
+  void tai();
+});
+onUnmounted(() => window.removeEventListener("dxos:tasks-changed", taiKhiThayDoi));
 </script>
 
 <template>
