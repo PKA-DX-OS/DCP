@@ -15,11 +15,9 @@ import DetailDossierModal from "./components/DetailDossierModal.vue";
 import SupplementModal from "./components/SupplementModal.vue";
 import Forbidden403Modal from "./components/Forbidden403Modal.vue";
 import BreakGlassModal from "./components/BreakGlassModal.vue";
-import WorkspaceView from "./views/WorkspaceView.vue";
-import ConstructionView from "./views/ConstructionView.vue";
-import DossiersView from "./views/DossiersView.vue";
-import ConsentView from "./views/ConsentView.vue";
-import TruyCapKhanView from "./views/TruyCapKhanView.vue";
+import { tabsChoVai } from "./features/registry";
+import { provideFeatureContext } from "./features/context";
+import { laCanBo as coVaiCanBo, laChuDauTu as coVaiChuDauTu } from "./features/roles";
 
 type TrangThai = "dang_kiem_tra" | "chua_dang_nhap" | "khong_quyen" | "ok";
 const trang = ref<TrangThai>("dang_kiem_tra");
@@ -28,18 +26,12 @@ const subNguoiDung = ref<string | undefined>(undefined);
 const vaiTro = ref<string[]>([]);
 const accessToken = ref<string | undefined>(undefined);
 
-const VAI_CAN_BO = ["app:cap-phep:mot-cua", "app:cap-phep:tham-dinh", "app:cap-phep:lanh-dao", "app:cap-phep:trat-tu-xd"];
-const VAI_CHU_DAU_TU = "app:cap-phep:chu-dau-tu";
-const laCanBo = computed(() => vaiTro.value.some((r) => VAI_CAN_BO.includes(r)));
-const laChuDauTu = computed(() => vaiTro.value.includes(VAI_CHU_DAU_TU));
-const laLanhDao = computed(() => vaiTro.value.includes("app:cap-phep:lanh-dao"));
+const laCanBo = computed(() => coVaiCanBo(vaiTro.value));
+const laChuDauTu = computed(() => coVaiChuDauTu(vaiTro.value));
 
-// Tab theo vai: chủ đầu tư thấy hồ sơ của mình và dữ liệu cá nhân; cán bộ thấy bàn làm việc, công trình
-const TABS = computed(() => [
-  ...(laChuDauTu.value ? [{ ma: "ho-so", ten: "Hồ sơ của tôi" }, { ma: "du-lieu", ten: "Dữ liệu của tôi" }] : []),
-  ...(laCanBo.value ? [{ ma: "ban-lam-viec", ten: "Bàn làm việc" }, { ma: "cong-trinh", ten: "Công trình" }] : []),
-  ...(laLanhDao.value ? [{ ma: "truy-cap-khan", ten: "Truy cập khẩn" }] : []),
-]);
+// Tab theo vai lấy từ features/registry.ts; thêm màn hình mới không cần sửa tệp này
+const FEATURES_HIEN = computed(() => tabsChoVai(vaiTro.value));
+const TABS = computed(() => FEATURES_HIEN.value.map((f) => ({ ma: f.ma, ten: f.ten })));
 const thongBao = useNotifications(() => subNguoiDung.value);
 const cd = useCongDan(getValidToken, () => subNguoiDung.value);
 
@@ -57,7 +49,7 @@ watch(tab, (v) => {
   const u = new URL(window.location.href);
   u.searchParams.set(KHOA_URL, v);
   window.history.replaceState(window.history.state, "", u.toString());
-  if (v === "du-lieu") cd.taiDuLieuCaNhan();
+  FEATURES_HIEN.value.find((f) => f.ma === v)?.khiMo?.(ctx);
 });
 
 
@@ -104,6 +96,9 @@ function chuyenSangXinKhan(): void {
 async function guiXinKhan(hoSoId: string, lyDo: string): Promise<void> {
   if (await cd.xinTruyCapKhan(hoSoId, lyDo)) xinKhan.value = null;
 }
+
+const ctx = { vaiTro, sub: subNguoiDung, cd, moHoSo, moNopHoSo, moBoSung };
+provideFeatureContext(ctx);
 
 onMounted(async () => {
   batAnhSang();
@@ -159,30 +154,7 @@ onMounted(async () => {
 
     <!-- v-show giữ trạng thái màn hình khi chuyển tab -->
     <main>
-      <div v-if="laChuDauTu" v-show="tab === 'ho-so'">
-        <DossiersView
-          :dossiers="cd.dossiers.value"
-          :error-msg="cd.loi.value"
-          :loading="cd.dangTai.value"
-          :is-applicant="true"
-          @create-dossier="moNopHoSo()"
-          @refresh="cd.taiHoSo()"
-          @view-detail="(d: HoSo) => moHoSo(d.id, d.ma_ho_so)"
-          @supplement="moBoSung"
-          @open-by-code="(ma: string) => moHoSo(ma, ma)"
-        />
-      </div>
-      <div v-if="laChuDauTu" v-show="tab === 'du-lieu'">
-        <ConsentView
-          :dsar-list="cd.dsarList.value"
-          :consent-list="cd.consents.value"
-          @save-consents="cd.luuDongY"
-          @dsar="cd.guiYeuCauDuLieu"
-        />
-      </div>
-      <div v-if="laCanBo" v-show="tab === 'ban-lam-viec'"><WorkspaceView @mo-ho-so="moHoSo" /></div>
-      <div v-if="laCanBo" v-show="tab === 'cong-trinh'"><ConstructionView /></div>
-      <div v-if="laLanhDao" v-show="tab === 'truy-cap-khan'"><TruyCapKhanView /></div>
+      <div v-for="f in FEATURES_HIEN" v-show="tab === f.ma" :key="f.ma"><component :is="f.component" /></div>
     </main>
   </div>
 
