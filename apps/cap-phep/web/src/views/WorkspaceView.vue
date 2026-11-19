@@ -7,6 +7,7 @@ import { getUser, getValidToken, readRoles } from "../auth";
 import { fetchEscalations, fetchTasks, remindTask } from "../api/flow";
 import { useDossierActions, type NguoiDung } from "../composables/useDossierActions";
 import { notify } from "../composables/useToast";
+import { EmptyState, Skeleton } from "../design-system";
 import type { FlowTask } from "../types";
 
 type BoLoc = "tat-ca" | "qua-han" | "sap-han";
@@ -172,7 +173,10 @@ defineExpose({ taiViec });
       <button class="btn" @click="taiViec()">Làm mới</button>
     </div>
 
-    <p v-if="dangTai" class="text-phu" role="status">Đang tải việc...</p>
+    <div v-if="dangTai" class="the p-4" role="status" aria-busy="true">
+      <p class="sr-only">Đang tải việc…</p>
+      <Skeleton :lines="5" height="2rem" />
+    </div>
 
     <section v-if="laQuanLy && !dangTai && escalations.length" class="the p-4" aria-labelledby="tieu-de-qua-han">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -196,7 +200,14 @@ defineExpose({ taiViec });
       <button class="btn mt-2" @click="taiViec()">Thử lại</button>
     </div>
 
-    <p v-else-if="!danhSachLoc.length" class="the p-4 text-phu">Không có việc nào cần xử lý.</p>
+    <EmptyState
+      v-else-if="!danhSachLoc.length"
+      class="the p-4"
+      title="Không có việc nào cần xử lý"
+      description="Việc được giao từ quy trình sẽ xuất hiện ở đây."
+    >
+      <button type="button" class="btn min-h-[44px]" @click="taiViec()">Tải lại</button>
+    </EmptyState>
 
     <ul v-else class="space-y-3">
       <li v-for="t in danhSachLoc" :key="t.id" class="the p-4">

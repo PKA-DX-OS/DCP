@@ -130,6 +130,7 @@ html, body { background: var(--nen); color: var(--chu); }
 .tt { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap; }
 .tt::before { content: ""; @apply h-1.5 w-1.5 rounded-full bg-current; }
 .tt-xanh { color: rgb(var(--c-xanh)); background: var(--xanh-nen); }
+:root[data-theme="light"] .tt-xanh { color: #0f5c2c; }
 .tt-vang { color: rgb(var(--c-vang)); background: var(--vang-nen); }
 .tt-lam { color: rgb(var(--c-lam)); background: var(--lam-nen); }
 .tt-do { color: rgb(var(--c-son)); background: var(--do-nen); }

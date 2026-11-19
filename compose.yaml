@@ -194,6 +194,7 @@ services:
       KC_HEALTH_ENABLED: "true"
     volumes:
       - ./secrets/realm-dxos.json:/opt/keycloak/data/import/realm-dxos.json:ro
+      - ./core/keycloak/themes:/opt/keycloak/themes:ro
     depends_on:
       postgres:
         condition: service_healthy

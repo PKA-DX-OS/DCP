@@ -91,16 +91,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </ul>
         </div>
 
-        <div class="mt-4 flex justify-between gap-2 md:hidden">
-          <button type="button" class="btn min-h-[44px]" :disabled="step === 0" @click="step--">Quay lại</button>
-          <button type="button" class="btn min-h-[44px]" :disabled="step === 2" @click="step++">Tiếp tục</button>
-        </div>
         <div class="flex justify-end gap-2 mt-6">
           <button type="button" class="btn min-h-[44px]" @click="$emit('close')">Hủy</button>
           <button type="submit" id="btn-submit-nop-ho-so" class="btn btn-chinh min-h-[44px]" :disabled="submitting || loadingRequirements">
             {{ submitting ? "Đang kiểm tra và nộp…" : "Kiểm tra và nộp hồ sơ" }}
           </button>
         </div>
+        </div>
+        <div class="mt-4 flex justify-between gap-2 md:hidden">
+          <button type="button" class="btn min-h-[44px]" :disabled="step === 0" @click="step--">Quay lại</button>
+          <button type="button" class="btn min-h-[44px]" :disabled="step === 2" @click="step++">Tiếp tục</button>
         </div>
       </form>
     </div>

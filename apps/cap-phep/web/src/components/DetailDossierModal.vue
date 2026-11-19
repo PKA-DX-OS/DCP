@@ -34,22 +34,22 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       </nav>
 
       <div ref="than" class="hop-than">
-        <h4 id="muc-thong-tin" class="muc-con">Chủ đầu tư</h4>
-        <dl class="ds-thong-tin">
+        <h4 id="muc-thong-tin" class="muc-con" :class="mobileMuc('muc-thong-tin')">Chủ đầu tư</h4>
+        <dl class="ds-thong-tin" :class="mobileMuc('muc-thong-tin')">
           <dt>Họ tên</dt><dd id="detail-chu-dau-tu">{{ dossier.ho_ten }}</dd>
           <dt>CCCD</dt><dd>{{ cheCccd(dossier.cccd) }}</dd>
           <dt>Điện thoại</dt><dd>{{ dossier.dien_thoai }}</dd>
           <dt>Địa bàn</dt><dd>{{ tenDonVi(dossier.tenant) }}</dd>
         </dl>
 
-        <h4 class="muc-con">Công trình</h4>
-        <dl class="ds-thong-tin">
+        <h4 class="muc-con" :class="mobileMuc('muc-thong-tin')">Công trình</h4>
+        <dl class="ds-thong-tin" :class="mobileMuc('muc-thong-tin')">
           <dt>Địa chỉ</dt><dd id="detail-dia-chi">{{ dossier.dia_chi_cong_trinh }}</dd>
           <dt>Thửa đất</dt><dd>{{ dossier.thua_dat }}</dd>
           <dt>Quy mô</dt><dd>{{ dossier.so_tang }} tầng, diện tích sàn {{ formatNumberVi(dossier.dien_tich_san_m2) }} m²</dd>
         </dl>
 
-        <section v-if="dossier.trang_thai === 'DA_CAP' || permitInfo" id="block-giay-phep-signature" class="mt-5 p-4 rounded-[10px] border border-vien bg-mat">
+        <section v-if="dossier.trang_thai === 'DA_CAP' || permitInfo" id="block-giay-phep-signature" class="mt-5 p-4 rounded-[10px] border border-vien bg-mat" :class="mobileMuc('muc-thong-tin')">
           <div class="flex items-center justify-between gap-3 mb-3">
             <h4 class="text-[14px] font-semibold m-0">Giấy phép và chữ ký số</h4>
             <span id="badge-permit-status" :class="permitInfo?.trang_thai === 'revoked' ? 'tt tt-do' : 'tt tt-xanh'">
@@ -85,7 +85,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </template>
         </section>
 
-        <section id="block-dossier-files" class="mt-5" aria-labelledby="tieu-de-giay-to">
+        <section id="block-dossier-files" class="mt-5" :class="mobileMuc('block-dossier-files')" aria-labelledby="tieu-de-giay-to">
           <div class="flex items-baseline justify-between gap-3 mb-2">
             <h4 id="tieu-de-giay-to" class="text-[14px] font-semibold m-0">Giấy tờ đã nộp</h4>
             <span class="mo">{{ docs.length }} tệp</span>
@@ -103,10 +103,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </ul>
         </section>
 
-        <PlanningPanel v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" :la-can-bo="laCanBo" />
-        <AcceptancePanel v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" />
+        <PlanningPanel v-if="laCanBo && userToken" :class="mobileMuc('block-dossier-planning')" :dossier="dossier" :token="userToken" :la-can-bo="laCanBo" />
+        <AcceptancePanel v-if="laCanBo && userToken" :class="mobileMuc('block-dossier-acceptance')" :dossier="dossier" :token="userToken" />
 
-        <section id="block-dossier-progress" class="mt-5" aria-labelledby="tieu-de-tien-trinh">
+        <section id="block-dossier-progress" class="mt-5" :class="mobileMuc('block-dossier-progress')" aria-labelledby="tieu-de-tien-trinh">
           <h4 id="tieu-de-tien-trinh" class="text-[14px] font-semibold m-0 mb-2">Tiến trình quy trình</h4>
           <ol id="list-dossier-progress" class="list-none m-0 p-0 flex flex-wrap gap-x-2 gap-y-1 text-[13px]">
             <li v-for="(b, i) in TIEN_TRINH" :key="b" class="flex items-center gap-2">
@@ -124,7 +124,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           <p v-else-if="hoSoHienTai.trang_thai === 'CAN_BO_SUNG'" class="text-vang text-[13px] mt-2 mb-0">Đang chờ chủ đầu tư bổ sung hồ sơ.</p>
         </section>
 
-        <section id="block-dossier-audit" class="mt-5" aria-labelledby="tieu-de-lich-su">
+        <section id="block-dossier-audit" class="mt-5" :class="mobileMuc('block-dossier-audit')" aria-labelledby="tieu-de-lich-su">
           <div class="flex items-baseline justify-between gap-3 mb-1">
             <h4 id="tieu-de-lich-su" class="text-[14px] font-semibold m-0">Ai đã xem và xử lý hồ sơ</h4>
             <span class="mo">{{ auditList.length }} ghi nhận</span>
@@ -151,7 +151,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         </section>
 
         <!-- Phần do feature đăng ký (features/registry.ts: DOSSIER_TABS) -->
-        <section v-for="t in tabMoRong" :id="'muc-' + t.ma" :key="t.ma" class="mt-5">
+        <section v-for="t in tabMoRong" :id="'muc-' + t.ma" :key="t.ma" class="mt-5" :class="mobileMuc('muc-' + t.ma)">
           <h4 class="muc-con">{{ t.ten }}</h4>
           <component :is="t.component" :dossier="dossier" :user-token="userToken" />
         </section>
@@ -231,6 +231,10 @@ const mucDangXem = ref<string>(MUC_CO_BAN[0].id);
 function denMuc(id: string) {
   mucDangXem.value = id;
   than.value?.querySelector<HTMLElement>(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+/** Mobile: chỉ mở mục đang chọn (accordion); desktop: hiện đủ như cũ. */
+function mobileMuc(id: string): string {
+  return mucDangXem.value === id ? "" : "hidden md:block";
 }
 
 const TIEN_TRINH = ["tiep_nhan", "phan_cong", "tham_dinh", "phe_duyet", "hoan_thanh"];

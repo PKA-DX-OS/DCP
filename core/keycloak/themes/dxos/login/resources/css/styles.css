@@ -1,0 +1,90 @@
+/* SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Theme Keycloak tối giản: giữ nguyên form/mã trường của Keycloak, chỉ đổi nhận diện. */
+body {
+  background:
+    radial-gradient(42rem 30rem at 12% 8%, rgba(96, 165, 250, 0.22), transparent 70%),
+    radial-gradient(36rem 28rem at 88% 20%, rgba(228, 184, 99, 0.18), transparent 70%),
+    #0b1220 !important;
+}
+
+#kc-header-wrapper {
+  color: #f0f4fa !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 26px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  text-transform: none !important;
+  padding-bottom: 8px;
+}
+
+#kc-header-wrapper::after {
+  content: "Nền tảng cấp phép xây dựng số, bảo mật và minh bạch";
+  display: block;
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.pf-c-login__main,
+.pf-v5-c-login__main {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border: 1px solid rgba(226, 232, 240, 0.14) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 48px rgba(2, 6, 16, 0.5) !important;
+  backdrop-filter: blur(14px);
+}
+
+.pf-c-form__label,
+.pf-v5-c-form__label,
+.pf-c-login__main-header,
+.pf-v5-c-login__main-header {
+  color: #e2e8f0 !important;
+}
+
+.pf-c-form-control,
+.pf-v5-c-form-control {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(226, 232, 240, 0.2) !important;
+  color: #f0f4fa !important;
+}
+
+#kc-login {
+  background: #e4b863 !important;
+  border-color: #e4b863 !important;
+  color: #0b1220 !important;
+  font-weight: 600;
+}
+
+#kc-login:hover,
+#kc-login:focus {
+  background: #f0cd86 !important;
+  border-color: #f0cd86 !important;
+}
+
+a,
+.pf-c-button.pf-m-link,
+.pf-v5-c-button.pf-m-link {
+  color: #e4b863 !important;
+}
+
+#kc-info-wrapper {
+  color: #94a3b8 !important;
+}
+
+:focus-visible {
+  outline: 2px solid #e4b863 !important;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
