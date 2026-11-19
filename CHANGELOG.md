@@ -24,13 +24,13 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 
 ---
 
-## [1.1.1] - 2026-11-10
+## [1.0] - 2026-11-19
 
 ### Đã thêm (Added)
 - **PAdES/SoftHSM:** `softhsm-init` tạo token, test CA và leaf cert; `doc-sign` ký PAdES qua `pyHanko` + `python-pkcs11`, mặc định `SIGNING_MODE=pkcs11`.
 - **Dashboard [D] thật:** gọi `/api/v1/metrics` và `/api/v1/metrics/{code}/lineage` bằng JWT; bỏ toàn bộ số liệu hardcoded.
 - **Trợ lý [I] thật:** gọi `/api/v1/assistant/ask`, hiển thị citation; bỏ câu trả lời canned.
-- **SBOM:** `scripts/sbom.py` + `sbom/dxos-1.1.0.cdx.json` (CycloneDX 1.5).
+- **SBOM:** `scripts/sbom.py` + `sbom/dxos-1.0.cdx.json` (CycloneDX 1.5).
 - **CLI:** thêm `e2e`, `e2e-ui`, `test-qa`, `check-no-fakes`, `sbom` cho `dx.ps1`/`dx.sh` và Makefile.
 - **One-shot:** `run.ps1` + `run.cmd` tự kiểm tra Docker, dừng stack cũ, init `.env`/secrets, bật DEMO_MODE, chạy `up → app-install → seed → doctor`, chờ dịch vụ healthy, kiểm tra gateway HTTP và mở trình duyệt. Có `-Reset` và `-NoBrowser`.
 - **P1 Manifest giấy tờ:** `document_manifest` trong `app.yaml` + bảng `app_cap_phep.document_requirements`; checklist động trên UI; RPC `nop_ho_so` kiểm tra 7 lớp và trả **422** kèm `{field, loai_giay, reason, action}`.
@@ -43,7 +43,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - `tests/e2e`: dùng token cảm biến `dxos-sensor-phuong-a` thay vì token cán bộ; thêm kiểm tra tải PDF + tamper.
 - `tests/e2e-ui`: chấp nhận PAdES thay vì chỉ Ed25519.
 - `dx.ps1 init`: fallback `py -3.12` hoặc tools container khi host Python thiếu `cryptography`.
-- `dx.sh reset`: dùng image tools `1.1.0` và gọi đúng `python scripts/init.py`.
+- `dx.sh reset`: dùng image tools `1.0` và gọi đúng `python scripts/init.py`.
 - `sensor-spike`/`demo-sensor`: dùng cổng APISIX `8080` thay vì `9080`.
 - `gitops`: chạy reconciler trên host để có Docker CLI; `init` đồng bộ `COMPOSE_FILE_SHA256` để không báo drift giả.
 - REUSE: bổ sung annotation cho `secrets/`, cache, `node_modules`, `tests/`; thêm `LICENSES/ISC.txt`.
@@ -56,11 +56,11 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 
 ---
 
-## [1.1.0]
+## [0.9.0]
 
 ### Security
 
-Các lỗ hổng an toàn thông tin và điểm yếu phân quyền được rà soát, vá triệt để ở phiên bản v1.1.0:
+Các lỗ hổng an toàn thông tin và điểm yếu phân quyền được rà soát, vá triệt để ở phiên bản v0.9.0:
 - **`sync_flow_state` (Kiểm soát đồng bộ trạng thái quy trình):** Loại bỏ việc cho phép người dùng web hoặc cán bộ tự gọi RPC sửa trực tiếp trạng thái hồ sơ qua REST API; chỉ dịch vụ backend `flow` (vai trò hệ thống `dx:service`) mới có quyền đồng bộ trạng thái BPMN vào cơ sở dữ liệu dựa trên sự kiện BPMN chính thức từ Flowable engine.
 - **`dsar` (Bảo vệ tính toàn vẹn yêu cầu dữ liệu cá nhân):** Chặn đứng nguy cơ sửa đổi, giả mạo các trường định danh chủ thể (`subject_sub`, `tenant`); áp dụng triệt để chính sách `rls_dsar_requests_tenant` và tự động tính toán thời hạn tiếp nhận (2 ngày làm việc), giải quyết (7 ngày làm việc) dựa trên hàm lịch hành chính `core.add_business_days`.
 - **`dinh_kem_tep` (Cách ly tệp đính kèm hồ sơ):** Hàm RPC `dinh_kem_tep` bổ sung kiểm tra nghiêm ngặt: tệp đính kèm bắt buộc phải thuộc sở hữu của người gọi (`v_file.owner_sub = cur_sub`), cùng đơn vị (tenant), và hồ sơ phải ở trạng thái cho phép nộp bổ sung (`DA_NOP`, `CAN_BO_SUNG`), ngăn chặn hoàn toàn việc chèn tệp trái phép vào hồ sơ của công dân hoặc phường khác.
@@ -93,9 +93,9 @@ Các lỗ hổng an toàn thông tin và điểm yếu phân quyền được r�
   - Thiết lập danh sách kiểm soát truy cập (Subject ACL) nghiêm ngặt cho từng thiết bị cảm biến môi trường (`dxos.<tenant>.site.<device_id>.>`), ngăn chặn trạm đo giả mạo hoặc ghi đè dữ liệu của trạm khác.
 - **Giao diện Web Tự hành & Độc lập Ngoại mạng (F-49 đến F-52):**
   - Đóng gói toàn bộ thư viện giao diện Vue 3 và Tailwind CSS vào thư mục nội bộ `vendor/`, sử dụng phông chữ hệ thống. Hệ thống vận hành hoàn toàn độc lập, không gửi bất kỳ truy vấn nào ra Internet.
-  - Bổ sung thanh biểu ngữ cảnh báo nổi bật bắt buộc "Bản mô phỏng phục vụ cuộc thi" trên tất cả giao diện ứng dụng; đồng bộ nhận diện phiên bản lên `v1.1.0`.
+  - Bổ sung thanh biểu ngữ cảnh báo nổi bật bắt buộc "Bản mô phỏng phục vụ cuộc thi" trên tất cả giao diện ứng dụng; đồng bộ nhận diện phiên bản lên `v0.9.0`.
 - **Vận hành Không Phụ thuộc Máy chủ Host (F-06, F-21, F-22, F-47, F-48):**
-  - Cung cấp container công cụ quản trị `dxos/tools:1.0.0` tích hợp toàn bộ các tiện ích; cung cấp script tiện ích `.\dx.ps1` (PowerShell) và `./dx.sh` (Bash). Máy chủ chỉ yêu cầu cài đặt Docker Engine.
+  - Cung cấp container công cụ quản trị `dxos/tools:0.9.0` tích hợp toàn bộ các tiện ích; cung cấp script tiện ích `.\dx.ps1` (PowerShell) và `./dx.sh` (Bash). Máy chủ chỉ yêu cầu cài đặt Docker Engine.
   - Tích hợp quy trình sao lưu và phục hồi thảm họa thực tế (PostgreSQL pg_dumpall và SeaweedFS S3 sync), đo lường RTO thực tế < 2 giây.
   - Công cụ GitOps `reconciler` xác minh chữ ký container bằng Cosign thật (mã thoát 2 khi sai chữ ký) và tự động khắc phục sai lệch cấu hình đang chạy.
 - **Hệ thống Kiểm thử Tự động & Nghiệm thu Thực tế (F-53 đến F-56):**
@@ -106,7 +106,7 @@ Các lỗ hổng an toàn thông tin và điểm yếu phân quyền được r�
 
 ---
 
-## [1.0.0] - 2026-11-04
+## [0.8.0] - 2026-11-04
 
 ### Đã thêm (Added)
 - **Tầng 1 - Nền tảng Dịch vụ Lõi số (Headless PaaS):**

@@ -11,8 +11,8 @@ FROM docker:27.5.1-cli AS docker-cli
 
 FROM python:3.12-slim
 
-LABEL org.opencontainers.image.version="1.1.0" \
-      org.opencontainers.image.revision="1.1.0"
+LABEL org.opencontainers.image.version="1.0" \
+      org.opencontainers.image.revision="1.0"
 
 ENV TZ=Asia/Ho_Chi_Minh \
     PYTHONDONTWRITEBYTECODE=1 \

@@ -46,5 +46,5 @@ Quy trình báo cáo có trách nhiệm:
 
 ## Thông Báo Thu Hồi Khóa Lộ Lọt (Security Advisory - Key Revocation)
 
-- **Cảnh báo:** Khóa riêng tư `core/nats/certs/server.key` từng vô tình được commit trong phiên bản `v1.0.0` đã chính thức bị **thu hồi và coi là mất an toàn**.
-- **Biện pháp xử lý:** Từ phiên bản `v1.1.0`, toàn bộ chứng chỉ và khóa riêng tư TLS được sinh ngẫu nhiên tự động trong bước `.\dx.ps1 init` (hoặc `./dx.sh init`), lưu cục bộ ngoài kho Git và được thêm vào `.gitignore`. Mọi hệ thống vận hành bắt buộc phải sinh cặp khóa mới khi khởi tạo.
+- **Cảnh báo:** Khóa riêng tư `core/nats/certs/server.key` từng vô tình được commit trong phiên bản `v0.8.0` đã chính thức bị **thu hồi và coi là mất an toàn**.
+- **Biện pháp xử lý:** Từ phiên bản `v0.9.0`, toàn bộ chứng chỉ và khóa riêng tư TLS được sinh ngẫu nhiên tự động trong bước `.\dx.ps1 init` (hoặc `./dx.sh init`), lưu cục bộ ngoài kho Git và được thêm vào `.gitignore`. Mọi hệ thống vận hành bắt buộc phải sinh cặp khóa mới khi khởi tạo.

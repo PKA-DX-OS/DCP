@@ -2,13 +2,13 @@
 # SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Đóng gói phát hành cục bộ (không gồm bí mật, dữ liệu chạy):
+"""Đóng gói phát hành cục bộ (không gồm bí mật và dữ liệu chạy):
 
     dist/dxos-<version>.tar.gz     mã nguồn
     dist/SHA256SUMS                mã băm gói
     dist/dxos-<version>.json       metadata: phiên bản, commit, thời điểm, số tệp, mã băm
 
-    python scripts/release.py --version 1.1.0
+    python scripts/release.py --version 1.0
 """
 
 import argparse
@@ -43,7 +43,7 @@ def sha256_file(path: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", default="1.1.0")
+    parser.add_argument("--version", default="1.0")
     args = parser.parse_args()
     version = args.version.strip().lstrip("v")
     if not version:

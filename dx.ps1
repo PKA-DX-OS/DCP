@@ -89,8 +89,8 @@ function Invoke-Init {
     } else {
         Write-Host "--> Python tren may thieu cryptography/pyyaml/httpx; chay init trong image tools..."
         # Build thang bang docker build: chua co .env thi docker compose khong doc duoc compose.yaml
-        Invoke-Step "docker" @("build", "-f", "tools/Dockerfile", "-t", "dxos/tools:1.1.0", ".")
-        Invoke-Step "docker" (@("run", "--rm", "-v", "${PWD}:/app", "-w", "/app", "dxos/tools:1.1.0", "scripts/init.py") + $ArgList)
+        Invoke-Step "docker" @("build", "-f", "tools/Dockerfile", "-t", "dxos/tools:1.0", ".")
+        Invoke-Step "docker" (@("run", "--rm", "-v", "${PWD}:/app", "-w", "/app", "dxos/tools:1.0", "scripts/init.py") + $ArgList)
     }
 }
 
@@ -205,7 +205,7 @@ switch ($Command) {
     "release" {
         $py = Get-HostPython
         if (-not $py) { $py = "python" }
-        $ver = if ($Rest.Count -gt 0) { $Rest[0] } else { "1.1.0" }
+        $ver = if ($Rest.Count -gt 0) { $Rest[0] } else { "1.0" }
         Invoke-Step $py @("scripts/release.py", "--version", $ver)
     }
     "reset"          { Invoke-Reset $Rest }

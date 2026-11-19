@@ -147,8 +147,8 @@ def main(argv=None):
         metadata = {
             "backup_id": backup_id,
             "created_at": now.isoformat(),
-            "version": "1.1.0",
-            "system": "DX-OS Open-Core (v1.1)",
+            "version": "1.0",
+            "system": "DX-OS Open-Core (v1.0)",
         }
         (staging_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
