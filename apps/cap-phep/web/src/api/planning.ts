@@ -36,3 +36,15 @@ export async function fetchLegalCitations(token: string, topic: string): Promise
 export async function askAssistant(token: string, question: string): Promise<any> {
   return apiJson("/assistant/ask", { token, method: "POST", body: { question, app: "cap-phep" } }, "Lỗi hỏi trợ lý");
 }
+
+export async function fetchDossierWarnings(token: string, hoSoId: string): Promise<any> {
+  return apiJson(`/planning/validation/${encodeURIComponent(hoSoId)}`, { token }, "Lỗi tải cảnh báo hồ sơ");
+}
+
+export async function confirmDossierWarnings(token: string, hoSoId: string, ghiChu = ""): Promise<any> {
+  return apiJson(
+    `/planning/validation/${encodeURIComponent(hoSoId)}/confirm`,
+    { token, method: "POST", body: { ghi_chu: ghiChu || null } },
+    "Lỗi xác nhận cảnh báo",
+  );
+}
