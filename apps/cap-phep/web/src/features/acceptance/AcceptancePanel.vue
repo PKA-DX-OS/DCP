@@ -1,0 +1,241 @@
+<!-- SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from "vue";
+import { createMilestone, fetchAcceptance, submitAcceptanceRecord, submitAsBuilt } from "../../api/acceptance";
+import { uploadFile } from "../../api/files";
+import { notify } from "../../composables/useToast";
+
+const props = defineProps<{
+  dossier: any;
+  token: string;
+}>();
+
+const MILESTONES = [
+  { code: "mong", ten: "Nghiệm thu móng" },
+  { code: "ket_cau", ten: "Nghiệm thu kết cấu" },
+  { code: "hoan_thien", ten: "Nghiệm thu hoàn thiện" },
+  { code: "hoan_cong", ten: "Hoàn công" },
+];
+
+const duLieu = ref<any>(null);
+const loading = ref(false);
+const saving = ref(false);
+const error = ref("");
+const selectedMoc = ref<any>(null);
+const fileRef = ref<HTMLInputElement | null>(null);
+const fileHoanCong = ref<File | null>(null);
+
+const form = reactive({
+  loai_moc: "mong",
+  ket_qua: "dat",
+  ngay_nghiem_thu: new Date().toISOString().slice(0, 10),
+  ghi_chu: "",
+});
+
+const record = reactive({
+  so_bien_ban: "",
+  ket_luan: "",
+  ket_qua: "dat",
+});
+
+function mocMoiNhat(code: string): any {
+  const ds = (duLieu.value?.milestones || []).filter((m: any) => m.loai_moc === code);
+  return ds.length ? ds[ds.length - 1] : null;
+}
+
+const tienDo = computed(() => {
+  const done = MILESTONES.filter((m) => mocMoiNhat(m.code)?.ket_qua === "dat").length;
+  return { done, total: MILESTONES.length, pct: Math.round((done * 100) / MILESTONES.length) };
+});
+
+function mocClass(code: string): string {
+  const m = mocMoiNhat(code);
+  if (!m) return "tt tt-xam";
+  if (m.ket_qua === "dat") return "tt tt-xanh";
+  if (m.ket_qua === "khong_dat") return "tt tt-do";
+  return "tt tt-vang";
+}
+
+function mocNhan(code: string): string {
+  const m = mocMoiNhat(code);
+  if (!m) return "Chưa nghiệm thu";
+  if (m.ket_qua === "dat") return "Đạt";
+  if (m.ket_qua === "khong_dat") return "Không đạt";
+  return "Chờ nghiệm thu";
+}
+
+async function tai() {
+  loading.value = true;
+  error.value = "";
+  try {
+    duLieu.value = await fetchAcceptance(props.token, props.dossier.id);
+    const tiep = duLieu.value.moc_tiep_theo || "mong";
+    form.loai_moc = tiep;
+    selectedMoc.value = mocMoiNhat(tiep) || null;
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Không tải được nghiệm thu";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function taoMoc() {
+  saving.value = true;
+  try {
+    await createMilestone(props.token, props.dossier.id, { ...form });
+    notify(`Đã ghi nhận ${MILESTONES.find((m) => m.code === form.loai_moc)?.ten || form.loai_moc}`, "ok");
+    await tai();
+    selectedMoc.value = mocMoiNhat(form.loai_moc) || selectedMoc.value;
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không tạo được mốc nghiệm thu", "loi");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function nopBienBan() {
+  if (!selectedMoc.value) {
+    notify("Chọn mốc nghiệm thu trước", "canh_bao");
+    return;
+  }
+  if (!record.so_bien_ban.trim() || !record.ket_luan.trim()) {
+    notify("Nhập số biên bản và kết luận", "canh_bao");
+    return;
+  }
+  saving.value = true;
+  try {
+    await submitAcceptanceRecord(props.token, selectedMoc.value.id, { ...record });
+    notify("Đã nộp biên bản nghiệm thu", "ok");
+    record.so_bien_ban = "";
+    record.ket_luan = "";
+    await tai();
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không nộp được biên bản", "loi");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function nopBanVe() {
+  if (!fileHoanCong.value) {
+    notify("Chọn tệp bản vẽ hoàn công", "canh_bao");
+    return;
+  }
+  saving.value = true;
+  try {
+    const up = await uploadFile(props.token, fileHoanCong.value, "ho_so", props.dossier.id);
+    await submitAsBuilt(props.token, props.dossier.id, { file_id: up.file_id, ghi_chu: "Bản vẽ hoàn công" });
+    notify("Đã nộp bản vẽ hoàn công", "ok");
+    fileHoanCong.value = null;
+    if (fileRef.value) fileRef.value.value = "";
+    await tai();
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không nộp được bản vẽ hoàn công", "loi");
+  } finally {
+    saving.value = false;
+  }
+}
+
+onMounted(tai);
+</script>
+
+<template>
+  <section id="block-dossier-acceptance" class="mt-5" aria-labelledby="tieu-de-nghiem-thu">
+    <div class="flex flex-wrap items-baseline justify-between gap-3 mb-2">
+      <h4 id="tieu-de-nghiem-thu" class="text-[14px] font-semibold m-0">Nghiệm thu và hoàn công</h4>
+      <span class="goi-y">Căn cứ NĐ 207/2026/NĐ-CP</span>
+    </div>
+
+    <p v-if="loading" class="text-phu m-0">Đang tải nghiệm thu…</p>
+    <div v-else-if="error" class="the p-3">
+      <p class="canh-bao m-0">{{ error }}</p>
+      <button class="btn btn-sm mt-2" @click="tai">Thử lại</button>
+    </div>
+    <template v-else>
+      <div class="the p-3 mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="font-medium">Tiến độ: {{ tienDo.done }}/{{ tienDo.total }} mốc</span>
+          <span class="mo">{{ tienDo.pct }}%</span>
+        </div>
+        <div class="h-2 rounded bg-slate-100 overflow-hidden" role="progressbar" :aria-valuenow="tienDo.pct" aria-valuemin="0" aria-valuemax="100">
+          <div class="h-full bg-[#0E7C7B]" :style="{ width: tienDo.pct + '%' }"></div>
+        </div>
+        <ol class="list-none m-0 p-0 mt-3 grid gap-2 sm:grid-cols-4">
+          <li v-for="m in MILESTONES" :key="m.code" class="rounded-md border border-vien-nhat p-2">
+            <div class="text-[13px] font-medium">{{ m.ten }}</div>
+            <span :class="mocClass(m.code)">{{ mocNhan(m.code) }}</span>
+            <div v-if="mocMoiNhat(m.code)?.ngay_nghiem_thu" class="goi-y">{{ mocMoiNhat(m.code).ngay_nghiem_thu }}</div>
+          </li>
+        </ol>
+      </div>
+
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="the p-3">
+          <h5 class="text-[13px] font-semibold mt-0 mb-2">Tạo mốc / nghiệm thu lại</h5>
+          <div class="grid gap-2">
+            <label class="block"><span class="nhan">Mốc</span>
+              <select v-model="form.loai_moc" class="o w-full">
+                <option v-for="m in MILESTONES" :key="m.code" :value="m.code">{{ m.ten }}</option>
+              </select>
+            </label>
+            <label class="block"><span class="nhan">Kết quả</span>
+              <select v-model="form.ket_qua" class="o w-full">
+                <option value="dat">Đạt</option>
+                <option value="khong_dat">Không đạt</option>
+                <option value="cho_nghiem_thu">Chờ nghiệm thu</option>
+              </select>
+            </label>
+            <label class="block"><span class="nhan">Ngày nghiệm thu</span><input v-model="form.ngay_nghiem_thu" type="date" class="o w-full" /></label>
+            <label class="block"><span class="nhan">Ghi chú</span><textarea v-model="form.ghi_chu" class="o w-full" rows="2"></textarea></label>
+          </div>
+          <button class="btn btn-chinh mt-2" :disabled="saving" @click="taoMoc">{{ saving ? "Đang lưu…" : "Ghi nhận mốc" }}</button>
+        </div>
+
+        <div class="the p-3">
+          <h5 class="text-[13px] font-semibold mt-0 mb-2">Nộp biên bản</h5>
+          <label class="block"><span class="nhan">Mốc áp dụng</span>
+            <select class="o w-full" :value="selectedMoc?.id || ''" @change="selectedMoc = (duLieu?.milestones || []).find((m: any) => m.id === ($event.target as HTMLSelectElement).value) || null">
+              <option value="">Chọn mốc</option>
+              <option v-for="m in duLieu?.milestones || []" :key="m.id" :value="m.id">{{ m.loai_moc }} — lần {{ m.version }} ({{ m.ket_qua }})</option>
+            </select>
+          </label>
+          <label class="block mt-2"><span class="nhan">Số biên bản</span><input v-model="record.so_bien_ban" class="o w-full" /></label>
+          <label class="block mt-2"><span class="nhan">Kết luận</span><textarea v-model="record.ket_luan" class="o w-full" rows="2"></textarea></label>
+          <label class="block mt-2"><span class="nhan">Kết quả mốc</span>
+            <select v-model="record.ket_qua" class="o w-full">
+              <option value="dat">Đạt</option>
+              <option value="khong_dat">Không đạt</option>
+            </select>
+          </label>
+          <button class="btn mt-2" :disabled="saving || !selectedMoc" @click="nopBienBan">Nộp biên bản</button>
+        </div>
+      </div>
+
+      <div class="the p-3 mt-3">
+        <h5 class="text-[13px] font-semibold mt-0 mb-2">Bản vẽ hoàn công</h5>
+        <input ref="fileRef" type="file" accept="application/pdf" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
+        <button class="btn btn-sm ml-2" :disabled="saving" @click="nopBanVe">Nộp bản vẽ</button>
+        <ul v-if="duLieu?.as_built?.length" class="list-none m-0 p-0 mt-2 text-[13px]">
+          <li v-for="a in duLieu.as_built" :key="a.id" class="flex justify-between gap-2 py-1 border-b border-vien-nhat">
+            <span>Bản vẽ v{{ a.version }} — {{ new Date(a.ngay_nop).toLocaleString("vi-VN") }}</span>
+            <span class="tt tt-xam">{{ a.trang_thai }}</span>
+          </li>
+        </ul>
+        <p v-else class="text-phu text-[13px] mt-2 mb-0">Chưa có bản vẽ hoàn công.</p>
+      </div>
+
+      <div v-if="duLieu?.milestones?.length" class="mt-3">
+        <h5 class="text-[13px] font-semibold m-0 mb-1">Biên bản đã nộp</h5>
+        <ul class="list-none m-0 p-0 text-[13px]">
+          <template v-for="m in duLieu.milestones" :key="m.id">
+            <li v-for="b in m.bien_ban" :key="b.id" class="py-1 border-b border-vien-nhat">
+              <span class="font-medium">{{ b.so_bien_ban }}</span> — {{ m.loai_moc }} lần {{ m.version }}: {{ b.ket_luan }}
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+  </section>
+</template>

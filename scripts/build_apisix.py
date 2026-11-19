@@ -23,6 +23,13 @@ from typing import Any, Optional
 
 import yaml
 
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, Exception):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "core" / "apisix" / "apisix.template.yaml"
 FRAGMENTS = ROOT / "core" / "apisix" / "routes"

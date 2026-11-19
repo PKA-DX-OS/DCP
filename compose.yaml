@@ -610,11 +610,18 @@ services:
       KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
       KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?thiếu KEYCLOAK_ADMIN_PASSWORD}
+      FLOWABLE_URL: ${FLOWABLE_URL:-http://flowable:8080/flowable-rest}
+      FLOWABLE_USER: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_PASSWORD: ${FLOWABLE_PASSWORD:?thiếu FLOWABLE_PASSWORD}
       DEMO_MODE: ${DEMO_MODE:-false}
     volumes:
       - ./services:/app/services:ro
       - ./secrets:/app/secrets:ro
       - ./apps:/app/apps:ro
+      - ./scripts:/app/scripts:ro
+      - ./core/legal:/app/core/legal:ro
     depends_on:
       postgres:
         condition: service_healthy

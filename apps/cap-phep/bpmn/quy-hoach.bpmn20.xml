@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/app/cap-phep">
+  <process id="quy-hoach" name="Kiểm tra quy hoạch trước thẩm định" isExecutable="true">
+    <startEvent id="startQuyHoach" name="Bắt đầu kiểm tra quy hoạch"/>
+    <sequenceFlow id="qy-f1" sourceRef="startQuyHoach" targetRef="taskKiemTraQuyHoach"/>
+
+    <userTask id="taskKiemTraQuyHoach" name="Kiểm tra quy hoạch"
+              flowable:candidateGroups="app:cap-phep:tham-dinh,app:cap-phep:mot-cua">
+      <documentation>Chạy rule engine quy hoạch và ghi nhận kết quả trước khi thẩm định.</documentation>
+    </userTask>
+
+    <sequenceFlow id="qy-f2" sourceRef="taskKiemTraQuyHoach" targetRef="gwQuyHoachPass"/>
+    <exclusiveGateway id="gwQuyHoachPass" name="Quy hoạch đạt?" default="flowQuyHoachDat"/>
+
+    <sequenceFlow id="flowQuyHoachKhongDat" sourceRef="gwQuyHoachPass" targetRef="taskXuLyQuyHoach">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${vars:getOrDefault('quy_hoach_pass', true) == false}]]></conditionExpression>
+    </sequenceFlow>
+
+    <userTask id="taskXuLyQuyHoach" name="Chủ đầu tư điều chỉnh theo quy hoạch"
+              flowable:assignee="${vars:getOrDefault('chu_dau_tu_sub', vars:getOrDefault('cdt_sub', ''))}"
+              flowable:candidateGroups="app:cap-phep:chu-dau-tu">
+      <documentation>Chủ đầu tư điều chỉnh phương án cho phù hợp chỉ tiêu quy hoạch rồi gửi lại.</documentation>
+    </userTask>
+    <sequenceFlow id="flowXuLyXong" sourceRef="taskXuLyQuyHoach" targetRef="taskKiemTraQuyHoach"/>
+
+    <sequenceFlow id="flowQuyHoachDat" sourceRef="gwQuyHoachPass" targetRef="taskPhanCongThamDinh"/>
+    <userTask id="taskPhanCongThamDinh" name="Phân công thẩm định sau kiểm tra quy hoạch"
+              flowable:candidateGroups="app:cap-phep:lanh-dao">
+      <documentation>Lãnh đạo phân công thẩm định viên khi hồ sơ đã đạt kiểm tra quy hoạch.</documentation>
+    </userTask>
+    <sequenceFlow id="qy-f3" sourceRef="taskPhanCongThamDinh" targetRef="endQuyHoach"/>
+    <endEvent id="endQuyHoach" name="Kết thúc kiểm tra quy hoạch"/>
+  </process>
+</definitions>

@@ -1,0 +1,274 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# OpenAPI contract — Track A: quy hoạch và pháp lý nền.
+# Tenant lấy từ JWT, không nhận từ body. Lỗi: {detail: {loi, ma_loi?}}.
+
+openapi: 3.0.3
+info:
+  title: DX-OS Construction Planning API
+  version: 1.0.0
+  description: API quy hoạch, legal refs, thẩm quyền, định danh địa điểm.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /planning/parcels:
+    get:
+      summary: Danh sách thửa đất của địa bàn
+      parameters:
+        - name: bbox
+          in: query
+          schema: { type: string, example: "106.70,10.77,106.71,10.78" }
+      responses:
+        "200":
+          description: Danh sách thửa đất
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Parcel" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /planning/parcels/{parcel_id}:
+    get:
+      summary: Chi tiết thửa đất theo UUID hoặc mã
+      parameters:
+        - name: parcel_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Thửa đất
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Parcel" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /planning/zones:
+    get:
+      summary: Vùng quy hoạch (GeoJSON)
+      parameters:
+        - name: bbox
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Danh sách vùng
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Zone" }
+  /planning/check:
+    post:
+      summary: Chạy 10 quy tắc quy hoạch và lưu kết quả
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CheckRequest" }
+      responses:
+        "200":
+          description: Kết quả kiểm tra
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+  /planning/results/{ho_so_id}:
+    get:
+      summary: Lịch sử kiểm tra quy hoạch của hồ sơ
+      parameters:
+        - name: ho_so_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Danh sách kết quả
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CheckResult" }
+  /planning/legal/documents:
+    get:
+      summary: Danh mục văn bản pháp luật
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Danh mục
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LegalDocument" }
+  /planning/legal/citations/{citation_key}:
+    get:
+      summary: Trích dẫn pháp lý theo khóa
+      parameters:
+        - name: citation_key
+          in: path
+          required: true
+          schema: { type: string, example: ND217-D60-K3 }
+      responses:
+        "200":
+          description: Trích dẫn
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalCitation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /planning/authority/{ho_so_id}:
+    get:
+      summary: Xác định thẩm quyền cấp phép của hồ sơ
+      parameters:
+        - name: ho_so_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Cơ quan cấp và người ký
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Authority" }
+  /planning/location/{ma_dinh_danh}:
+    get:
+      summary: Tra cứu mã định danh địa điểm 12 chữ số
+      parameters:
+        - name: ma_dinh_danh
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9]{12}$" }
+      responses:
+        "200":
+          description: Kết quả tra cứu
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LocationLookup" }
+        "422": { $ref: "#/components/responses/Invalid" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Parcel:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenant: { type: string }
+        ma_thua_dat: { type: string }
+        so_thua: { type: string }
+        to_ban_do: { type: string }
+        dia_chi: { type: string }
+        dien_tich_m2: { type: number }
+        loai_dat: { type: string }
+        ma_dinh_danh_dia_diem: { type: string, nullable: true }
+        geom: { type: object, description: GeoJSON geometry }
+    Zone:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ma_zone: { type: string }
+        ten: { type: string }
+        loai_zone:
+          type: string
+          enum: [o_do_thi, dan_cu, cong_vien, hanh_lang_giao_thong, cam_xay_dung, khac]
+        geom: { type: object }
+    CheckRequest:
+      type: object
+      properties:
+        ho_so_id: { type: string, format: uuid, nullable: true }
+        thua_dat_id: { type: string, nullable: true }
+        proposal:
+          type: object
+          additionalProperties: true
+      oneOf:
+        - required: [ho_so_id]
+        - required: [thua_dat_id]
+    RuleResult:
+      type: object
+      properties:
+        rule_id: { type: string, example: R04 }
+        name: { type: string }
+        value: { nullable: true }
+        limit: { nullable: true }
+        passed: { type: boolean }
+        severity: { type: string, enum: [error, warning, info] }
+        reason: { type: string }
+        citation_key: { type: string, nullable: true }
+        citation: { $ref: "#/components/schemas/LegalCitation" }
+    CheckResult:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        pass: { type: boolean }
+        so_loi: { type: integer }
+        so_canh_bao: { type: integer }
+        ho_so_id: { type: string, nullable: true }
+        thua_dat: { $ref: "#/components/schemas/Parcel" }
+        zone: { $ref: "#/components/schemas/Zone" }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleResult" }
+    LegalDocument:
+      type: object
+      properties:
+        document_id: { type: string }
+        code: { type: string }
+        title: { type: string }
+        status: { type: string }
+        effective_date: { type: string, format: date }
+        source_url: { type: string }
+        sha256: { type: string }
+    LegalCitation:
+      type: object
+      properties:
+        citation_key: { type: string }
+        document_id: { type: string }
+        document_code: { type: string }
+        article: { type: string }
+        clause: { type: string, nullable: true }
+        point: { type: string, nullable: true }
+        summary: { type: string }
+        effective_date: { type: string, format: date }
+        status: { type: string }
+        source_url: { type: string }
+        sha256: { type: string }
+        can_doi_chieu: { type: boolean }
+    Authority:
+      type: object
+      properties:
+        xac_dinh_duoc: { type: boolean }
+        co_quan_cap: { type: string }
+        nguoi_ky: { type: string }
+        legal_citation_key: { type: string }
+    LocationLookup:
+      type: object
+      properties:
+        found: { type: boolean }
+        ma_dinh_danh: { type: string }
+        can_reuse: { type: boolean }
+        source: { type: string }
+        message: { type: string }
+  responses:
+    Forbidden:
+      description: Không có quyền
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail: { type: object }
+    NotFound:
+      description: Không tìm thấy
+    Invalid:
+      description: Dữ liệu không hợp lệ

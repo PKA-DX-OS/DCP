@@ -600,6 +600,15 @@ async def complete_task(
                                 status_code=status.HTTP_409_CONFLICT,
                                 detail={"loi": f"Trạng thái không hợp lệ để ký duyệt (hiện tại: {guard_res.get('trang_thai')})", "ma_loi": "CONFLICT"},
                             )
+                        if guard_res.get("tham_quyen_ok") is False:
+                            raise HTTPException(
+                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail={
+                                    "loi": "Không xác định được thẩm quyền cấp phép theo Điều 53; không được ký duyệt",
+                                    "ma_loi": "AUTHORITY_UNRESOLVED",
+                                    "ly_do": guard_res.get("ly_do_tham_quyen"),
+                                },
+                            )
                 except HTTPException:
                     raise
                 except Exception as ge:
@@ -891,7 +900,7 @@ async def start_process(
             flowable_vars.append({"name": k, "value": v})
 
     # P-04: Tính hạn bước cho bước đầu tiên theo SLA nếu có cấu hình trong flow_policies
-    initial_task = policy.get("initial_task") or policy.get("initial_tasks", {}).get(req.process_key)
+    initial_task = policy.get("initial_tasks", {}).get(req.process_key) or policy.get("initial_task")
     if initial_task:
         han_buoc_iso, _ = calculate_task_sla_iso(initial_task, policy, req.variables)
         flowable_vars.append({"name": "han_buoc_at", "value": han_buoc_iso})
@@ -1053,6 +1062,15 @@ async def retry_hook(
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail={"loi": f"Trạng thái hồ sơ không hợp lệ để ký lại (hiện tại: {guard_res.get('trang_thai')})", "ma_loi": "CONFLICT"},
+                    )
+                if guard_res.get("tham_quyen_ok") is False:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={
+                            "loi": "Không xác định được thẩm quyền cấp phép theo Điều 53; không được ký lại",
+                            "ma_loi": "AUTHORITY_UNRESOLVED",
+                            "ly_do": guard_res.get("ly_do_tham_quyen"),
+                        },
                     )
         except HTTPException:
             raise
