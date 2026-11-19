@@ -1,0 +1,443 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — 5.2 Thẩm định thiết kế đa bộ môn
+  version: 0.1.0
+  summary: Hợp đồng API thẩm định thiết kế của app cấp phép (track B).
+  description: |
+    Bổ sung cho `api/openapi.yaml`. Thẩm định thiết kế là nghiệp vụ của app cấp phép nên nằm ở lớp app
+    (ADR-005): bảng và hàm SQL trong `apps/cap-phep/db/migrations/03-tham-dinh-thiet-ke.sql`, gọi qua
+    PostgREST tại `/api/v1/rest/rpc/<tên hàm>` (APISIX bỏ tiền tố `/api/v1/rest`). Không có dịch vụ riêng.
+
+    ## Quy ước
+
+    - Địa bàn (`tenant`), người gọi (`sub`) và vai lấy từ JWT; thân yêu cầu không có trường tenant.
+    - Lỗi theo dạng PostgREST `{code, message, details, hint}` (xem `LoiPostgrest`).
+      `42501` → 403 sai vai hoặc không có quyền với hồ sơ; `22023` → 400 tham số sai;
+      `PT404` → 404 không tìm thấy; `PT409` → 409 trạng thái không cho phép thao tác.
+    - Thao tác tạo nhận `p_idempotency_key`: gọi lại cùng khóa trả bản ghi đã tạo, không tạo trùng.
+    - Tệp bản vẽ tải lên trước qua `POST /api/v1/files` (`object_type=ho_so`, `object_id=<id hồ sơ>`,
+      quét ClamAV, tính SHA-256); RPC chỉ nhận `file_id` của tệp sạch thuộc đúng hồ sơ.
+    - Danh sách nhỏ (một hồ sơ có vài chục bản vẽ) nên trả trọn, không phân trang.
+    - Mọi thao tác ghi tạo dòng audit và sự kiện outbox `design_review.*`.
+
+    ## Vai
+
+    | Thao tác | Vai |
+    |---|---|
+    | Tạo phiên bản, thêm bản vẽ | `app:cap-phep:chu-dau-tu` (chủ hồ sơ) |
+    | Nhận xét, đánh giá bản vẽ | `app:cap-phep:tham-dinh` |
+    | Đánh dấu nhận xét đã xử lý | chủ hồ sơ hoặc `app:cap-phep:tham-dinh` |
+    | Đọc | các vai trên, `app:cap-phep:lanh-dao`, `app:cap-phep:mot-cua`, `dx:auditor` |
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+    description: APISIX trên máy chạy stack
+
+security:
+  - bearer: []
+
+tags:
+  - name: tham-dinh-thiet-ke
+    description: Bản vẽ theo bộ môn, phiên bản thiết kế và nhận xét thẩm định
+
+paths:
+  /api/v1/rest/bo_mon_thiet_ke:
+    get:
+      tags: [tham-dinh-thiet-ke]
+      operationId: ds_bo_mon
+      summary: Danh mục bộ môn và bộ môn bắt buộc
+      responses:
+        "200":
+          description: Danh mục, sắp theo `thu_tu`
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BoMon" }
+
+  /api/v1/rest/rpc/tao_phien_ban:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: tao_phien_ban
+      summary: Tạo phiên bản thiết kế mới cho hồ sơ
+      description: Số phiên bản tăng dần từ 1. Phiên bản cũ giữ nguyên, không sửa được.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id, p_mo_ta]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_mo_ta: { type: string, minLength: 1, maxLength: 2000, description: Mô tả thay đổi so với phiên bản trước }
+                p_idempotency_key: { type: [string, "null"], maxLength: 100 }
+      responses:
+        "200":
+          description: Phiên bản vừa tạo (hoặc đã tạo với cùng khóa)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PhienBan" }
+        "400": { $ref: "#/components/responses/Loi" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/them_ban_ve:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: them_ban_ve
+      summary: Thêm bản vẽ vào phiên bản đang soạn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_phien_ban_id, p_bo_mon, p_ten, p_file_id]
+              properties:
+                p_phien_ban_id: { type: string, format: uuid }
+                p_bo_mon: { $ref: "#/components/schemas/MaBoMon" }
+                p_ten: { type: string, minLength: 1, maxLength: 300 }
+                p_file_id: { type: string, format: uuid }
+                p_idempotency_key: { type: [string, "null"], maxLength: 100 }
+      responses:
+        "200":
+          description: Bản vẽ vừa thêm
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BanVe" }
+        "400": { $ref: "#/components/responses/Loi" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/ds_ban_ve:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: ds_ban_ve
+      summary: Bản vẽ của một phiên bản, nhóm theo bộ môn
+      description: Bỏ `p_phien_ban_id` để lấy phiên bản mới nhất.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+                p_phien_ban_id: { type: [string, "null"], format: uuid }
+      responses:
+        "200":
+          description: Phiên bản và bản vẽ theo bộ môn
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DanhSachBanVe" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/ds_phien_ban:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: ds_phien_ban
+      summary: Lịch sử phiên bản thiết kế của hồ sơ, mới nhất trước
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Danh sách phiên bản kèm bản vẽ (để so sánh)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PhienBanDayDu" }
+        "403": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/danh_gia_ban_ve:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: danh_gia_ban_ve
+      summary: Thẩm định viên ghi kết quả đạt/không đạt cho bản vẽ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ban_ve_id, p_ket_qua]
+              properties:
+                p_ban_ve_id: { type: string, format: uuid }
+                p_ket_qua: { type: string, enum: [dat, khong_dat] }
+      responses:
+        "200":
+          description: Bản vẽ sau khi đánh giá
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BanVe" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/them_nhan_xet:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: them_nhan_xet
+      summary: Thêm nhận xét thẩm định cho một bản vẽ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ban_ve_id, p_noi_dung, p_muc_do]
+              properties:
+                p_ban_ve_id: { type: string, format: uuid }
+                p_noi_dung: { type: string, minLength: 1, maxLength: 4000 }
+                p_muc_do: { $ref: "#/components/schemas/MucDo" }
+                p_idempotency_key: { type: [string, "null"], maxLength: 100 }
+      responses:
+        "200":
+          description: Nhận xét vừa thêm
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NhanXet" }
+        "400": { $ref: "#/components/responses/Loi" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/xu_ly_nhan_xet:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: xu_ly_nhan_xet
+      summary: Đánh dấu nhận xét đã xử lý
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_nhan_xet_id]
+              properties:
+                p_nhan_xet_id: { type: string, format: uuid }
+                p_ghi_chu: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        "200":
+          description: Nhận xét sau khi xử lý
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NhanXet" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/ds_nhan_xet:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: ds_nhan_xet
+      summary: Nhận xét của một phiên bản, lọc theo bộ môn, mức độ, trạng thái
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_phien_ban_id]
+              properties:
+                p_phien_ban_id: { type: string, format: uuid }
+                p_bo_mon: { oneOf: [{ $ref: "#/components/schemas/MaBoMon" }, { type: "null" }] }
+                p_muc_do: { oneOf: [{ $ref: "#/components/schemas/MucDo" }, { type: "null" }] }
+                p_trang_thai: { type: [string, "null"], enum: [mo, da_xu_ly, null] }
+      responses:
+        "200":
+          description: Nhận xét, mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NhanXet" }
+        "403": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/rest/rpc/trang_thai_tham_dinh:
+    post:
+      tags: [tham-dinh-thiet-ke]
+      operationId: trang_thai_tham_dinh
+      summary: Trạng thái tổng hợp thẩm định thiết kế của hồ sơ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_ho_so_id]
+              properties:
+                p_ho_so_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Tổng hợp theo phiên bản mới nhất
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrangThaiThamDinh" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token Keycloak realm `dxos` (OIDC PKCE).
+
+  responses:
+    Loi:
+      description: Lỗi từ hàm SQL (PostgREST)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/LoiPostgrest" }
+
+  schemas:
+    LoiPostgrest:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: ["42501", "22023", PT404, PT409] }
+        message: { type: string }
+        details: { type: [string, "null"] }
+        hint: { type: [string, "null"] }
+
+    MaBoMon:
+      type: string
+      enum: [kien_truc, ket_cau, mep, pccc]
+      description: Kiến trúc, Kết cấu, Cơ điện (MEP), Phòng cháy chữa cháy
+
+    MucDo:
+      type: string
+      enum: [loi, canh_bao, gop_y]
+
+    TrangThaiBanVe:
+      type: string
+      enum: [cho_tham_dinh, dat, khong_dat]
+
+    BoMon:
+      type: object
+      required: [ma, ten, bat_buoc, thu_tu]
+      properties:
+        ma: { $ref: "#/components/schemas/MaBoMon" }
+        ten: { type: string }
+        bat_buoc: { type: boolean, description: Bộ môn PCCC chỉ bắt buộc khi hồ sơ có yêu cầu PCCC }
+        thu_tu: { type: integer }
+
+    PhienBan:
+      type: object
+      required: [id, ho_so_id, so_phien_ban, mo_ta_thay_doi, trang_thai, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        ho_so_id: { type: string, format: uuid }
+        so_phien_ban: { type: integer, minimum: 1 }
+        mo_ta_thay_doi: { type: string }
+        trang_thai: { type: string, enum: [dang_soan, dang_tham_dinh, dat, khong_dat] }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+
+    BanVe:
+      type: object
+      required: [id, phien_ban_id, bo_mon, ten, file_id, sha256, trang_thai, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        phien_ban_id: { type: string, format: uuid }
+        bo_mon: { $ref: "#/components/schemas/MaBoMon" }
+        ten: { type: string }
+        file_id: { type: string, format: uuid }
+        sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        kich_thuoc: { type: [integer, "null"] }
+        trang_thai: { $ref: "#/components/schemas/TrangThaiBanVe" }
+        nguoi_tham_dinh: { type: [string, "null"], description: Tên hiển thị của thẩm định viên }
+        ngay_tham_dinh: { type: [string, "null"], format: date-time }
+        so_nhan_xet_mo: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    NhomBoMon:
+      type: object
+      required: [bo_mon, ten, bat_buoc, ban_ve]
+      properties:
+        bo_mon: { $ref: "#/components/schemas/MaBoMon" }
+        ten: { type: string }
+        bat_buoc: { type: boolean }
+        ban_ve:
+          type: array
+          items: { $ref: "#/components/schemas/BanVe" }
+
+    DanhSachBanVe:
+      type: object
+      required: [phien_ban, nhom]
+      properties:
+        phien_ban: { oneOf: [{ $ref: "#/components/schemas/PhienBan" }, { type: "null" }] }
+        nhom:
+          type: array
+          items: { $ref: "#/components/schemas/NhomBoMon" }
+
+    PhienBanDayDu:
+      allOf:
+        - $ref: "#/components/schemas/PhienBan"
+        - type: object
+          required: [ban_ve]
+          properties:
+            ban_ve:
+              type: array
+              items: { $ref: "#/components/schemas/BanVe" }
+
+    NhanXet:
+      type: object
+      required: [id, ban_ve_id, phien_ban_id, bo_mon, nguoi, noi_dung, muc_do, trang_thai, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        ban_ve_id: { type: string, format: uuid }
+        phien_ban_id: { type: string, format: uuid }
+        bo_mon: { $ref: "#/components/schemas/MaBoMon" }
+        nguoi: { type: string, description: Tên hiển thị của người nhận xét }
+        noi_dung: { type: string }
+        muc_do: { $ref: "#/components/schemas/MucDo" }
+        trang_thai: { type: string, enum: [mo, da_xu_ly] }
+        ghi_chu_xu_ly: { type: [string, "null"] }
+        xu_ly_luc: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    TrangThaiBoMon:
+      type: object
+      required: [bo_mon, ten, bat_buoc, so_ban_ve, ket_qua]
+      properties:
+        bo_mon: { $ref: "#/components/schemas/MaBoMon" }
+        ten: { type: string }
+        bat_buoc: { type: boolean }
+        so_ban_ve: { type: integer }
+        ket_qua: { type: string, enum: [chua_co, cho_tham_dinh, dat, khong_dat] }
+
+    TrangThaiThamDinh:
+      type: object
+      required: [ho_so_id, so_phien_ban, bo_mon, thieu_bo_mon, nhan_xet_mo, ket_luan]
+      properties:
+        ho_so_id: { type: string, format: uuid }
+        phien_ban_id: { type: [string, "null"], format: uuid }
+        so_phien_ban: { type: integer, description: 0 khi chưa có phiên bản nào }
+        bo_mon:
+          type: array
+          items: { $ref: "#/components/schemas/TrangThaiBoMon" }
+        thieu_bo_mon:
+          type: array
+          description: Bộ môn bắt buộc chưa có bản vẽ ở phiên bản mới nhất
+          items: { $ref: "#/components/schemas/MaBoMon" }
+        nhan_xet_mo: { type: integer }
+        ket_luan: { type: string, enum: [chua_nop, dang_tham_dinh, dat, khong_dat] }
