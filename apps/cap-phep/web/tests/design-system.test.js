@@ -142,7 +142,9 @@ describe("token và component", () => {
     }
   });
   test("component không đặt mã màu cứng", () => {
-    for (const f of readdirSync(new URL("components/", DS))) {
+    const files = readdirSync(new URL("components/", DS), { recursive: true }).filter((f) => /\.(vue|ts)$/.test(f));
+    expect(files.length).toBeGreaterThan(20);
+    for (const f of files) {
       const src = readFileSync(new URL(`components/${f}`, DS), "utf8");
       expect(src, f).not.toMatch(/#[0-9a-fA-F]{6}\b/);
     }

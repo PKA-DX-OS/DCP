@@ -7,6 +7,7 @@ import { ref } from "vue";
 import {
   Badge, Button, Card, Checkbox, Drawer, EmptyState, Input, Modal, Pagination, RoleBadge, Select,
   Skeleton, StatCard, StatusBadge, Table, Tabs, Textarea, Toast,
+  BarChart, DatePicker, DonutChart, FileUpload, LineChart, PdfViewer, Sparkline, Stepper, Timeline,
   type TableColumn,
 } from "./index";
 import { useTheme } from "../composables/useTheme";
@@ -33,6 +34,30 @@ const dong = [
   { id: 4, ma: "MẪU-004", trang_thai: "TU_CHOI", so_ngay: 9 },
 ];
 const { theme, toggle: toggleTheme } = useTheme();
+const ngay = ref("");
+const tienDo = ref<number | null>(null);
+const tepDaChon = ref<string[]>([]);
+const moPdf = ref(false);
+/* PDF một trang tạo tại chỗ để xem thử trình xem, không tải từ mạng */
+const pdfMau = URL.createObjectURL(
+  new Blob(
+    [
+      "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj " +
+        "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj " +
+        "4 0 obj<</Length 44>>stream\nBT /F1 18 Tf 40 100 Td (Ban ve mau) Tj ET\nendstream endobj " +
+        "5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF",
+    ],
+    { type: "application/pdf" },
+  ),
+);
+function chonTep(files: File[]) {
+  tepDaChon.value = files.map((f) => f.name);
+  tienDo.value = 0;
+  const t = window.setInterval(() => {
+    tienDo.value = Math.min(100, (tienDo.value ?? 0) + 20);
+    if (tienDo.value >= 100) window.clearInterval(t);
+  }, 300);
+}
 function giaLapTai() {
   dangTai.value = true;
   window.setTimeout(() => (dangTai.value = false), 1500);
@@ -143,6 +168,78 @@ function giaLapTai() {
         <Button size="sm">Thêm bản vẽ</Button>
       </EmptyState>
     </Card>
+
+    <div class="grid gap-4 lg:grid-cols-3">
+      <DonutChart
+        title="Hồ sơ theo trạng thái"
+        :items="[
+          { label: 'Đang xử lý', value: 42 },
+          { label: 'Chờ bổ sung', value: 11 },
+          { label: 'Đã cấp', value: 63 },
+          { label: 'Từ chối', value: 6 },
+        ]"
+      />
+      <LineChart
+        class="lg:col-span-2"
+        title="Hồ sơ theo tháng"
+        :labels="['T6', 'T7', 'T8', 'T9', 'T10', 'T11']"
+        :series="[
+          { name: 'Tiếp nhận', values: [30, 42, 38, 51, 47, 55] },
+          { name: 'Hoàn thành', values: [22, 35, null, 44, 40, 49] },
+        ]"
+      />
+      <BarChart
+        class="lg:col-span-2"
+        title="Tải việc theo cán bộ"
+        unit="việc"
+        :items="[
+          { label: 'Cán bộ A', value: 12 },
+          { label: 'Cán bộ B', value: 7 },
+          { label: 'Cán bộ C', value: 15 },
+          { label: 'Cán bộ D', value: 4 },
+        ]"
+      />
+      <LineChart title="Biểu đồ chưa có dữ liệu" :labels="[]" :series="[]" />
+    </div>
+
+    <Card title="Tiến trình và mốc thời gian">
+      <div class="flex flex-col gap-6">
+        <Stepper
+          current="ket-cau"
+          :steps="[
+            { key: 'mong', label: 'Móng' },
+            { key: 'ket-cau', label: 'Kết cấu' },
+            { key: 'hoan-thien', label: 'Hoàn thiện' },
+            { key: 'hoan-cong', label: 'Hoàn công' },
+          ]"
+        />
+        <Timeline
+          :items="[
+            { title: 'Nộp hồ sơ', time: '02/11/2026 09:15', tone: 'info' },
+            { title: 'Yêu cầu bổ sung', time: '05/11/2026 14:00', description: 'Thiếu bản vẽ kết cấu.', tone: 'warning' },
+            { title: 'Cấp giấy phép', time: '18/11/2026 10:30', tone: 'success' },
+          ]"
+        />
+        <div class="flex items-center gap-3 text-ds-brand">
+          <Sparkline :values="[3, 5, 4, 8, 6, 9, 11]" />
+          <span class="text-ds-sm text-ds-muted">Sparkline trong thẻ chỉ số</span>
+        </div>
+      </div>
+    </Card>
+
+    <Card title="Tệp và ngày">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <FileUpload label="Thêm bản vẽ" :accept="['.pdf']" :max-bytes="20 * 1024 * 1024" :progress="tienDo" @select="chonTep" />
+        <div class="flex flex-col gap-3">
+          <DatePicker v-model="ngay" label="Ngày nghiệm thu" hint="Chọn ngày dự kiến" />
+          <p class="m-0 text-ds-sm text-ds-muted">Tệp đã chọn: {{ tepDaChon.join(", ") || "chưa có" }}</p>
+          <Button variant="secondary" @click="moPdf = true">Xem bản vẽ PDF mẫu</Button>
+        </div>
+      </div>
+    </Card>
+    <Drawer v-model:open="moPdf" title="Bản vẽ mẫu" width="min(900px, 100vw)">
+      <PdfViewer :src="pdfMau" title="Bản vẽ mẫu" filename="ban-ve-mau.pdf" />
+    </Drawer>
 
     <Modal v-model:open="moModal" title="Xác nhận từ chối">
       <p class="m-0">Hộp thoại giữ focus bên trong, Esc để đóng.</p>
