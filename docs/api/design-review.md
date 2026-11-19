@@ -68,6 +68,10 @@ Nghiệp vụ nằm ở lớp app (ADR-005): bảng, RLS và hàm SQL trong
 Biến mặc định `bo_mon_can_tham_dinh` khai báo trong `apps/cap-phep/app.yaml`
 (`flow_policies.default_process_variables`).
 
+Quy trình nên do cán bộ một cửa khởi động. `taskBoSungThietKe` được khai báo trong
+`flow_policies.submitter_tasks` để chủ đầu tư được hoàn thành việc bổ sung thiết kế của
+chính mình mà không vi phạm quy tắc phân tách nhiệm vụ (SoD).
+
 ## Kiểm thử
 
 ```powershell
