@@ -51,7 +51,7 @@ SET ho_ten = EXCLUDED.ho_ten, dia_chi_cong_trinh = EXCLUDED.dia_chi_cong_trinh,
     buoc = EXCLUDED.buoc, doi_tuong = EXCLUDED.doi_tuong,
     loai_cong_trinh = EXCLUDED.loai_cong_trinh,
     ma_dinh_danh_dia_diem = EXCLUDED.ma_dinh_danh_dia_diem,
-    loai_dat = EXCLUDED.loai_dat, updated_at = now();
+    loai_dat = EXCLUDED.loai_dat, created_at = now(), updated_at = now();
 
 -- 2. Hồ sơ hero nghiệm thu: đã cấp phép.
 INSERT INTO app_cap_phep.ho_so
@@ -99,6 +99,83 @@ FROM app_construction.moc_nghiem_thu m
 JOIN app_cap_phep.ho_so h ON h.id = m.ho_so_id
 WHERE h.ma_ho_so = 'CP-HERO-ACC-2026-001' AND m.loai_moc = 'mong' AND m.version = 2
 ON CONFLICT (tenant, so_bien_ban) DO UPDATE SET ket_luan = EXCLUDED.ket_luan;
+
+-- 4. Thẩm định thiết kế 5.2: v1 thiếu kết cấu + MEP không đạt, v2 đủ 3 bộ môn đạt.
+DELETE FROM app_cap_phep.nhan_xet_tham_dinh
+WHERE phien_ban_id IN (
+    'b2000000-0000-4000-8000-000000000001',
+    'b2000000-0000-4000-8000-000000000002'
+);
+DELETE FROM app_cap_phep.ban_ve
+WHERE phien_ban_id IN (
+    'b2000000-0000-4000-8000-000000000001',
+    'b2000000-0000-4000-8000-000000000002'
+);
+DELETE FROM app_cap_phep.phien_ban_thiet_ke
+WHERE id IN (
+    'b2000000-0000-4000-8000-000000000001',
+    'b2000000-0000-4000-8000-000000000002'
+);
+DELETE FROM core.files
+WHERE id IN (
+    'b1000000-0000-4000-8000-000000000001',
+    'b1000000-0000-4000-8000-000000000002',
+    'b1000000-0000-4000-8000-000000000003'
+);
+
+INSERT INTO core.files (id, tenant, owner_sub, object_type, object_id, object_key, sha256, size, mime, status)
+SELECT f.id, 'phuong-a',
+       (SELECT id::text FROM core.users_directory WHERE tenant = 'phuong-a' AND username = 'cdt.minh'),
+       'ho_so', h.id::text,
+       COALESCE((SELECT object_key FROM core.files WHERE tenant = 'phuong-a' AND mime = 'application/pdf' AND status = 'clean' ORDER BY created_at LIMIT 1), 'seed/design-review.pdf'),
+       f.sha, 1024, 'application/pdf', 'clean'
+FROM app_cap_phep.ho_so h,
+(VALUES
+    ('b1000000-0000-4000-8000-000000000001'::uuid, repeat('1', 64)),
+    ('b1000000-0000-4000-8000-000000000002'::uuid, repeat('2', 64)),
+    ('b1000000-0000-4000-8000-000000000003'::uuid, repeat('3', 64))
+) AS f(id, sha)
+WHERE h.ma_ho_so = 'CP-HERO-2026-001';
+
+INSERT INTO app_cap_phep.phien_ban_thiet_ke
+    (id, tenant, ho_so_id, so_phien_ban, mo_ta_thay_doi, trang_thai, created_by, created_at, updated_at)
+SELECT v.id, 'phuong-a', h.id, v.so, v.mo_ta, v.trang_thai,
+       (SELECT id::text FROM core.users_directory WHERE tenant = 'phuong-a' AND username = 'cdt.minh'),
+       now() - v.tuoi, now() - v.tuoi
+FROM app_cap_phep.ho_so h,
+(VALUES
+    ('b2000000-0000-4000-8000-000000000001'::uuid, 1, 'Hồ sơ thiết kế ban đầu', 'khong_dat', interval '3 days'),
+    ('b2000000-0000-4000-8000-000000000002'::uuid, 2, 'Bổ sung kết cấu và sửa sơ đồ cấp điện', 'dat', interval '1 day')
+) AS v(id, so, mo_ta, trang_thai, tuoi)
+WHERE h.ma_ho_so = 'CP-HERO-2026-001';
+
+INSERT INTO app_cap_phep.ban_ve
+    (id, tenant, phien_ban_id, ho_so_id, bo_mon, ten, file_id, sha256, kich_thuoc,
+     trang_thai, nguoi_tham_dinh, ngay_tham_dinh, created_by, created_at)
+SELECT v.id, 'phuong-a', v.phien_ban_id, h.id, v.bo_mon, v.ten, v.file_id, v.sha, 1024,
+       v.trang_thai, v.nguoi, now() - interval '1 day',
+       (SELECT id::text FROM core.users_directory WHERE tenant = 'phuong-a' AND username = 'cdt.minh'),
+       now() - interval '2 days'
+FROM app_cap_phep.ho_so h,
+(VALUES
+    ('b3000000-0000-4000-8000-000000000001'::uuid, 'b2000000-0000-4000-8000-000000000001'::uuid, 'kien_truc', 'KT-01 Mặt bằng tầng 1', 'b1000000-0000-4000-8000-000000000001'::uuid, repeat('1', 64), 'dat', 'Hoàng Văn Bình'),
+    ('b3000000-0000-4000-8000-000000000002'::uuid, 'b2000000-0000-4000-8000-000000000001'::uuid, 'mep', 'MEP-01 Sơ đồ cấp điện', 'b1000000-0000-4000-8000-000000000002'::uuid, repeat('2', 64), 'khong_dat', 'Hoàng Văn Bình'),
+    ('b3000000-0000-4000-8000-000000000003'::uuid, 'b2000000-0000-4000-8000-000000000002'::uuid, 'kien_truc', 'KT-01 Mặt bằng tầng 1', 'b1000000-0000-4000-8000-000000000001'::uuid, repeat('1', 64), 'dat', 'Hoàng Văn Bình'),
+    ('b3000000-0000-4000-8000-000000000004'::uuid, 'b2000000-0000-4000-8000-000000000002'::uuid, 'ket_cau', 'KC-01 Mặt bằng kết cấu', 'b1000000-0000-4000-8000-000000000003'::uuid, repeat('3', 64), 'dat', 'Hoàng Văn Bình'),
+    ('b3000000-0000-4000-8000-000000000005'::uuid, 'b2000000-0000-4000-8000-000000000002'::uuid, 'mep', 'MEP-02 Sơ đồ cấp điện sửa', 'b1000000-0000-4000-8000-000000000002'::uuid, repeat('2', 64), 'dat', 'Hoàng Văn Bình')
+) AS v(id, phien_ban_id, bo_mon, ten, file_id, sha, trang_thai, nguoi)
+WHERE h.ma_ho_so = 'CP-HERO-2026-001';
+
+INSERT INTO app_cap_phep.nhan_xet_tham_dinh
+    (id, tenant, ban_ve_id, phien_ban_id, bo_mon, nguoi_sub, nguoi, noi_dung, muc_do,
+     trang_thai, created_at)
+VALUES
+    ('b4000000-0000-4000-8000-000000000001', 'phuong-a',
+     'b3000000-0000-4000-8000-000000000002', 'b2000000-0000-4000-8000-000000000001',
+     'mep',
+     (SELECT id::text FROM core.users_directory WHERE tenant = 'phuong-a' AND username = 'td.binh'),
+     'Hoàng Văn Bình', 'Bổ sung sơ đồ cấp điện và ghi rõ công suất phụ tải.', 'loi', 'mo',
+     now() - interval '2 days');
 
 COMMIT;
 """
