@@ -1,0 +1,111 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# APISIX route fragment — Track A bổ sung endpoint metric chuyên biệt.
+# Ưu tiên cao hơn route /api/v1/metrics* chung để không phụ thuộc thứ tự file.
+
+routes:
+  - id: route_metrics_status_breakdown
+    uri: /api/v1/metrics/status-breakdown
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_metrics_trend
+    uri: /api/v1/metrics/trend
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_metrics_workload
+    uri: /api/v1/metrics/workload
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_metrics_planning_fail
+    uri: /api/v1/metrics/planning-fail
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_metrics_acceptance_progress
+    uri: /api/v1/metrics/acceptance-progress
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1

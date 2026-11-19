@@ -14,6 +14,7 @@ prometheus-client==0.21.1
 cryptography==50.0.2
 qrcode==8.0
 reportlab==4.4.1
+openpyxl==3.1.5
 duckdb==1.2.0
 pyarrow==19.0.1
 sse-starlette==2.2.1
