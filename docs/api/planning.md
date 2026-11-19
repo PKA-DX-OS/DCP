@@ -64,14 +64,21 @@ R10 vùng cấm xây dựng.
 | GET | `/legal/citations/{citation_key}` | Một trích dẫn |
 | GET | `/authority/{ho_so_id}` | Kiểm tra thẩm quyền theo Điều 53 và ghi audit |
 | POST | `/authority/check` | Xác định cơ quan cấp theo loại/đối tượng/KCN |
+| GET | `/validation/{ho_so_id}` | Danh sách cảnh báo hồ sơ |
+| POST | `/validation/{ho_so_id}/confirm` | Cán bộ xác nhận cảnh báo + audit |
 | GET | `/location/{mã 12 số}` | Tra CSDL định danh địa điểm, ghi audit khai thác |
 | POST | `/location/ho-so/{id}` | Gắn mã định danh 12 số vào hồ sơ |
 | POST | `/share/export` | Ghi log chia sẻ dữ liệu (NĐ 278/2025), trạng thái chờ kết nối |
+| GET | `/share/payload/{ho_so_id}` | Payload tối thiểu che CCCD để gửi nền tảng chia sẻ |
 | GET | `/share/logs` | Nhật ký chia sẻ |
-| GET | `/fees` | Bảng phí địa phương (chờ văn bản) |
+| GET | `/fees` | Bảng phí địa phương |
+| POST | `/fees` | Tạo bảng phí địa phương (chờ văn bản) |
 | GET | `/bien-lai` | Biên lai/đối soát |
+| POST | `/bien-lai` | Tạo biên lai |
+| POST | `/bien-lai/{id}/status` | Đối soát/hoàn phí/hủy biên lai |
 | GET | `/archive` | Hồ sơ lưu trữ |
 | POST | `/archive/{ho_so_id}` | Tạo bản ghi lưu trữ |
+| POST | `/archive/{id}/status` | Chuyển giao/tiêu hủy/hết hạn |
 
 Lưu ý: dữ liệu địa điểm, bảng phí và lưu trữ hiện là **khung demo**; trạng thái
 `cho_van_ban_dia_phuong` / `cho_ket_noi` phản ánh chưa có văn bản địa phương hoặc

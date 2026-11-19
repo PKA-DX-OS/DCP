@@ -4,7 +4,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { askAssistant, checkPlanning, fetchPlanningDocuments, fetchPlanningParcels, fetchPlanningResults, fetchPlanningZones, type PlanningCheckBody } from "../../api/planning";
+import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { notify } from "../../composables/useToast";
+import { Badge, Button } from "../../design-system";
 import PlanningMap from "./PlanningMap.vue";
 
 const props = defineProps<{
@@ -17,9 +19,11 @@ const parcels = ref<any[]>([]);
 const zones = ref<any[]>([]);
 const documents = ref<any[]>([]);
 const history = ref<any[]>([]);
+const tasks = ref<any[]>([]);
 const selectedId = ref<string>("");
 const loading = ref(false);
 const checking = ref(false);
+const dangTaoViec = ref(false);
 const error = ref("");
 const ketQua = ref<any>(null);
 const traLoiTroLy = ref("");
@@ -38,6 +42,10 @@ const proposal = reactive({
 });
 
 const selectedParcel = computed(() => parcels.value.find((p) => p.id === selectedId.value) || null);
+const viecQuyHoach = computed(() => tasks.value.find((t) => {
+  const key = t.taskDefinitionKey || "";
+  return key === "taskKiemTraQuyHoach" || key === "taskXuLyQuyHoach";
+}) || null);
 const ketQuaHienTai = computed(() => ketQua.value || history.value[0] || null);
 const rules = computed<any[]>(() => ketQuaHienTai.value?.ket_qua || ketQuaHienTai.value?.results || []);
 const soLoi = computed(() => rules.value.filter((r) => r.severity === "error").length);
@@ -93,10 +101,67 @@ async function taiDuLieu() {
       const sp = p.find((x) => x.id === selectedId.value);
       if (sp?.loai_dat) proposal.loai_dat = sp.loai_dat;
     }
+    await taiViec();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Không tải được dữ liệu quy hoạch";
   } finally {
     loading.value = false;
+  }
+}
+
+function phatSuKienViec() {
+  window.dispatchEvent(new CustomEvent("dxos:tasks-changed"));
+}
+
+async function taiViec() {
+  try {
+    const ds = await fetchTasks(props.token);
+    tasks.value = (ds || []).filter((t) => {
+      const id = (t.variables || []).find((v: any) => v.name === "ho_so_id")?.value;
+      const ma = (t.variables || []).find((v: any) => v.name === "ma_ho_so")?.value || t.businessKey;
+      return id === props.dossier?.id || ma === props.dossier?.ma_ho_so;
+    });
+  } catch {
+    tasks.value = [];
+  }
+}
+
+async function taoViecQuyHoach() {
+  if (!props.dossier?.id) return;
+  dangTaoViec.value = true;
+  try {
+    await startWorkflow(props.token, "quy-hoach", props.dossier.ma_ho_so, {
+      ho_so_id: props.dossier.id,
+      ma_ho_so: props.dossier.ma_ho_so,
+      dia_chi_cong_trinh: props.dossier.dia_chi_cong_trinh,
+      trang_thai_ho_so: props.dossier.trang_thai,
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    await taiViec();
+    phatSuKienViec();
+    notify("Đã tạo việc kiểm tra quy hoạch trong Bàn làm việc", "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không tạo được việc kiểm tra quy hoạch", "loi");
+  } finally {
+    dangTaoViec.value = false;
+  }
+}
+
+async function hoanThanhViecQuyHoach(kq: any) {
+  const viec = viecQuyHoach.value;
+  if (!viec) return;
+  try {
+    const loi = (kq.results || []).filter((r: any) => r.severity === "error").map((r: any) => r.rule_id).join(",");
+    await completeTask(props.token, viec.id, {
+      quy_hoach_pass: Boolean(kq.pass),
+      ket_qua_kiem_tra_id: kq.id,
+      quy_hoach_fail_rules: loi,
+    });
+    await taiViec();
+    phatSuKienViec();
+    notify("Đã cập nhật việc kiểm tra quy hoạch", "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Kết quả đã lưu nhưng chưa hoàn thành được việc quy hoạch", "canh_bao");
   }
 }
 
@@ -114,6 +179,7 @@ async function kiemTra() {
     trichDanTroLy.value = [];
     notify(ketQua.value.pass ? "Quy hoạch đạt" : `Quy hoạch không đạt: ${ketQua.value.so_loi} lỗi`, ketQua.value.pass ? "ok" : "loi");
     if (props.dossier?.id) history.value = await fetchPlanningResults(props.token, props.dossier.id);
+    await hoanThanhViecQuyHoach(ketQua.value);
   } catch (e) {
     notify(e instanceof Error ? e.message : "Không kiểm tra được quy hoạch", "loi");
   } finally {
@@ -191,14 +257,20 @@ onMounted(taiDuLieu);
             </select>
           </label>
         </div>
-        <button id="planning-check-btn" class="btn btn-chinh mt-3" :disabled="checking || !parcels.length" @click="kiemTra">
+        <Button id="planning-check-btn" class="mt-3" :disabled="checking || !parcels.length" @click="kiemTra">
           {{ checking ? "Đang kiểm tra…" : "Kiểm tra quy hoạch" }}
-        </button>
+        </Button>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+          <Button v-if="!viecQuyHoach" size="sm" variant="secondary" :disabled="dangTaoViec" @click="taoViecQuyHoach">
+            {{ dangTaoViec ? "Đang tạo việc…" : "Tạo việc kiểm tra quy hoạch (workflow)" }}
+          </Button>
+          <span v-else class="text-phu">Việc {{ viecQuyHoach.name || viecQuyHoach.taskDefinitionKey }} đang chờ trong Bàn làm việc.</span>
+        </div>
       </div>
 
       <div v-if="ketQuaHienTai" class="the p-3">
         <div class="flex flex-wrap items-center gap-2 mb-2">
-          <span id="planning-result-badge" :class="ketQuaHienTai.pass ? 'tt tt-xanh' : 'tt tt-do'">{{ ketQuaHienTai.pass ? "Đạt quy hoạch" : "Không đạt quy hoạch" }}</span>
+          <Badge id="planning-result-badge" :tone="ketQuaHienTai.pass ? 'success' : 'danger'">{{ ketQuaHienTai.pass ? "Đạt quy hoạch" : "Không đạt quy hoạch" }}</Badge>
           <span class="mo">{{ soLoi }} lỗi · {{ soCanhBao }} cảnh báo</span>
           <span class="mo">Lúc {{ new Date(ketQuaHienTai.created_at || Date.now()).toLocaleString("vi-VN") }}</span>
         </div>

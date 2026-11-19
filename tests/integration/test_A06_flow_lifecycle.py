@@ -5,8 +5,8 @@
 
 import httpx
 
-from tests.integration._auth import GATEWAY_URL
-from tests.integration._ho_so import cap_phep_den_buoc_duyet, complete_task, run_sql
+from tests.integration._auth import GATEWAY_URL, get_token
+from tests.integration._ho_so import cap_phep_den_buoc_duyet, complete_task, run_sql, start_process, sub_of, wait_task
 
 
 PAYLOAD = {
@@ -94,3 +94,63 @@ def test_AFLOW_03_work_list_co_ma_ho_so_va_dia_chi():
     assert variables.get("dia_chi_cong_trinh") == PAYLOAD["dia_chi_cong_trinh"]
     # Dọn việc: chuyển tiếp để không để task treo ở bước một cửa.
     complete_task(get_token("mc.thu"), task["id"], {"hoSoHopLe": True})
+
+
+def test_AFLOW_04_quy_hoach_va_nghiem_thu_tao_viec_that():
+    import uuid
+    tok = get_token("td.binh")
+    hid = run_sql("SELECT id FROM app_cap_phep.ho_so WHERE ma_ho_so = 'CP-HERO-2026-001';")
+    ma = "CP-HERO-2026-001"
+    proc = start_process(tok, "quy-hoach", {
+        "ho_so_id": hid,
+        "ma_ho_so": ma,
+        "dia_chi_cong_trinh": "Số 18 Đường Hòa Bình, phường A",
+    }, business_key=f"{ma}-TEST-{uuid.uuid4().hex[:6]}")
+    task = wait_task(tok, proc, "taskKiemTraQuyHoach")
+    assert complete_task(tok, task["id"], {
+        "quy_hoach_pass": True,
+        "ket_qua_kiem_tra_id": "test",
+        "quy_hoach_fail_rules": "",
+    }).status_code == 200
+    assert run_sql(f"SELECT quy_hoach_process_id FROM app_cap_phep.ho_so WHERE id = '{hid}';") == proc
+
+    hid2 = run_sql("SELECT id FROM app_cap_phep.ho_so WHERE ma_ho_so = 'CP-HERO-ACC-2026-001';")
+    ma2 = "CP-HERO-ACC-2026-001"
+    proc2 = start_process(tok, "nghiem-thu", {
+        "ho_so_id": hid2,
+        "ma_ho_so": ma2,
+        "dia_chi_cong_trinh": "Số 20 Đường Hòa Bình, phường A",
+    }, business_key=f"{ma2}-TEST-{uuid.uuid4().hex[:6]}")
+    task2 = wait_task(tok, proc2, "taskNghiemThuMong")
+    assert complete_task(tok, task2["id"], {
+        "ket_qua_nghiem_thu": "dat",
+        "mong_dat": True,
+        "ghi_chu": "Test",
+    }).status_code == 200
+    assert run_sql(f"SELECT nghiem_thu_process_id FROM app_cap_phep.ho_so WHERE id = '{hid2}';") == proc2
+
+
+def test_AFLOW_04_escalation_phan_cong_lai_va_nhac_viec():
+    tok = get_token("ld.hoa")
+    h = {"Authorization": f"Bearer {tok}"}
+    esc = httpx.get(f"{GATEWAY_URL}/api/v1/flow/escalations", headers=h, timeout=30.0)
+    assert esc.status_code == 200, esc.text
+    tasks = httpx.get(f"{GATEWAY_URL}/api/v1/flow/tasks", headers=h, timeout=20.0).json().get("tasks", [])
+    task = next((t for t in tasks if t.get("taskDefinitionKey") in ("taskDuyetCapPhep", "taskPheDuyet")), None)
+    if task is None:
+        return
+    assigned = httpx.post(
+        f"{GATEWAY_URL}/api/v1/flow/tasks/{task['id']}/assign",
+        headers=h,
+        json={"user_sub": sub_of(tok), "reason": "Kiểm thử phân công lại"},
+        timeout=20.0,
+    )
+    assert assigned.status_code == 200, assigned.text
+    assert assigned.json()["assignee"] == sub_of(tok)
+    reminded = httpx.post(
+        f"{GATEWAY_URL}/api/v1/flow/tasks/{task['id']}/remind",
+        headers=h,
+        json={"message": "Kiểm thử nhắc việc"},
+        timeout=20.0,
+    )
+    assert reminded.status_code == 200, reminded.text

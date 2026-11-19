@@ -110,4 +110,4 @@ def test_A02_tro_ly_tra_loi_co_trich_dan_phap_ly():
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body.get("citations"), body
-    assert any(c["nguon"].startswith("legal/") for c in body["citations"])
+    assert any(c["nguon"].startswith(("legal/", "legal-pdf/", "legal-analysis/")) for c in body["citations"])

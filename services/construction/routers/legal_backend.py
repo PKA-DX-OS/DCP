@@ -4,6 +4,7 @@
 """A-LEGAL-04..07: thẩm quyền, định danh địa điểm, chia sẻ dữ liệu, phí và lưu trữ."""
 
 import json
+from datetime import date
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -43,6 +44,34 @@ class ArchiveRequest(BaseModel):
     ghi_chu: Optional[str] = Field(default=None, max_length=1000)
 
 
+class FeeRequest(BaseModel):
+    ten_thu_tuc: str = Field(min_length=1, max_length=300)
+    don_vi_tinh: str = Field(default="hồ sơ", max_length=50)
+    muc_phi: float = Field(ge=0)
+    don_vi_tien: str = Field(default="VND", max_length=10)
+    can_cu: Optional[str] = Field(default=None, max_length=500)
+    hieu_luc_tu: Optional[str] = None
+    status: str = Field(default="cho_van_ban_dia_phuong", max_length=50)
+
+
+class ReceiptRequest(BaseModel):
+    ho_so_id: Optional[str] = None
+    so_bien_lai: str = Field(min_length=1, max_length=100)
+    so_tien: float = Field(ge=0)
+    ma_tham_chieu: Optional[str] = Field(default=None, max_length=200)
+    ghi_chu: Optional[str] = Field(default=None, max_length=1000)
+
+
+class ReceiptStatusRequest(BaseModel):
+    trang_thai: str = Field(pattern="^(da_doi_soat|hoan_phi|huy)$")
+    ghi_chu: Optional[str] = Field(default=None, max_length=1000)
+
+
+class ArchiveStatusRequest(BaseModel):
+    trang_thai: str = Field(pattern="^(dang_luu_tru|chuyen_giao|tieu_huy|het_han)$")
+    ghi_chu: Optional[str] = Field(default=None, max_length=1000)
+
+
 def _row(r) -> dict:
     data = dict(r)
     for key in ("chi_tiet", "ket_qua"):
@@ -52,6 +81,15 @@ def _row(r) -> dict:
             except ValueError:
                 pass
     return data
+
+
+def _ngay(value: Optional[str]) -> Optional[date]:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        raise HTTPException(status_code=422, detail={"loi": f"Ngày không hợp lệ: {value}"})
 
 
 @router.get("/authority/{ho_so_id}")
@@ -244,6 +282,102 @@ async def bien_lai(authorization: str = Header(...)):
     return [_row(r) for r in rows]
 
 
+@router.post("/fees")
+async def tao_bieu_phi(body: FeeRequest, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    yeu_cau_kiem_tra(claims)
+    async with get_db_connection(claims) as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO app_construction.bieu_phi_dia_phuong
+                (tenant, ten_thu_tuc, don_vi_tinh, muc_phi, don_vi_tien, can_cu, hieu_luc_tu, status)
+            VALUES (core.jwt_tenant(), $1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, ten_thu_tuc, don_vi_tinh, muc_phi, don_vi_tien, can_cu, hieu_luc_tu, status
+            """,
+            body.ten_thu_tuc,
+            body.don_vi_tinh,
+            body.muc_phi,
+            body.don_vi_tien,
+            body.can_cu,
+            _ngay(body.hieu_luc_tu),
+            body.status,
+        )
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="fee.created",
+        actor_sub=claims.sub,
+        object_type="bieu_phi",
+        object_id=str(row["id"]),
+        detail={"ten_thu_tuc": body.ten_thu_tuc, "muc_phi": body.muc_phi},
+    )
+    return _row(row)
+
+
+@router.post("/bien-lai")
+async def tao_bien_lai(body: ReceiptRequest, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    yeu_cau_kiem_tra(claims)
+    async with get_db_connection(claims) as conn:
+        if body.ho_so_id:
+            exists = await conn.fetchval(
+                "SELECT EXISTS (SELECT 1 FROM app_cap_phep.ho_so WHERE id = $1::uuid AND tenant = core.jwt_tenant())",
+                body.ho_so_id,
+            )
+            if not exists:
+                raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy hồ sơ trong địa bàn"})
+        row = await conn.fetchrow(
+            """
+            INSERT INTO app_construction.bien_lai_phi
+                (tenant, ho_so_id, so_bien_lai, so_tien, ma_tham_chieu, ghi_chu, nguoi_thu, created_by)
+            VALUES (core.jwt_tenant(), $1::uuid, $2, $3, $4, $5, core.jwt_sub(), core.jwt_sub())
+            RETURNING id, ho_so_id, so_bien_lai, so_tien, trang_thai, ma_tham_chieu, ghi_chu, created_at
+            """,
+            body.ho_so_id,
+            body.so_bien_lai,
+            body.so_tien,
+            body.ma_tham_chieu,
+            body.ghi_chu,
+        )
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="receipt.created",
+        actor_sub=claims.sub,
+        object_type="bien_lai",
+        object_id=str(row["id"]),
+        detail={"so_bien_lai": body.so_bien_lai, "so_tien": body.so_tien},
+    )
+    return _row(row)
+
+
+@router.post("/bien-lai/{bien_lai_id}/status")
+async def doi_trang_thai_bien_lai(bien_lai_id: str, body: ReceiptStatusRequest, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    yeu_cau_kiem_tra(claims)
+    async with get_db_connection(claims) as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE app_construction.bien_lai_phi
+            SET trang_thai = $2, ghi_chu = COALESCE($3, ghi_chu)
+            WHERE id = $1::uuid AND tenant = core.jwt_tenant()
+            RETURNING id, ho_so_id, so_bien_lai, so_tien, trang_thai, ghi_chu, created_at
+            """,
+            bien_lai_id,
+            body.trang_thai,
+            body.ghi_chu,
+        )
+    if row is None:
+        raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy biên lai"})
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="receipt.status_changed",
+        actor_sub=claims.sub,
+        object_type="bien_lai",
+        object_id=bien_lai_id,
+        detail={"trang_thai": body.trang_thai, "ghi_chu": body.ghi_chu},
+    )
+    return _row(row)
+
+
 @router.get("/archive")
 async def danh_sach_luu_tru(authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
@@ -297,3 +431,94 @@ async def tao_luu_tru(ho_so_id: str, body: ArchiveRequest, authorization: str = 
         detail={"nhom_ho_so": body.nhom_ho_so, "file_id": body.file_id},
     )
     return _row(row)
+
+
+@router.post("/archive/{luu_tru_id}/status")
+async def doi_trang_thai_luu_tru(luu_tru_id: str, body: ArchiveStatusRequest, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    yeu_cau_kiem_tra(claims)
+    async with get_db_connection(claims) as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE app_construction.luu_tru_ho_so
+            SET trang_thai = $2, ghi_chu = COALESCE($3, ghi_chu), updated_at = now()
+            WHERE id = $1::uuid AND tenant = core.jwt_tenant()
+            RETURNING id, ho_so_id, nhom_ho_so, thoi_han_den, trang_thai, ghi_chu, created_at
+            """,
+            luu_tru_id,
+            body.trang_thai,
+            body.ghi_chu,
+        )
+    if row is None:
+        raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy bản ghi lưu trữ"})
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="archive.status_changed",
+        actor_sub=claims.sub,
+        object_type="luu_tru",
+        object_id=luu_tru_id,
+        detail={"trang_thai": body.trang_thai, "ghi_chu": body.ghi_chu},
+    )
+    return _row(row)
+
+
+@router.get("/share/payload/{ho_so_id}")
+async def tao_payload_chia_se(ho_so_id: str, authorization: str = Header(...)):
+    """Payload tối thiểu gửi nền tảng chia sẻ; không gồm CCCD đầy đủ/chi tiết tệp (A-LEGAL-06)."""
+    claims = verify_jwt_token(authorization)
+    yeu_cau_kiem_tra(claims)
+    async with get_db_connection(claims) as conn:
+        hs = await conn.fetchrow(
+            """
+            SELECT id, ma_ho_so, ho_ten, cccd, dia_chi_cong_trinh, thua_dat,
+                   ma_dinh_danh_dia_diem, loai_dat, trang_thai, cap_hanh_chinh
+            FROM app_cap_phep.ho_so
+            WHERE id = $1::uuid AND tenant = core.jwt_tenant()
+            """,
+            ho_so_id,
+        )
+        if hs is None:
+            raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy hồ sơ trong địa bàn"})
+        quy_hoach = await conn.fetchrow(
+            """
+            SELECT pass, so_loi, so_canh_bao, created_at
+            FROM app_construction.ket_qua_kiem_tra_quy_hoach
+            WHERE tenant = core.jwt_tenant() AND ho_so_id = $1::uuid
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            ho_so_id,
+        )
+        nghiem_thu = await conn.fetch(
+            """
+            SELECT loai_moc, ket_qua, ngay_nghiem_thu
+            FROM app_construction.moc_nghiem_thu
+            WHERE tenant = core.jwt_tenant() AND ho_so_id = $1::uuid
+            ORDER BY created_at
+            """,
+            ho_so_id,
+        )
+    cccd = hs["cccd"] or ""
+    payload = {
+        "ma_ho_so": hs["ma_ho_so"],
+        "ho_ten": hs["ho_ten"],
+        "cccd_masked": ("*" * max(0, len(cccd) - 4) + cccd[-4:]) if cccd else None,
+        "dia_chi_cong_trinh": hs["dia_chi_cong_trinh"],
+        "thua_dat": hs["thua_dat"],
+        "ma_dinh_danh_dia_diem": hs["ma_dinh_danh_dia_diem"],
+        "loai_dat": hs["loai_dat"],
+        "trang_thai": hs["trang_thai"],
+        "cap_hanh_chinh": hs["cap_hanh_chinh"],
+        "quy_hoach": _row(quy_hoach) if quy_hoach else None,
+        "nghiem_thu": [_row(r) for r in nghiem_thu],
+        "can_cu_phap_ly": "ND-278/2025/ND-CP",
+        "nguon": "C3 demo payload; chưa gửi thật sang Nền tảng chia sẻ dữ liệu",
+    }
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="data.share_payload_created",
+        actor_sub=claims.sub,
+        object_type="ho_so",
+        object_id=ho_so_id,
+        detail={"ma_ho_so": hs["ma_ho_so"], "can_cu": payload["can_cu_phap_ly"]},
+    )
+    return payload

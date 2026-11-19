@@ -15,7 +15,27 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       <form id="form-nop-ho-so" class="hop-than" @submit.prevent="handleSubmit">
         <h4 class="muc-con">Chủ đầu tư</h4>
-        <label for="input-ho-ten" class="nhan">Họ và tên</label>
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label for="input-doi-tuong" class="nhan">Loại chủ thể</label>
+            <select id="input-doi-tuong" v-model="form.doi_tuong" class="o">
+              <option value="ho_gia_dinh_ca_nhan">Hộ gia đình, cá nhân</option>
+              <option value="to_chuc">Tổ chức</option>
+            </select>
+          </div>
+          <div>
+            <label for="input-cap-hanh-chinh" class="nhan">Cấp hành chính</label>
+            <select id="input-cap-hanh-chinh" v-model="form.cap_hanh_chinh" class="o">
+              <option value="xa">Cấp xã</option>
+              <option value="tinh">Cấp tỉnh</option>
+            </select>
+          </div>
+          <label class="inline-flex items-center gap-2 mt-6 cursor-pointer">
+            <input type="checkbox" v-model="form.trong_kcn" class="w-4 h-4 accent-[rgb(var(--c-cham))]" />
+            Trong KCN/KKT
+          </label>
+        </div>
+        <label for="input-ho-ten" class="nhan mt-3">Họ và tên</label>
         <input id="input-ho-ten" v-model="form.ho_ten" required autocomplete="name" class="o" placeholder="Nguyễn Văn A" />
         <div class="grid sm:grid-cols-2 gap-3 mt-3">
           <div>
@@ -87,6 +107,9 @@ function formTrong(): NopHoSoPayloadM {
     so_tang: 1,
     dien_tich_san_m2: 100.0,
     khu_quan_ly_kien_truc: true,
+    doi_tuong: "ho_gia_dinh_ca_nhan",
+    trong_kcn: false,
+    cap_hanh_chinh: "xa",
   };
 }
 
