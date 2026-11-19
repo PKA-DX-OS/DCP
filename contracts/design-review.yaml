@@ -8,7 +8,7 @@ info:
   summary: Hợp đồng API thẩm định thiết kế của app cấp phép (track B).
   description: |
     Bổ sung cho `api/openapi.yaml`. Thẩm định thiết kế là nghiệp vụ của app cấp phép nên nằm ở lớp app
-    (ADR-005): bảng và hàm SQL trong `apps/cap-phep/db/migrations/03-tham-dinh-thiet-ke.sql`, gọi qua
+    (ADR-005): bảng và hàm SQL trong `apps/cap-phep/db/migrations/10-tham-dinh-thiet-ke.sql`, gọi qua
     PostgREST tại `/api/v1/rest/rpc/<tên hàm>` (APISIX bỏ tiền tố `/api/v1/rest`). Không có dịch vụ riêng.
 
     ## Quy ước
