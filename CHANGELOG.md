@@ -1,0 +1,134 @@
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
+# Nhật Ký Thay Đổi (Changelog)
+
+Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** được ghi lại tại tệp này.
+Định dạng dựa trên [Keep a Changelog](https://keepachangelog.com/vi/1.0.0/), và dự án tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [Chưa phát hành]
+
+### Bảo mật (Security)
+- **U-01:** bỏ tải bản gốc công khai `/kiem-tra/{mã}/download`; bản gốc tải qua `GET /api/v1/docs/{id}/download` (bắt buộc JWT, kiểm quyền theo hồ sơ hoặc người đã ký, có audit). Mã tra cứu dài 128 bit (`DOC-` + 22 ký tự).
+- **U-02:** trang `/kiem-tra` escape mọi giá trị, CSP không cho chạy script; biểu mẫu đối soát PDF gửi thẳng về máy chủ, tệp tối đa 25 MB.
+- **U-03:** dịch vụ `files` tự quyết định MIME theo phần mở rộng, chỉ PDF/PNG/JPEG mở inline, còn lại tải về kèm `nosniff`.
+- **U-04..U-07:** mô phỏng cảm biến kiểm địa bàn và quyền, người ký lấy từ `signer_sub`, bổ sung hồ sơ chỉ khi có nhiệm vụ chờ bổ sung, nhật ký hồ sơ không lộ người xem cho công dân.
+
+### Đã thay đổi (Changed)
+- Giao diện Cấp phép, Bảng điều hành và trang tra cứu chuyển sang phong cách kính (Glassmorphism), có giao diện tối và sáng, hiệu ứng khi di chuột và khi chuyển trang; danh mục giấy tờ, đánh giá từng tệp và 8 chỉ số dùng chung phong cách này.
+- Bảng điều hành chỉ mở cho lãnh đạo, quản trị và kiểm toán viên; trợ lý chỉ trả lời khi tìm thấy đoạn tài liệu liên quan.
+
+---
+
+## [1.0] - 2026-11-19
+
+### Đã thêm (Added)
+- **PAdES/SoftHSM:** `softhsm-init` tạo token, test CA và leaf cert; `doc-sign` ký PAdES qua `pyHanko` + `python-pkcs11`, mặc định `SIGNING_MODE=pkcs11`.
+- **Dashboard [D] thật:** gọi `/api/v1/metrics` và `/api/v1/metrics/{code}/lineage` bằng JWT; bỏ toàn bộ số liệu hardcoded.
+- **Trợ lý [I] thật:** gọi `/api/v1/assistant/ask`, hiển thị citation; bỏ câu trả lời canned.
+- **SBOM:** `scripts/sbom.py` + `sbom/dxos-1.0.cdx.json` (CycloneDX 1.5).
+- **CLI:** thêm `e2e`, `e2e-ui`, `test-qa`, `check-no-fakes`, `sbom` cho `dx.ps1`/`dx.sh` và Makefile.
+- **One-shot:** `run.ps1` + `run.cmd` tự kiểm tra Docker, dừng stack cũ, init `.env`/secrets, bật DEMO_MODE, chạy `up → app-install → seed → doctor`, chờ dịch vụ healthy, kiểm tra gateway HTTP và mở trình duyệt. Có `-Reset` và `-NoBrowser`.
+- **P1 Manifest giấy tờ:** `document_manifest` trong `app.yaml` + bảng `app_cap_phep.document_requirements`; checklist động trên UI; RPC `nop_ho_so` kiểm tra 7 lớp và trả **422** kèm `{field, loai_giay, reason, action}`.
+- **Review từng tệp + versioning:** `ho_so_tep` thêm `sha256/size/mime/nguoi_tai/trang_thai_kiem_tra/ly_do/ngay_cap/ngay_het_han/version/tep_goc_id/thong_tin`; RPC `danh_gia_tep` cho cán bộ đánh giá đạt/không đạt kèm lý do; UI Bàn làm việc có nút Đạt/Không đạt; Chi tiết hồ sơ hiển thị trạng thái từng giấy.
+- **Đủ 8 chỉ số dashboard:** thêm `ho_so_dang_xu_ly`, `thoi_gian_xu_ly_tb`, `phieu_kiem_tra`, `vi_pham`; dashboard render động theo API thay vì 5 thẻ hardcoded.
+
+### Đã sửa (Fixed)
+- `metrics-api`: parse `jsonb` từ asyncpg trước khi dùng `.get()`.
+- `doc-sign`: sửa trang công khai bỏ CDN Tailwind, dùng CSS nội bộ; thêm form đối soát PDF và hiển thị PAdES.
+- `tests/e2e`: dùng token cảm biến `dxos-sensor-phuong-a` thay vì token cán bộ; thêm kiểm tra tải PDF + tamper.
+- `tests/e2e-ui`: chấp nhận PAdES thay vì chỉ Ed25519.
+- `dx.ps1 init`: fallback `py -3.12` hoặc tools container khi host Python thiếu `cryptography`.
+- `dx.sh reset`: dùng image tools `1.0` và gọi đúng `python scripts/init.py`.
+- `sensor-spike`/`demo-sensor`: dùng cổng APISIX `8080` thay vì `9080`.
+- `gitops`: chạy reconciler trên host để có Docker CLI; `init` đồng bộ `COMPOSE_FILE_SHA256` để không báo drift giả.
+- REUSE: bổ sung annotation cho `secrets/`, cache, `node_modules`, `tests/`; thêm `LICENSES/ISC.txt`.
+- UI: thống nhất banner, header indigo, font, card, footer và link chéo giữa C3 ↔ Bảng điều hành.
+- UI: xử lý 401 bằng cách xóa phiên OIDC, hiển thị thông báo đăng nhập lại thay vì raw HTML APISIX.
+- `nop_ho_so`: bắt buộc đủ giấy theo manifest, kiểm tra hạn/đối chiếu chéo/trùng SHA-256; không còn tạo hồ sơ rỗng.
+- `dinh_kem_tep`: validate loại giấy theo manifest, chống trùng SHA-256, tự tăng version khi bổ sung.
+- `files`: cho phép tải trước vào `draft.ho_so` để nộp hồ sơ một bước; vẫn kiểm tra chủ sở hữu khi tạo hồ sơ.
+- `scan_exposure`: whitelist `document_requirements` (danh mục công khai, không chứa PII).
+
+---
+
+## [0.9.0]
+
+### Security
+
+Các lỗ hổng an toàn thông tin và điểm yếu phân quyền được rà soát, vá triệt để ở phiên bản v0.9.0:
+- **`sync_flow_state` (Kiểm soát đồng bộ trạng thái quy trình):** Loại bỏ việc cho phép người dùng web hoặc cán bộ tự gọi RPC sửa trực tiếp trạng thái hồ sơ qua REST API; chỉ dịch vụ backend `flow` (vai trò hệ thống `dx:service`) mới có quyền đồng bộ trạng thái BPMN vào cơ sở dữ liệu dựa trên sự kiện BPMN chính thức từ Flowable engine.
+- **`dsar` (Bảo vệ tính toàn vẹn yêu cầu dữ liệu cá nhân):** Chặn đứng nguy cơ sửa đổi, giả mạo các trường định danh chủ thể (`subject_sub`, `tenant`); áp dụng triệt để chính sách `rls_dsar_requests_tenant` và tự động tính toán thời hạn tiếp nhận (2 ngày làm việc), giải quyết (7 ngày làm việc) dựa trên hàm lịch hành chính `core.add_business_days`.
+- **`dinh_kem_tep` (Cách ly tệp đính kèm hồ sơ):** Hàm RPC `dinh_kem_tep` bổ sung kiểm tra nghiêm ngặt: tệp đính kèm bắt buộc phải thuộc sở hữu của người gọi (`v_file.owner_sub = cur_sub`), cùng đơn vị (tenant), và hồ sơ phải ở trạng thái cho phép nộp bổ sung (`DA_NOP`, `CAN_BO_SUNG`), ngăn chặn hoàn toàn việc chèn tệp trái phép vào hồ sơ của công dân hoặc phường khác.
+- **`Bí mật dùng chung (Shared Secrets)`:** Loại bỏ triệt để toàn bộ khóa bí mật đối xứng HS256 dùng chung (`test_e2e_secret_key_2026`) vốn tạo ra lỗ hổng tự ký token; chuyển dịch toàn bộ hệ thống sang xác thực bất đối xứng qua tập khóa công khai JWKS RS256 trích xuất trực tiếp từ Keycloak 26.
+- **`Superuser & Nguyên tắc đặc quyền tối thiểu (Least Privilege)`:** Thu hồi quyền siêu người dùng `postgres` khỏi toàn bộ các microservices và ứng dụng; chuyển sang tài khoản dịch vụ chuyên dụng `dxos_svc` có phân quyền chặt chẽ; thiết lập `FORCE ROW LEVEL SECURITY` trên toàn bộ các bảng trong lược đồ `core` và `app_cap_phep`.
+
+### Đã sửa & Nâng cấp (Changed / Fixed)
+- **Kiến trúc Fail-Closed & Loại bỏ toàn bộ Mock/Fallback (F-11 đến F-22):**
+  - Xóa bỏ triệt để toàn bộ mã giả định, mock connection (`MockConnection`), bộ nhớ RAM tạm thời (`_memory_store`, `_SIGNED_DOCS_STORE`), khóa bí mật nội bộ (`_LOCAL_PRIVATE_KEY`) và các khối nuốt lỗi `except Exception: pass` trong toàn bộ mã nguồn `services/`, `scripts/`, `ops/`, `tools/` và `apps/`.
+  - Áp dụng nghiêm ngặt nguyên tắc Fail-Closed: khi bất kỳ dịch vụ phụ thuộc nào (PostgreSQL, SeaweedFS S3, ClamAV, OpenBao KMS, Flowable BPMN, Keycloak SSO, NATS) gặp sự cố hoặc chưa sẵn sàng, hệ thống trả về mã lỗi HTTP 503 Service Unavailable kèm thông báo tiếng Việt có dấu và mã nhật ký lỗi chi tiết.
+- **Bảo mật Định danh & Xác thực Token Thực tế (F-03, F-04, F-11, F-12, F-38, F-39):**
+  - Chuyển đổi PostgREST sang xác thực bằng tập khóa công khai JWKS RS256 thực tế trích xuất từ Keycloak (`@/etc/postgrest/jwks.json`), trả HTTP 401 khi không có JWT.
+  - Cổng biên mạng Apache APISIX cấu hình chính xác `client_secret` OIDC, kích hoạt bộ tiêu đề bảo mật CSP, chặn đứng hoàn toàn việc truy cập giao diện quản trị `/auth/admin` và Realm quản trị `/auth/realms/master`.
+  - Thẩm định token JWT nghiêm ngặt qua khóa công khai Keycloak thật: kiểm tra chữ ký số, thời điểm hiệu lực `nbf`, thời hạn hết hạn `exp`, định danh tổ chức cấp phát `iss` và danh sách ủy thác `azp`. Client thử nghiệm `dx-test` chỉ được kích hoạt khi biến môi trường `DEMO_MODE=true`.
+- **Quản lý Khóa KMS & Ký số Transit Độc lập (F-05, F-15, F-30, F-31):**
+  - Triển khai OpenBao chạy chế độ máy chủ lưu trữ trên Docker volume bền vững, khởi tạo với cơ chế phân tán khóa Shamir 5/3, lưu trữ unseal keys an toàn và hỗ trợ tự động mở khóa (unseal).
+  - Dịch vụ `doc-sign` ký số tài liệu và giấy phép bằng khóa mật mã học Ed25519 thông qua OpenBao Transit Secrets Engine, lưu phiên bản khóa `key_version` và cung cấp điểm cuối kiểm tra tính toàn vẹn công khai `/kiem-tra/{public_code}`.
+- **Kiểm soát Tách biệt Nghĩa vụ SoD & Quy trình BPMN Đa thuê ước (F-19, F-32, F-33, F-44, F-45, F-46):**
+  - Đọc trực tiếp biến tiến trình `nguoiThamDinh` từ cơ sở dữ liệu Flowable để kiểm soát nghiêm ngặt nguyên tắc tách biệt nghĩa vụ SoD (`dx:sodExclude`), ngăn chặn triệt để trường hợp thẩm định viên tự phê duyệt hồ sơ của mình.
+  - BPMN 2.0 triển khai cổng rẽ nhánh Exclusive Gateway phân loại hồ sơ thẩm định nhanh hoặc thẩm định chuyên sâu dựa trên diện tích sàn và khu vực kiến trúc, hỗ trợ đa thuê ước với `tenantId`.
+  - Dịch vụ `flow` tự động đồng bộ trạng thái hồ sơ hai chiều giữa tiến trình Flowable BPMN và cơ sở dữ liệu `app_cap_phep.ho_so`.
+- **Phân quyền Cơ sở Dữ liệu & Cách ly Dữ liệu RLS Đa tầng (F-23 đến F-28):**
+  - Đổi vai trò kết nối cơ sở dữ liệu mặc định của dịch vụ từ `postgres` sang tài khoản dịch vụ `dxos_svc` tuân thủ nguyên tắc đặc quyền tối thiểu.
+  - Phân tách chính sách RLS riêng biệt cho INSERT và UPDATE trên bảng hồ sơ; kích hoạt Trigger `trg_ho_so_protect` và RLS chặn đứng người dùng web tự ý chuyển trạng thái sang `DA_CAP`.
+  - Thiết lập chính sách bảo vệ mức dòng bắt buộc (FORCE ROW LEVEL SECURITY) trên toàn bộ các bảng trong lược đồ `core` (bao gồm `core.outbox`).
+- **Kiểm soát Tệp tin & Quét Mã độc ClamAV Thực tế (F-16, F-17, F-34):**
+  - Quét mã độc trực tiếp bằng ClamAV qua giao thức INSTREAM; tệp chứa mã độc (như chuỗi kiểm tra EICAR) bị cô lập ngay vào thư mục cách ly `staging/quarantine/`, ghi nhận sự kiện kiểm toán và trả về HTTP 422 Unprocessable Entity.
+  - Thao tác lưu trữ metadata tệp `core.files`, ghi nhật ký kiểm toán `core.audit_log` và lưu sự kiện outbox `core.outbox` được hợp nhất trong một giao dịch cơ sở dữ liệu nguyên tử duy nhất (Atomicity).
+- **Phân quyền Cảm biến IoT NATS Subject ACL (F-37):**
+  - Thiết lập danh sách kiểm soát truy cập (Subject ACL) nghiêm ngặt cho từng thiết bị cảm biến môi trường (`dxos.<tenant>.site.<device_id>.>`), ngăn chặn trạm đo giả mạo hoặc ghi đè dữ liệu của trạm khác.
+- **Giao diện Web Tự hành & Độc lập Ngoại mạng (F-49 đến F-52):**
+  - Đóng gói toàn bộ thư viện giao diện Vue 3 và Tailwind CSS vào thư mục nội bộ `vendor/`, sử dụng phông chữ hệ thống. Hệ thống vận hành hoàn toàn độc lập, không gửi bất kỳ truy vấn nào ra Internet.
+  - Bổ sung thanh biểu ngữ cảnh báo nổi bật bắt buộc "Bản mô phỏng phục vụ cuộc thi" trên tất cả giao diện ứng dụng; đồng bộ nhận diện phiên bản lên `v0.9.0`.
+- **Vận hành Không Phụ thuộc Máy chủ Host (F-06, F-21, F-22, F-47, F-48):**
+  - Cung cấp container công cụ quản trị `dxos/tools:0.9.0` tích hợp toàn bộ các tiện ích; cung cấp script tiện ích `.\dx.ps1` (PowerShell) và `./dx.sh` (Bash). Máy chủ chỉ yêu cầu cài đặt Docker Engine.
+  - Tích hợp quy trình sao lưu và phục hồi thảm họa thực tế (PostgreSQL pg_dumpall và SeaweedFS S3 sync), đo lường RTO thực tế < 2 giây.
+  - Công cụ GitOps `reconciler` xác minh chữ ký container bằng Cosign thật (mã thoát 2 khi sai chữ ký) và tự động khắc phục sai lệch cấu hình đang chạy.
+- **Hệ thống Kiểm thử Tự động & Nghiệm thu Thực tế (F-53 đến F-56):**
+  - 15/15 bài kiểm thử đơn vị `tests/unit/` đạt 100%.
+  - 13/13 kịch bản kiểm thử tích hợp liên dịch vụ E2E `tests/e2e/test_e2e_scenarios.py` thực thi qua Gateway APISIX đạt 100%.
+  - 13/13 ca kiểm tra chức năng và an toàn thông tin độc lập `tests/qa/` đạt 100%.
+  - Bộ kiểm tra 0 mã giả `scripts/check_no_fakes.py` đạt chuẩn 100%.
+
+---
+
+## [0.8.0] - 2026-11-04
+
+### Đã thêm (Added)
+- **Tầng 1 - Nền tảng Dịch vụ Lõi số (Headless PaaS):**
+  - Cổng biên mạng Apache APISIX (chế độ Standalone) với xác thực JWT OIDC, giới hạn tốc độ truy cập, tiêu đề bảo mật CSP và tích hợp Prometheus.
+  - Hệ thống Quản lý Định danh & Phân quyền Keycloak 26.x hỗ trợ OIDC PKCE, đa thuê ước (`tenant` claim), vai trò phẳng và cấu hình MFA TOTP.
+  - Cơ sở dữ liệu PostgreSQL 16 tích hợp tiện ích mở rộng pgvector, hỗ trợ Row-Level Security (RLS) đa tầng và hàm tính ngày làm việc `core.add_business_days`.
+  - Cơ chế Kiểm toán chuỗi băm bất biến (`audit_log`) với liên kết băm SHA-256 (`prev_hash || canonical_json(row)`), ngăn chặn sửa đổi trái phép bằng khóa giao dịch `pg_advisory_xact_lock`.
+  - Dịch vụ mỏng `files` kiểm soát tải tệp, quét mã độc trực tiếp bằng ClamAV qua INSTREAM, tự động cách ly tệp độc hại và sinh URL truy cập có chữ ký thời hạn.
+  - Dịch vụ mỏng `doc-sign` kết xuất tài liệu PDF động có gắn mã QR công khai và ký số mật mã học Ed25519 bằng OpenBao Transit.
+  - Dịch vụ mỏng `flow` đóng vai trò Façade bảo mật phía trước Flowable BPMN, kiểm soát phân tách nhiệm vụ `dx:sodExclude` và phát sự kiện thông báo SSE thời gian thực.
+  - Dịch vụ mỏng `ingest` thu thập dữ liệu cảm biến IoT qua NATS MQTT, đánh giá ngưỡng theo khung giờ và tự động kích hoạt quy trình hậu kiểm.
+  - Dịch vụ mỏng `ngsi-ld` cung cấp giao diện truy vấn thực thể đô thị theo chuẩn NGSI-LD.
+  - Dịch vụ mỏng `outbox-relay` truyền dẫn sự kiện nghiệp vụ từ bảng `core.outbox` sang NATS JetStream theo mẫu Transactional Outbox.
+  - Dịch vụ mỏng `audit` cung cấp API xác minh chuỗi băm `/api/v1/audit/verify` và niêm phong định kỳ mỏ neo băm vào bucket WORM trên SeaweedFS.
+  - Dịch vụ mỏng `export-warm` và `metrics-api` xử lý dữ liệu hồ sơ đã đóng sang định dạng Parquet trên Data Lake và truy vấn số liệu phân tích kèm phả hệ OpenLineage.
+  - Dịch vụ `assistant` hỗ trợ hỏi đáp quy chuẩn bằng kỹ thuật RAG trên kho tài liệu tri thức với mô hình nhẹ chạy CPU.
+- **Tầng 2 - Không gian Năng lực số:**
+  - Ứng dụng Cấp phép Xây dựng `apps/cap-phep` (Không gian [H] cho Chủ đầu tư và [P] cho Cán bộ Một cửa, Thẩm định viên, Lãnh đạo và Trật tự xây dựng).
+  - Ứng dụng Bảng Điều hành `apps/bang-dieu-hanh` (Không gian [D] hiển thị 5 chỉ số điều hành & phả hệ dữ liệu; Không gian [I] trợ lý tra cứu chính sách).
+  - Trang kiểm tra giấy phép công khai tại đường dẫn `/kiem-tra/{public_code}` cho phép tra cứu trạng thái và tải tệp PDF lên để so sánh tính toàn vẹn chữ ký.
+- **Vận hành & Tự động hóa GitOps:**
+  - Công cụ `reconciler` tự động so khớp cấu hình đang chạy với thẻ Git release đã ký bằng `cosign`.
+  - Bộ công cụ giả lập cảm biến `tools/sensor-sim` phát dữ liệu đo tiếng ồn và bụi mịn qua MQTT với chế độ tạo đột biến tiếng ồn (`sensor-spike`).
+  - Hợp đồng gói ứng dụng `app.yaml` cùng bộ script cài đặt/gỡ bỏ gói ứng dụng (`make app-install`, `make app-uninstall`).
+  - Bộ kiểm thử tự động toàn diện: Unit tests, End-to-End tests (13 kịch bản), Smoke test và kiểm tra bản quyền REUSE.

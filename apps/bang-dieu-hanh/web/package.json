@@ -1,0 +1,30 @@
+{
+  "name": "bang-dieu-hanh-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DX-OS Open-Core - Bảng điều hành Lãnh đạo [D] & Trợ lý AI [I]",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "type-check": "vue-tsc --noEmit",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "oidc-client-ts": "^3.5.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.12"
+  },
+  "author": "DX-OS Open-Core contributors",
+  "license": "AGPL-3.0-or-later"
+}

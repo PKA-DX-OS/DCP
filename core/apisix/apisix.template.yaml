@@ -1,0 +1,352 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+routes:
+  # 1. Frontend: Ứng dụng nghiệp vụ chính Web SPA (H & P)
+  - id: route_main_web
+    uri: /*
+    priority: 1
+    plugins:
+      response-rewrite:
+        headers:
+          Content-Security-Policy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8080 http://localhost:8081 http://localhost:8080/auth;"
+          Referrer-Policy: same-origin
+    upstream:
+      type: roundrobin
+      nodes:
+        "main-web:80": 1
+
+  # 2. Frontend: Bảng điều hành Web SPA (D & I)
+  - id: route_bang_dieu_hanh_web
+    uri: /dieu-hanh/*
+    priority: 10
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/dieu-hanh/(.*)", "/$1"]
+      response-rewrite:
+        headers:
+          Content-Security-Policy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8080 http://localhost:8081 http://localhost:8080/auth;"
+          Referrer-Policy: same-origin
+    upstream:
+      type: roundrobin
+      nodes:
+        "bang-dieu-hanh-web:80": 1
+
+  # 3. Trang tra cứu văn bản đã ký công khai (không cần JWT)
+  - id: route_kiem_tra_public
+    uri: /kiem-tra/*
+    priority: 20
+    plugins:
+      limit-count:
+        count: 30
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      response-rewrite:
+        headers:
+          X-Frame-Options: DENY
+          X-Content-Type-Options: nosniff
+          Referrer-Policy: same-origin
+          # U-02: trang công khai không được chạy script nào
+          Content-Security-Policy: "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    upstream:
+      type: roundrobin
+      nodes:
+        "doc-sign:8000": 1
+
+  # 4. Keycloak SSO: chỉ mở đúng /auth/realms/dxos/* và /auth/resources/* (F-35)
+  - id: route_keycloak_realms
+    uri: /auth/realms/dxos/*
+    priority: 30
+    upstream:
+      type: roundrobin
+      nodes:
+        "keycloak:8080": 1
+
+  - id: route_keycloak_resources
+    uri: /auth/resources/*
+    priority: 30
+    upstream:
+      type: roundrobin
+      nodes:
+        "keycloak:8080": 1
+
+  # Chặn toàn bộ các đường dẫn /auth/* khác (admin, master realm) trả 404 từ gateway (F-35)
+  - id: route_auth_block
+    uri: /auth/*
+    priority: 25
+    plugins:
+      response-rewrite:
+        status_code: 404
+        body: '{"error":"Not Found"}'
+        headers:
+          Content-Type: "application/json"
+    upstream:
+      type: roundrobin
+      nodes:
+        "keycloak:8080": 1
+
+  # 5. Core API: Kiểm tra sức khỏe không cần JWT
+  - id: route_api_health
+    uri: /api/v1/health
+    priority: 40
+    plugins:
+      proxy-rewrite:
+        uri: /health
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+    upstream:
+      type: roundrobin
+      nodes:
+        "flow:8000": 1
+
+  # 6a. PostgREST: Cac view cong khai khong yeu cau xac thuc (Q-02)
+  - id: route_postgrest_cong_khai
+    uri: /api/v1/rest/cong_khai_*
+    priority: 35
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/rest/(.*)", "/$1"]
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+    upstream:
+      type: roundrobin
+      nodes:
+        "postgrest:3000": 1
+
+  # 6. PostgREST: REST API tự sinh có RLS
+  - id: route_postgrest
+    uri: /api/v1/rest/*
+    priority: 30
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/rest/(.*)", "/$1"]
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "postgrest:3000": 1
+
+  # 7. Dịch vụ Files: Tải lên, quét ClamAV và tải về
+  - id: route_svc_files
+    uri: /api/v1/files*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "files:8000": 1
+
+  # 8. Dịch vụ ký số văn bản doc-sign
+  - id: route_svc_docs
+    uri: /api/v1/docs*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "doc-sign:8000": 1
+
+  # 9. Dịch vụ Quy trình Flowable Façade: flow
+  - id: route_svc_flow
+    uri: /api/v1/flow*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "flow:8000": 1
+
+  # 10. Luồng sự kiện thời gian thực SSE
+  - id: route_svc_events
+    uri: /api/v1/events*
+    priority: 35
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+    upstream:
+      type: roundrobin
+      nodes:
+        "flow:8000": 1
+
+  # 11. Dịch vụ Ngữ cảnh Đô thị NGSI-LD
+  - id: route_svc_ngsi_ld
+    uri: /api/v1/ngsi-ld*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "ngsi-ld:8000": 1
+
+  # 11b. Dịch vụ Thu nhận Dữ liệu Cảm biến IoT (Ingest)
+  - id: route_svc_ingest
+    uri: /api/v1/ingest*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "ingest:8000": 1
+
+  # 12. Dịch vụ Số liệu và Phả hệ Metrics API
+  - id: route_svc_metrics
+    uri: /api/v1/metrics*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "metrics-api:8000": 1
+
+  # 13. Dịch vụ Xác minh Chuỗi Kiểm toán Audit
+  - id: route_svc_audit
+    uri: /api/v1/audit*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "audit:8000": 1
+
+  # 14. Trợ lý Tri thức AI (RAG Assistant)
+  - id: route_svc_assistant
+    uri: /api/v1/assistant*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "assistant:8000": 1
+
+# Header bảo mật toàn cục (F-36, V4-04)
+global_rules:
+  - id: 1
+    plugins:
+      response-rewrite:
+        headers:
+          X-Frame-Options: DENY
+          X-Content-Type-Options: nosniff
+          Referrer-Policy: same-origin
+
+#END
