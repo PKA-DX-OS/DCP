@@ -1,0 +1,209 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# OpenAPI contract — Track A: nghiệm thu, hoàn công (5.5).
+
+openapi: 3.0.3
+info:
+  title: DX-OS Construction Acceptance API
+  version: 1.0.0
+  description: Mốc nghiệm thu, biên bản, bản vẽ hoàn công, lịch sử.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /acceptance/{ho_so_id}:
+    get:
+      summary: Tổng quan nghiệm thu của hồ sơ
+      parameters:
+        - name: ho_so_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Tổng quan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcceptanceSummary" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /acceptance/{ho_so_id}/milestones:
+    post:
+      summary: Tạo mốc hoặc nghiệm thu lại (version tăng)
+      parameters:
+        - name: ho_so_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MilestoneRequest" }
+      responses:
+        "200":
+          description: Mốc đã tạo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Milestone" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /acceptance/milestones/{moc_id}/records:
+    post:
+      summary: Nộp biên bản nghiệm thu
+      parameters:
+        - name: moc_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordRequest" }
+      responses:
+        "200":
+          description: Biên bản đã ghi
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Record" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /acceptance/{ho_so_id}/as-built:
+    post:
+      summary: Nộp bản vẽ hoàn công
+      parameters:
+        - name: ho_so_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AsBuiltRequest" }
+      responses:
+        "200":
+          description: Bản vẽ đã nộp
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsBuilt" }
+  /acceptance/{ho_so_id}/history:
+    get:
+      summary: Lịch sử mốc, biên bản, bản vẽ
+      parameters:
+        - name: ho_so_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Danh sách sự kiện
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/HistoryItem" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    MilestoneRequest:
+      type: object
+      required: [loai_moc]
+      properties:
+        loai_moc: { type: string, enum: [mong, ket_cau, hoan_thien, hoan_cong] }
+        ngay_nghiem_thu: { type: string, format: date, nullable: true }
+        ket_qua: { type: string, enum: [cho_nghiem_thu, dat, khong_dat] }
+        ghi_chu: { type: string, nullable: true, maxLength: 2000 }
+        file_id: { type: string, format: uuid, nullable: true }
+    Milestone:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        loai_moc: { type: string }
+        version: { type: integer }
+        ngay_nghiem_thu: { type: string, format: date, nullable: true }
+        ket_qua: { type: string }
+        nguoi_thuc_hien: { type: string, nullable: true }
+        ghi_chu: { type: string, nullable: true }
+        file_id: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        bien_ban:
+          type: array
+          items: { $ref: "#/components/schemas/Record" }
+    RecordRequest:
+      type: object
+      required: [so_bien_ban, ket_luan]
+      properties:
+        so_bien_ban: { type: string, maxLength: 100 }
+        ket_luan: { type: string, maxLength: 4000 }
+        ket_qua: { type: string, enum: [dat, khong_dat], nullable: true }
+        file_id: { type: string, format: uuid, nullable: true }
+        chu_ky: { type: string, nullable: true }
+        ngay_ky: { type: string, format: date-time, nullable: true }
+        nguoi_ky: { type: string, nullable: true }
+        ghi_chu: { type: string, nullable: true }
+    Record:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        moc_id: { type: string, format: uuid }
+        so_bien_ban: { type: string }
+        ket_luan: { type: string }
+        file_id: { type: string, format: uuid, nullable: true }
+        chu_ky: { type: string, nullable: true }
+        ngay_ky: { type: string, format: date-time, nullable: true }
+        nguoi_ky: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    AsBuiltRequest:
+      type: object
+      required: [file_id]
+      properties:
+        file_id: { type: string, format: uuid }
+        ghi_chu: { type: string, nullable: true }
+    AsBuilt:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ho_so_id: { type: string, format: uuid }
+        file_id: { type: string, format: uuid }
+        version: { type: integer }
+        ngay_nop: { type: string, format: date-time }
+        trang_thai: { type: string }
+    AcceptanceSummary:
+      type: object
+      properties:
+        ho_so: { type: object }
+        milestones:
+          type: array
+          items: { $ref: "#/components/schemas/Milestone" }
+        as_built:
+          type: array
+          items: { $ref: "#/components/schemas/AsBuilt" }
+        tien_do:
+          type: object
+          properties:
+            da_dat: { type: integer }
+            tong: { type: integer }
+            phan_tram: { type: integer }
+        moc_tiep_theo: { type: string, nullable: true }
+        legal_refs:
+          type: array
+          items: { type: object }
+    HistoryItem:
+      type: object
+      properties:
+        loai: { type: string }
+        id: { type: string }
+        su_kien: { type: string }
+        trang_thai: { type: string }
+        noi_dung: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+  responses:
+    Forbidden:
+      description: Không có quyền
+    NotFound:
+      description: Không tìm thấy

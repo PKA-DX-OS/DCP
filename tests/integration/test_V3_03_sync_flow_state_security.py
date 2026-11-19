@@ -39,6 +39,8 @@ ALLOWED_PUBLIC_RPCS = {
         "danh_dau_da_doc",
         "kiem_tra_giay_to_nop",
         "danh_gia_tep",
+        "cap_nhat_dinh_danh_dia_diem",
+        "kiem_tra_tham_quyen_ho_so",
     },
 }
 
