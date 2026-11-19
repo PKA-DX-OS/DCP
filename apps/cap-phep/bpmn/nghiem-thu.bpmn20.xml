@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/app/cap-phep">
+  <process id="nghiem-thu" name="Nghiệm thu và hoàn công" isExecutable="true">
+    <startEvent id="startNghiemThu" name="Bắt đầu nghiệm thu"/>
+    <sequenceFlow id="nt-f1" sourceRef="startNghiemThu" targetRef="taskNghiemThuMong"/>
+
+    <userTask id="taskNghiemThuMong" name="Nghiệm thu móng"
+              flowable:candidateGroups="app:cap-phep:tham-dinh,app:cap-phep:trat-tu-xd">
+      <documentation>Kiểm tra biên bản, bản vẽ và hiện trường móng.</documentation>
+    </userTask>
+    <sequenceFlow id="nt-f2" sourceRef="taskNghiemThuMong" targetRef="gwMongDat"/>
+    <exclusiveGateway id="gwMongDat" name="Móng đạt?" default="flowMongDat"/>
+    <sequenceFlow id="flowMongKhongDat" sourceRef="gwMongDat" targetRef="taskKhacPhucMong">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${vars:getOrDefault('mong_dat', true) == false}]]></conditionExpression>
+    </sequenceFlow>
+    <userTask id="taskKhacPhucMong" name="Khắc phục móng và nghiệm thu lại"
+              flowable:candidateGroups="app:cap-phep:chu-dau-tu,app:cap-phep:trat-tu-xd">
+      <documentation>Ghi nhận khắc phục và quay lại bước nghiệm thu móng.</documentation>
+    </userTask>
+    <sequenceFlow id="flowKhacPhucXong" sourceRef="taskKhacPhucMong" targetRef="taskNghiemThuMong"/>
+    <sequenceFlow id="flowMongDat" sourceRef="gwMongDat" targetRef="taskNghiemThuKetCau"/>
+
+    <userTask id="taskNghiemThuKetCau" name="Nghiệm thu kết cấu"
+              flowable:candidateGroups="app:cap-phep:tham-dinh,app:cap-phep:trat-tu-xd"/>
+    <sequenceFlow id="nt-f3" sourceRef="taskNghiemThuKetCau" targetRef="taskNghiemThuHoanThien"/>
+
+    <userTask id="taskNghiemThuHoanThien" name="Nghiệm thu hoàn thiện"
+              flowable:candidateGroups="app:cap-phep:tham-dinh,app:cap-phep:trat-tu-xd"/>
+    <sequenceFlow id="nt-f4" sourceRef="taskNghiemThuHoanThien" targetRef="taskHoanCong"/>
+
+    <userTask id="taskHoanCong" name="Hoàn công và lưu trữ hồ sơ"
+              flowable:candidateGroups="app:cap-phep:mot-cua,app:cap-phep:lanh-dao">
+      <documentation>Kiểm tra bản vẽ hoàn công, lưu trữ hồ sơ điện tử và cập nhật trạng thái công trình.</documentation>
+    </userTask>
+    <sequenceFlow id="nt-f5" sourceRef="taskHoanCong" targetRef="endNghiemThu"/>
+    <endEvent id="endNghiemThu" name="Hoàn công"/>
+  </process>
+</definitions>

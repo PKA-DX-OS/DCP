@@ -29,6 +29,8 @@ roles:
 bpmn:
   - bpmn/cap-phep.bpmn20.xml
   - bpmn/hau-kiem.bpmn20.xml
+  - bpmn/quy-hoach.bpmn20.xml
+  - bpmn/nghiem-thu.bpmn20.xml
 
 doc_templates:
   - doc_type: giay-phep-xay-dung
@@ -53,7 +55,7 @@ flow_policies:
       - "app:cap-phep:trat-tu-xd"
     site_check: app_cap_phep_private.vi_tri_thuoc_dia_ban
   # Biến quy trình được trả kèm danh sách nhiệm vụ cho giao diện (U-07)
-  task_list_variables: [ho_so_id, ma_ho_so, business_key, phieu_id, object_id, object_type]
+  task_list_variables: [ho_so_id, ma_ho_so, business_key, phieu_id, object_id, object_type, dia_chi_cong_trinh, trang_thai_ho_so, do_uu_tien]
   submitter_roles:
     - "app:cap-phep:chu-dau-tu"
   staff_roles:
@@ -75,6 +77,14 @@ flow_policies:
     - "object_owner_sub"
     - "cdt_sub"
   task_variables:
+    taskKiemTraQuyHoach: [quy_hoach_pass, quy_hoach_fail_rules, ket_qua_kiem_tra_id]
+    taskXuLyQuyHoach: [quy_hoach_pass]
+    taskPhanCongThamDinh: [nguoiThamDinh]
+    taskNghiemThuMong: [mong_dat, ket_qua_nghiem_thu, ghi_chu]
+    taskKhacPhucMong: [noi_dung_khac_phuc, ket_qua_nghiem_thu]
+    taskNghiemThuKetCau: [ket_qua_nghiem_thu, ghi_chu]
+    taskNghiemThuHoanThien: [ket_qua_nghiem_thu, ghi_chu]
+    taskHoanCong: [so_bien_ban, ket_qua_nghiem_thu]
     taskKiemTraHopLe: [hoSoHopLe, lyDoTra, lyDoBoSung]
     taskPhanCong: [nguoiThamDinh, lanhDaoPhanCong]
     taskThamDinh: [ketQuaThamDinh, noiDungThamDinh]
@@ -87,6 +97,14 @@ flow_policies:
     taskChoBoSung: [noiDungBoSung, taiLieuBoSung]
   submitter_tasks: ["taskChoBoSung"]
   variable_roles:
+    quy_hoach_pass: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua", "app:cap-phep:lanh-dao"]
+    quy_hoach_fail_rules: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua"]
+    ket_qua_kiem_tra_id: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua"]
+    mong_dat: ["app:cap-phep:tham-dinh", "app:cap-phep:trat-tu-xd"]
+    ket_qua_nghiem_thu: ["app:cap-phep:tham-dinh", "app:cap-phep:trat-tu-xd", "app:cap-phep:mot-cua", "app:cap-phep:lanh-dao"]
+    ghi_chu: ["app:cap-phep:tham-dinh", "app:cap-phep:trat-tu-xd", "app:cap-phep:mot-cua"]
+    noi_dung_khac_phuc: ["app:cap-phep:chu-dau-tu", "app:cap-phep:trat-tu-xd"]
+    so_bien_ban: ["app:cap-phep:mot-cua", "app:cap-phep:lanh-dao"]
     noiDungBoSung: ["app:cap-phep:chu-dau-tu"]
     taiLieuBoSung: ["app:cap-phep:chu-dau-tu"]
     nguoiThamDinh: ["app:cap-phep:lanh-dao"]
@@ -105,18 +123,37 @@ flow_policies:
     taskPheDuyet:
       exclude_variable: nguoiThamDinh
   initial_task: taskKiemTraHopLe
+  initial_tasks:
+    cap-phep: taskKiemTraHopLe
+    quy-hoach: taskKiemTraQuyHoach
+    nghiem-thu: taskNghiemThuMong
   task_transitions:
     taskKiemTraHopLe: taskPhanCong
     taskChoBoSung: taskKiemTraHopLe
     taskPhanCong: taskThamDinh
     taskThamDinh: taskDuyetCapPhep
     taskThamDinhNhanh: taskDuyetCapPhep
+    taskKiemTraQuyHoach: taskPhanCongThamDinh
+    taskXuLyQuyHoach: taskKiemTraQuyHoach
+    taskPhanCongThamDinh: taskThamDinh
+    taskNghiemThuMong: taskNghiemThuKetCau
+    taskKhacPhucMong: taskNghiemThuMong
+    taskNghiemThuKetCau: taskNghiemThuHoanThien
+    taskNghiemThuHoanThien: taskHoanCong
   sla:
     taskKiemTraHopLe: P3D
     taskPhanCong: P2D
     taskThamDinh: P7D
     taskThamDinhNhanh: P5D
     taskDuyetCapPhep: P3D
+    taskKiemTraQuyHoach: P2D
+    taskXuLyQuyHoach: P7D
+    taskPhanCongThamDinh: P1D
+    taskNghiemThuMong: P3D
+    taskKhacPhucMong: P7D
+    taskNghiemThuKetCau: P3D
+    taskNghiemThuHoanThien: P3D
+    taskHoanCong: P3D
   on_timer: app_cap_phep_private.ghi_qua_han
   sync_state_sql: app_cap_phep_private.sync_flow_state
   on_task_complete:
@@ -162,58 +199,74 @@ knowledge:
 # UI sinh checklist động từ đây; RPC nop_ho_so kiểm tra lại ở server (fail-closed).
 document_manifest:
   thu_tuc: cap-phep-nha-o-rieng-le
-  ten: Cấp phép xây dựng nhà ở riêng lẻ
+  ten: Cấp phép xây dựng nhà ở riêng lẻ theo Điều 60 NĐ 217/2026/NĐ-CP
+  doi_tuong:
+    - code: ho_gia_dinh_ca_nhan
+      ten: Nhà ở riêng lẻ của hộ gia đình, cá nhân
+    - code: to_chuc
+      ten: Nhà ở riêng lẻ của tổ chức
   requirements:
     - loai: don
-      ten: Đơn xin cấp phép xây dựng
+      ten: Đơn đề nghị cấp giấy phép xây dựng (Mẫu số 01 Phụ lục II)
       bat_buoc: true
       yeu_cau_hieu_luc: false
       thong_tin: [ho_ten, cccd]
+      legal_citation_key: ND217-D60-K3
+      mau_bieu: Mẫu số 01 Phụ lục II NĐ 217/2026/NĐ-CP
     - loai: giay_to_dat
-      ten: Giấy chứng nhận quyền sử dụng đất
+      ten: Một trong các giấy tờ hợp pháp về đất đai theo Điều 55
       bat_buoc: true
       yeu_cau_hieu_luc: true
       thong_tin: [so_thua, dien_tich]
+      legal_citation_key: ND217-D55
     - loai: ban_ve_mat_bang
-      ten: Bản vẽ mặt bằng
+      ten: Bản vẽ mặt bằng công trình trên lô đất kèm sơ đồ vị trí
       bat_buoc: true
       yeu_cau_hieu_luc: false
       thong_tin: []
+      legal_citation_key: ND217-D60-K3
     - loai: ban_ve_tang
-      ten: Bản vẽ tầng
+      ten: Bản vẽ mặt bằng các tầng, mặt đứng và mặt cắt chính
       bat_buoc: true
       yeu_cau_hieu_luc: false
       thong_tin: [so_tang]
+      legal_citation_key: ND217-D60-K3
     - loai: ban_ve_mong
-      ten: Bản vẽ móng
+      ten: Bản vẽ mặt bằng móng, mặt cắt móng kèm sơ đồ đấu nối hạ tầng
       bat_buoc: true
       yeu_cau_hieu_luc: false
       thong_tin: []
+      legal_citation_key: ND217-D60-K3
     - loai: cam_ket_an_toan
-      ten: Cam kết an toàn và môi trường
+      ten: Bản cam kết bảo đảm an toàn đối với công trình liền kề (Điều 60 khoản 3)
       bat_buoc: true
       yeu_cau_hieu_luc: false
       thong_tin: []
+      legal_citation_key: ND217-D60-K3
     - loai: pccc
-      ten: Giấy thẩm duyệt PCCC
+      ten: Kết quả thực hiện TTHC PCCC&CNCH (chỉ khi có yêu cầu)
       bat_buoc: false
       yeu_cau_hieu_luc: true
       thong_tin: []
+      legal_citation_key: ND217-D60-K3
     - loai: nha_thau
-      ten: Chứng chỉ năng lực nhà thầu
+      ten: Chứng chỉ năng lực nhà thầu (không bắt buộc cho mọi hồ sơ)
       bat_buoc: false
       yeu_cau_hieu_luc: true
       thong_tin: []
+      legal_citation_key: ND212-TOANVAN
     - loai: le_phi
-      ten: Biên lai lệ phí
+      ten: Biên lai lệ phí (không mặc định là thành phần đầu vào)
       bat_buoc: false
       yeu_cau_hieu_luc: false
       thong_tin: []
+      legal_citation_key: LP97-TOANVAN
     - loai: tham_tra
-      ten: Tài liệu phục vụ kiểm tra
+      ten: Báo cáo kết quả thẩm tra thiết kế (nếu có yêu cầu)
       bat_buoc: false
       yeu_cau_hieu_luc: false
       thong_tin: []
+      legal_citation_key: ND217-D60-K3
     - loai: tai_lieu_bo_sung
       ten: Tài liệu bổ sung theo yêu cầu
       bat_buoc: false
@@ -277,6 +330,22 @@ metrics:
     lineage_job: iot_ingest
     bang_nguon: [core.outbox]
     dieu_kien_loc: "tenant = <tenant>; topic = 'alert.threshold'"
+  - code: ho_so_fail_quy_hoach
+    name: Hồ sơ không đạt kiểm tra quy hoạch
+    unit: hồ sơ
+    query_type: transactional
+    sql: "SELECT count(DISTINCT ho_so_id) FROM app_construction.ket_qua_kiem_tra_quy_hoach WHERE tenant = $1 AND pass = false AND ho_so_id IS NOT NULL"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_construction.ket_qua_kiem_tra_quy_hoach]
+    dieu_kien_loc: "tenant = <tenant>; pass = false"
+  - code: ho_so_dang_nghiem_thu
+    name: Hồ sơ đang có mốc nghiệm thu
+    unit: hồ sơ
+    query_type: transactional
+    sql: "SELECT count(DISTINCT ho_so_id) FROM app_construction.moc_nghiem_thu WHERE tenant = $1"
+    lineage_job: export_warm_lakehouse
+    bang_nguon: [app_construction.moc_nghiem_thu]
+    dieu_kien_loc: "tenant = <tenant>"
   - code: vi_pham
     name: Số vụ vi phạm đã kết luận
     unit: vụ

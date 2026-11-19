@@ -9,38 +9,71 @@ import { useDossierActions, type NguoiDung } from "../composables/useDossierActi
 import type { FlowTask } from "../types";
 
 type BoLoc = "tat-ca" | "qua-han" | "sap-han";
+type LoaiViec = "tat-ca" | "tiep-nhan" | "tham-dinh" | "phe-duyet" | "nghiem-thu" | "khac";
+
 const nguoi = ref<NguoiDung | null>(null);
 const tasks = ref<FlowTask[]>([]);
 const dangTai = ref(false);
 const loi = ref("");
 const boLoc = ref<BoLoc>("tat-ca");
+const loaiViec = ref<LoaiViec>("tat-ca");
 const dangLam = ref<string | null>(null);
 
 const actions = useDossierActions(getValidToken, () => nguoi.value);
 const emit = defineEmits<{ (e: "mo-ho-so", idHoacMa: string, ma: string): void }>();
 
-/** Hồ sơ gắn với việc: lấy từ biến quy trình ho_so_id, không có thì dùng mã hồ sơ (businessKey). */
-function hoSoCuaViec(t: FlowTask): { id: string; ma: string } | null {
-  const bien = (ten: string) => ((t.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value as string | undefined;
-  const ma = bien("ma_ho_so") || t.businessKey || "";
-  const id = bien("ho_so_id") || ma;
-  return id ? { id, ma } : null;
+function bien(t: FlowTask, ten: string): any {
+  return ((t.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value;
+}
+
+function thongTin(t: FlowTask): { id: string; ma: string; diaChi: string; trangThai: string; uuTien: string } {
+  const ma = bien(t, "ma_ho_so") || t.businessKey || "";
+  const id = bien(t, "ho_so_id") || ma;
+  return {
+    id,
+    ma,
+    diaChi: bien(t, "dia_chi_cong_trinh") || "",
+    trangThai: bien(t, "trang_thai_ho_so") || "",
+    uuTien: bien(t, "do_uu_tien") || "binh_thuong",
+  };
 }
 
 function hanCuaViec(t: FlowTask): number | null {
   return t.dueDate ? new Date(t.dueDate).getTime() : null;
 }
 
+function nhomViec(t: FlowTask): LoaiViec {
+  const key = t.taskDefinitionKey || "";
+  if (key === "taskKiemTraHopLe" || key === "taskChoBoSung") return "tiep-nhan";
+  if (key.startsWith("taskThamDinh") || key === "taskPhanCong" || key === "taskKiemTraQuyHoach") return "tham-dinh";
+  if (key === "taskDuyetCapPhep" || key === "taskPheDuyet") return "phe-duyet";
+  if (key.startsWith("taskNghiemThu") || key === "taskHoanCong" || key === "taskKhacPhucMong") return "nghiem-thu";
+  return "khac";
+}
+
 const danhSachLoc = computed(() => {
   const now = Date.now();
   const ngay = 24 * 3600 * 1000;
   return tasks.value.filter((t) => {
+    const info = thongTin(t);
+    if (!info.ma) return false;
+    if (loaiViec.value !== "tat-ca" && nhomViec(t) !== loaiViec.value) return false;
     const han = hanCuaViec(t);
     if (boLoc.value === "qua-han") return han !== null && han < now;
     if (boLoc.value === "sap-han") return han !== null && han >= now && han - now <= ngay;
     return true;
   });
 });
+
+function mucUuTien(t: FlowTask): { nhan: string; lop: string } {
+  const info = thongTin(t);
+  const han = hanCuaViec(t);
+  const now = Date.now();
+  if (han !== null && han < now) return { nhan: "Quá hạn", lop: "tt tt-do" };
+  if (han !== null && han - now <= 24 * 3600 * 1000) return { nhan: "Sắp hạn", lop: "tt tt-vang" };
+  if (info.uuTien === "cao") return { nhan: "Ưu tiên cao", lop: "tt tt-lam" };
+  return { nhan: "Bình thường", lop: "tt tt-xam" };
+}
 
 async function taiViec(): Promise<void> {
   dangTai.value = true;
@@ -80,17 +113,26 @@ defineExpose({ taiViec });
 
 <template>
   <section class="space-y-4">
-    <div class="flex flex-wrap items-end gap-4">
+    <div class="flex flex-wrap items-end gap-3">
       <div class="min-w-0">
         <h2 class="tieu-de-trang">Bàn làm việc</h2>
-        <p class="text-phu mt-1">Chỉ hiện việc được giao cho bạn.</p>
+        <p class="text-phu mt-1">Việc được giao cho bạn, có hạn xử lý và mức ưu tiên.</p>
       </div>
       <div class="flex-1"></div>
-      <label class="nhan" for="loc-viec">Lọc theo hạn</label>
+      <label class="nhan" for="loc-viec">Hạn</label>
       <select id="loc-viec" v-model="boLoc" class="o">
         <option value="tat-ca">Tất cả</option>
         <option value="qua-han">Quá hạn</option>
         <option value="sap-han">Sắp đến hạn (24 giờ)</option>
+      </select>
+      <label class="nhan" for="loc-loai-viec">Loại việc</label>
+      <select id="loc-loai-viec" v-model="loaiViec" class="o">
+        <option value="tat-ca">Tất cả</option>
+        <option value="tiep-nhan">Tiếp nhận</option>
+        <option value="tham-dinh">Thẩm định / quy hoạch</option>
+        <option value="phe-duyet">Phê duyệt</option>
+        <option value="nghiem-thu">Nghiệm thu</option>
+        <option value="khac">Khác</option>
       </select>
       <button class="btn" @click="taiViec()">Làm mới</button>
     </div>
@@ -105,26 +147,28 @@ defineExpose({ taiViec });
     <p v-else-if="!danhSachLoc.length" class="the p-4 text-phu">Không có việc nào cần xử lý.</p>
 
     <ul v-else class="space-y-3">
-      <li v-for="t in danhSachLoc" :key="t.id" class="the flex flex-wrap items-center gap-3 p-4">
-        <div class="min-w-0 flex-1">
-          <div class="font-semibold">{{ t.name || t.taskDefinitionKey || "Nhiệm vụ" }}</div>
-          <div class="goi-y">Mã hồ sơ: {{ hoSoCuaViec(t)?.ma || "—" }} · Hạn: {{ dinhDangHan(t) }}</div>
+      <li v-for="t in danhSachLoc" :key="t.id" class="the p-4">
+        <div class="flex flex-wrap items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold">{{ t.name || t.taskDefinitionKey || "Nhiệm vụ" }}</span>
+              <span :class="mucUuTien(t).lop">{{ mucUuTien(t).nhan }}</span>
+            </div>
+            <div class="goi-y mt-1">
+              Mã hồ sơ: <b>{{ thongTin(t).ma }}</b><template v-if="thongTin(t).diaChi"> · {{ thongTin(t).diaChi }}</template>
+            </div>
+            <div class="goi-y">Hạn: {{ dinhDangHan(t) }}<template v-if="thongTin(t).trangThai"> · Trạng thái: {{ thongTin(t).trangThai }}</template></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="btn btn-sm" @click="emit('mo-ho-so', thongTin(t).id, thongTin(t).ma)">Xem hồ sơ</button>
+            <button
+              v-if="actions.laNguoiDuocGiao(t)"
+              class="btn btn-sm btn-chinh"
+              :disabled="dangLam === t.id"
+              @click="hoanThanh(t)"
+            >{{ dangLam === t.id ? "Đang xử lý..." : "Hoàn thành" }}</button>
+          </div>
         </div>
-        <button
-          v-if="hoSoCuaViec(t)"
-          class="btn"
-          @click="emit('mo-ho-so', hoSoCuaViec(t)!.id, hoSoCuaViec(t)!.ma)"
-        >
-          Xem hồ sơ
-        </button>
-        <button
-          v-if="actions.laNguoiDuocGiao(t)"
-          class="btn-chinh"
-          :disabled="dangLam === t.id"
-          @click="hoanThanh(t)"
-        >
-          {{ dangLam === t.id ? "Đang xử lý..." : "Hoàn thành" }}
-        </button>
       </li>
     </ul>
   </section>

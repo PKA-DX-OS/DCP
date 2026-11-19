@@ -17,6 +17,14 @@ export async function completeTask(token: string, taskId: string, variables: Rec
   );
 }
 
+export async function fetchOfficers(token: string, vai = "tham-dinh"): Promise<any[]> {
+  return apiJson<any[]>(
+    "/rest/rpc/ds_can_bo",
+    { token, method: "POST", body: { p_vai: vai } },
+    "Lỗi tải danh sách cán bộ",
+  );
+}
+
 export async function startWorkflow(token: string, processKey: string, businessKey: string, variables: Record<string, any>): Promise<any> {
   return apiJson(
     "/flow/processes/start",

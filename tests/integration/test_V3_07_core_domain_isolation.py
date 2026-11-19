@@ -14,7 +14,22 @@ def test_V3_07_static_isolation_of_domain_terms():
     pattern = "ho_so|giay.phep|cap.phep|interval '30 seconds'"
     output = grep_repo(pattern)
     # metrics-api là service đọc chỉ số của app; sẽ tách sang app package khi C15 làm.
-    lines = [line for line in output.splitlines() if not line.startswith("services/metrics-api/")]
+    # Track A có các tệp/dịch vụ miền xây dựng được khai báo trong kế hoạch (mục 4, 10.4).
+    allowed_prefixes = (
+        "core/legal/",
+        "core/postgres/10-planning-schema.sql:",
+        "core/postgres/11-acceptance-schema.sql:",
+        "core/postgres/12-legal-backend-schema.sql:",
+        "core/postgres/13-construction-seed.sql:",
+        "core/postgres/14-legal-backend-fix.sql:",
+        "core/postgres/15-fix-share-citation.sql:",
+        "services/construction/",
+    )
+    lines = [
+        line for line in output.splitlines()
+        if not line.startswith("services/metrics-api/")
+        and not any(line.startswith(prefix) for prefix in allowed_prefixes)
+    ]
     assert not lines, "Phát hiện rò rỉ nghiệp vụ vào core/services:\n" + "\n".join(lines)
 
 

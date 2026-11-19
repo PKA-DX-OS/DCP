@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:b7f077a5-d228-472b-8522-c957514c7a84",
+  "serialNumber": "urn:uuid:0b465b53-5b91-488b-88e1-3945f46d106d",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-19T04:57:30.156934+00:00",
+    "timestamp": "2026-11-19T08:48:56.837706+00:00",
     "tools": [
       {
         "vendor": "DX-OS",
@@ -175,6 +175,18 @@
       "name": "reportlab",
       "version": "4.4.1",
       "purl": "pkg:pypi/reportlab@4.4.1",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services\\requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "purl": "pkg:pypi/openpyxl@3.1.5",
       "properties": [
         {
           "name": "dxos:source",
