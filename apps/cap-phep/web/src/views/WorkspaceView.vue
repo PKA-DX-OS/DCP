@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { getUser, getValidToken, readRoles } from "../auth";
-import { fetchTasks, remindTask } from "../api/flow";
+import { fetchEscalations, fetchTasks, remindTask } from "../api/flow";
 import { useDossierActions, type NguoiDung } from "../composables/useDossierActions";
 import { notify } from "../composables/useToast";
 import type { FlowTask } from "../types";
@@ -20,6 +20,8 @@ const boLoc = ref<BoLoc>("tat-ca");
 const loaiViec = ref<LoaiViec>("tat-ca");
 const dangLam = ref<string | null>(null);
 const dangNhac = ref<string | null>(null);
+const escalations = ref<any[]>([]);
+const loadingEscalations = ref(false);
 
 const actions = useDossierActions(getValidToken, () => nguoi.value);
 const emit = defineEmits<{ (e: "mo-ho-so", idHoacMa: string, ma: string): void }>();
@@ -43,6 +45,11 @@ function thongTin(t: FlowTask): { id: string; ma: string; diaChi: string; trangT
 
 function hanCuaViec(t: FlowTask): number | null {
   return t.dueDate ? new Date(t.dueDate).getTime() : null;
+}
+
+function thongTinEsc(e: any): { id: string; ma: string; diaChi: string } {
+  const v = (ten: string) => ((e?.variables as any[] | undefined) || []).find((x: any) => x.name === ten)?.value;
+  return { id: v("ho_so_id") || "", ma: v("ma_ho_so") || e?.businessKey || "", diaChi: v("dia_chi_cong_trinh") || "" };
 }
 
 function nhomViec(t: FlowTask): LoaiViec {
@@ -85,6 +92,17 @@ async function taiViec(): Promise<void> {
     const t = await getValidToken();
     if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
     tasks.value = await fetchTasks(t);
+    if (laQuanLy.value) {
+      loadingEscalations.value = true;
+      try {
+        const esc = await fetchEscalations(t, 24);
+        escalations.value = Array.isArray(esc?.items) ? esc.items : [];
+      } catch {
+        escalations.value = [];
+      } finally {
+        loadingEscalations.value = false;
+      }
+    }
   } catch (e) {
     loi.value = e instanceof Error ? e.message : "Không tải được việc";
   } finally {
@@ -155,6 +173,23 @@ defineExpose({ taiViec });
     </div>
 
     <p v-if="dangTai" class="text-phu" role="status">Đang tải việc...</p>
+
+    <section v-if="laQuanLy && !dangTai && escalations.length" class="the p-4" aria-labelledby="tieu-de-qua-han">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <h3 id="tieu-de-qua-han" class="text-[14px] font-semibold m-0">Việc quá hạn / sắp hạn toàn địa bàn</h3>
+        <span class="tt tt-do">{{ escalations.length }}</span>
+      </div>
+      <ul class="list-none m-0 p-0 text-[13px]">
+        <li v-for="e in escalations.slice(0, 5)" :key="e.id" class="flex flex-wrap items-center justify-between gap-2 py-1 border-b border-vien-nhat">
+          <span>
+            {{ e.name || e.taskDefinitionKey }} · <b>{{ thongTinEsc(e).ma || "—" }}</b>
+            <span v-if="thongTinEsc(e).diaChi"> · {{ thongTinEsc(e).diaChi }}</span>
+          </span>
+          <span :class="e.qua_han ? 'tt tt-do' : 'tt tt-vang'">{{ e.qua_han ? "Quá hạn" : `Còn ${e.con_lai_gio} giờ` }}</span>
+        </li>
+      </ul>
+      <p v-if="escalations.length > 5" class="goi-y mt-2 mb-0">Hiển thị 5 việc gần hạn nhất trong {{ escalations.length }} việc.</p>
+    </section>
 
     <div v-else-if="loi" class="the p-4">
       <p class="canh-bao">{{ loi }}</p>
