@@ -1,0 +1,26 @@
+[
+  {
+    "ma": "kien_truc",
+    "ten": "Kiến trúc",
+    "bat_buoc": true,
+    "thu_tu": 1
+  },
+  {
+    "ma": "ket_cau",
+    "ten": "Kết cấu",
+    "bat_buoc": true,
+    "thu_tu": 2
+  },
+  {
+    "ma": "mep",
+    "ten": "Cơ điện (MEP)",
+    "bat_buoc": true,
+    "thu_tu": 3
+  },
+  {
+    "ma": "pccc",
+    "ten": "Phòng cháy chữa cháy",
+    "bat_buoc": false,
+    "thu_tu": 4
+  }
+]
