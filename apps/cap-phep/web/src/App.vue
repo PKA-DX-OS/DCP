@@ -131,7 +131,10 @@ onMounted(async () => {
   <div v-else-if="trang === 'chua_dang_nhap'" class="the m-6 p-6">
     <h1 class="tieu-de-trang">Cần đăng nhập</h1>
     <p class="text-phu mt-2">Người dân nộp và theo dõi hồ sơ; cán bộ phường xử lý hồ sơ được giao.</p>
-    <button class="btn-chinh mt-4" @click="login()">Đăng nhập</button>
+    <div class="mt-4 flex flex-wrap gap-2">
+      <button class="btn-chinh" @click="login()">Đăng nhập</button>
+      <a class="btn inline-flex" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
+    </div>
   </div>
 
   <div v-else-if="trang === 'khong_quyen'" class="the m-6 p-6">
@@ -146,9 +149,11 @@ onMounted(async () => {
       :tabs="TABS"
       :ten-nguoi-dung="tenNguoiDung"
       :chua-doc="thongBao.chuaDoc.value"
+      :danh-sach="thongBao.danhSach.value"
       :trang-thai-ket-noi="thongBao.trangThai.value"
       @chuyen-tab="(ma: string) => (tab = ma)"
       @da-doc="thongBao.danhDauDaDoc()"
+      @doc-mot="thongBao.danhDauMot"
       @dang-xuat="logout()"
     />
 

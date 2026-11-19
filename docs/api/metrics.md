@@ -17,6 +17,8 @@ tổng hợp chung vẫn do `metrics-api` phục vụ tại `/api/v1/metrics`.
 | GET | `/api/v1/metrics/planning-fail?month=` | cán bộ, auditor | Số lần fail quy hoạch theo vùng |
 | GET | `/api/v1/metrics/acceptance-progress?month=` | cán bộ, auditor | Mốc nghiệm thu theo loại/kết quả |
 | GET | `/api/v1/metrics/on-time?months=12` | cán bộ, auditor | Tỷ lệ hồ sơ đã cấp đúng hạn theo tháng |
+| GET | `/api/v1/metrics/overdue` | cán bộ, auditor | Danh sách hồ sơ quá hạn cho dashboard |
+| GET | `/api/v1/metrics/today-tasks` | cán bộ, auditor | Việc đến hạn hôm nay hoặc đang chờ xử lý |
 | GET | `/api/v1/export/dossiers.xlsx` | cán bộ | Xuất hồ sơ |
 | GET | `/api/v1/export/metrics.pdf` | cán bộ | Xuất báo cáo tổng hợp |
 | GET | `/api/v1/export/audit.xlsx` | `dx:auditor` | Xuất nhật ký kiểm toán |

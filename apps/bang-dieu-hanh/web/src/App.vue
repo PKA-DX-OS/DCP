@@ -5,8 +5,14 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles } from "./auth";
 import { ApiError, apiGet, apiPost } from "./api";
-import { dinhDangGiaTri, formatThoiDiem, nhanChiSo } from "./utils/metrics";
+import { formatThoiDiem, nhanChiSo } from "./utils/metrics";
+import { renderMarkdown, tenNguon } from "./utils/markdown";
 import { useTheme } from "./composables/useTheme";
+import KpiCard from "./components/KpiCard.vue";
+import DonutChart from "./components/DonutChart.vue";
+import LineChart from "./components/LineChart.vue";
+import BarChart from "./components/BarChart.vue";
+import AuditorPanel from "./components/AuditorPanel.vue";
 
 const { cheDo } = useTheme();
 
@@ -44,25 +50,55 @@ interface AskResponse {
   citations: Citation[];
   mode: string;
 }
+interface BreakdownResponse {
+  items: { trang_thai: string; so_luong: number }[];
+}
+interface TrendResponse {
+  items: { thang: string; so_ho_so: number; da_cap: number; qua_han: number }[];
+}
+interface WorkloadResponse {
+  items: { ho_ten: string; so_ho_so_duoc_giao: number; dang_xu_ly: number }[];
+}
+interface HoSoTomTat {
+  id: string;
+  ma_ho_so: string;
+  ho_ten: string;
+  dia_chi_cong_trinh: string;
+  trang_thai: string;
+  buoc: string;
+  han_tong_at?: string;
+  han_buoc_at?: string;
+}
+interface DanhSachHoSo {
+  items: HoSoTomTat[];
+}
 
 const KEY_FILTER = "dxos-bdh-filter";
 const APP_CODE = "cap-phep";
-type Tab = "chi-so" | "tro-ly";
+type Tab = "chi-so" | "tro-ly" | "kiem-toan";
 
 type AuthState = "dang_kiem_tra" | "chua_dang_nhap" | "khong_quyen" | "ok";
 const auth = ref<AuthState>("dang_kiem_tra");
 const tab = ref<Tab>("chi-so");
+const vaiTro = ref<string[]>([]);
+const laKiemToan = computed(() =>
+  vaiTro.value.some((r) => ["dx:auditor", "dx:tenant-admin", "dx:platform-admin"].includes(r)),
+);
 
 // Bộ lọc giữ nguyên khi chuyển tab và khi tải lại trang (sessionStorage)
 const filter = reactive(loadFilter());
 function loadFilter(): { thang: string; diaBan: string } {
+  const macDinh = new Date().toISOString().slice(0, 7);
   try {
     const raw = sessionStorage.getItem(KEY_FILTER);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const da = JSON.parse(raw);
+      return { thang: da.thang || macDinh, diaBan: da.diaBan || "" };
+    }
   } catch {
     /* bỏ qua: dùng giá trị mặc định */
   }
-  return { thang: "", diaBan: "" };
+  return { thang: macDinh, diaBan: "" };
 }
 watch(filter, (v) => sessionStorage.setItem(KEY_FILTER, JSON.stringify(v)), {
   deep: true,
@@ -95,20 +131,131 @@ const hasAnyValue = computed(() =>
   (data.value?.metrics ?? []).some((m) => m.value !== null),
 );
 
-// Biểu đồ cột (SVG) cho các chỉ số dạng số lượng
-const bars = computed(() => {
-  const items = (data.value?.metrics ?? []).filter(
-    (m) => typeof m.value === "number" && m.unit !== "ngày",
-  );
-  const max = Math.max(1, ...items.map((m) => Number(m.value)));
-  return items.map((m, i) => ({
-    code: m.code,
-    label: nhanChiSo(m.code),
-    value: Number(m.value),
-    x: i * 60 + 10,
-    h: (Number(m.value) / max) * 120,
-  }));
+// Dashboard 8 KPI + 3 biểu đồ + 2 danh sách (B-UX-01)
+const breakdown = ref<BreakdownResponse | null>(null);
+const trendData = ref<TrendResponse | null>(null);
+const workload = ref<WorkloadResponse | null>(null);
+const overdue = ref<DanhSachHoSo | null>(null);
+const todayTasks = ref<DanhSachHoSo | null>(null);
+const dashboardLoading = ref(false);
+const dashboardError = ref("");
+
+const KPI_ICON: Record<string, string> = {
+  ho_so_moi: "📄",
+  ho_so_dang_xu_ly: "⏳",
+  ho_so_qua_han: "⚠️",
+  thoi_gian_xu_ly_tb: "⏱️",
+  truy_cap_tu_choi: "🚫",
+  phieu_kiem_tra: "🔎",
+  canh_bao_cong_truong: "🔔",
+  vi_pham: "⚖️",
+};
+const KPI_TONE: Record<string, "brand" | "success" | "warning" | "danger" | "info" | "gold" | "neutral"> = {
+  ho_so_moi: "brand",
+  ho_so_dang_xu_ly: "info",
+  ho_so_qua_han: "danger",
+  thoi_gian_xu_ly_tb: "gold",
+  truy_cap_tu_choi: "warning",
+  phieu_kiem_tra: "success",
+  canh_bao_cong_truong: "warning",
+  vi_pham: "danger",
+};
+const TRANG_THAI: Record<string, string> = {
+  MOI_TAO: "Mới tạo",
+  DA_NOP: "Đã nộp",
+  TIEP_NHAN: "Tiếp nhận",
+  CAN_BO_SUNG: "Cần bổ sung",
+  DUOC_PHAN_CONG: "Được phân công",
+  DANG_THAM_DINH: "Đang thẩm định",
+  YEU_CAU_BO_SUNG: "Yêu cầu bổ sung",
+  CHO_DUYET: "Chờ duyệt",
+  CHO_PHE_DUYET: "Chờ phê duyệt",
+  CHO_KY: "Chờ ký",
+  DA_CAP: "Đã cấp",
+  DA_CAP_PHEP: "Đã cấp phép",
+  TU_CHOI: "Từ chối",
+};
+function nhanTrangThai(v: string): string {
+  return TRANG_THAI[v] || v;
+}
+const trendSeries = computed(() => {
+  const items = trendData.value?.items ?? [];
+  return {
+    so_ho_so: items.map((x) => Number(x.so_ho_so) || 0),
+    da_cap: items.map((x) => Number(x.da_cap) || 0),
+    qua_han: items.map((x) => Number(x.qua_han) || 0),
+  };
 });
+function seriesCho(code: string): number[] {
+  const t = trendSeries.value;
+  if (code === "ho_so_qua_han") return t.qua_han;
+  if (code === "ho_so_dang_xu_ly") return t.so_ho_so.map((v, i) => Math.max(0, v - (t.da_cap[i] || 0)));
+  return t.so_ho_so;
+}
+function xuHuong(series: number[]): number | null {
+  if (series.length < 2) return null;
+  const truoc = series[series.length - 2];
+  const nay = series[series.length - 1];
+  if (!truoc) return null;
+  return ((nay - truoc) / truoc) * 100;
+}
+const kpiCards = computed(() =>
+  (data.value?.metrics ?? []).slice(0, 8).map((m) => {
+    const series = seriesCho(m.code);
+    return {
+      ...m,
+      label: nhanChiSo(m.code),
+      icon: KPI_ICON[m.code] || "•",
+      tone: KPI_TONE[m.code] || "brand",
+      series,
+      trend: xuHuong(series),
+    };
+  }),
+);
+const statusItems = computed(() =>
+  (breakdown.value?.items ?? []).map((x, i) => ({
+    label: nhanTrangThai(x.trang_thai),
+    value: Number(x.so_luong) || 0,
+    color: ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2"][i % 6],
+  })),
+);
+const trendLabels = computed(() => (trendData.value?.items ?? []).map((x) => x.thang.slice(2)));
+const trendLines = computed(() => [
+  { label: "Hồ sơ mới", values: trendSeries.value.so_ho_so, color: "#2563eb" },
+  { label: "Đã cấp", values: trendSeries.value.da_cap, color: "#059669" },
+  { label: "Quá hạn", values: trendSeries.value.qua_han, color: "#dc2626" },
+]);
+const workloadItems = computed(() =>
+  (workload.value?.items ?? []).slice(0, 8).map((x) => ({ label: x.ho_ten, value: Number(x.so_ho_so_duoc_giao) || 0 })),
+);
+
+async function loadDashboard(): Promise<void> {
+  dashboardLoading.value = true;
+  dashboardError.value = "";
+  const thang = filter.thang || "";
+  try {
+    const [b, t, w, o, h] = await Promise.all([
+      apiGet<BreakdownResponse>(`/metrics/status-breakdown${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
+      apiGet<TrendResponse>("/metrics/trend?months=6"),
+      apiGet<WorkloadResponse>("/metrics/workload"),
+      apiGet<DanhSachHoSo>("/metrics/overdue"),
+      apiGet<DanhSachHoSo>("/metrics/today-tasks"),
+    ]);
+    breakdown.value = b;
+    trendData.value = t;
+    workload.value = w;
+    overdue.value = o;
+    todayTasks.value = h;
+  } catch (e) {
+    dashboardError.value = e instanceof Error ? e.message : "Lỗi không xác định";
+  } finally {
+    dashboardLoading.value = false;
+  }
+}
+
+async function taiTatCa(): Promise<void> {
+  await Promise.all([loadMetrics(), loadDashboard()]);
+}
 
 // Phả hệ
 const selected = ref<string | null>(null);
@@ -173,6 +320,27 @@ const answerText = computed(() => {
     return "Không tìm thấy căn cứ trong tri thức của địa bàn bạn.";
   return a.answer;
 });
+const answerHtml = computed(() => renderMarkdown(answerText.value));
+const daChep = ref(false);
+const SUGGESTED = [
+  "Hồ sơ nhà ở riêng lẻ cần giấy tờ gì?",
+  "Thời hạn giải quyết cấp phép là bao lâu?",
+  "Khi nào phải xin điều chỉnh giấy phép?",
+];
+async function copyAnswer(): Promise<void> {
+  if (!answerText.value) return;
+  try {
+    await navigator.clipboard.writeText(answerText.value);
+    daChep.value = true;
+    setTimeout(() => (daChep.value = false), 2000);
+  } catch {
+    askError.value = "Trình duyệt không cho chép tự động.";
+  }
+}
+function hoiNhanh(q: string): void {
+  question.value = q;
+  void ask();
+}
 
 onMounted(async () => {
   await handleCallbackIfNeeded();
@@ -181,19 +349,20 @@ onMounted(async () => {
     auth.value = "chua_dang_nhap";
     return;
   }
-  if (!canViewDashboard(readRoles(user.access_token))) {
+  vaiTro.value = readRoles(user.access_token);
+  if (!canViewDashboard(vaiTro.value)) {
     auth.value = "khong_quyen";
     return;
   }
   auth.value = "ok";
-  await loadMetrics();
+  await taiTatCa();
 });
 
 // Đổi bộ lọc thì tải lại số liệu, không tải lại trang
 watch(
   () => [filter.thang, filter.diaBan],
   () => {
-    if (auth.value === "ok") void loadMetrics();
+    if (auth.value === "ok") void taiTatCa();
   },
 );
 
@@ -273,6 +442,18 @@ function fmtDate(iso?: string): string {
       >
         Trợ lý
       </button>
+      <button
+        v-if="laKiemToan"
+        class="px-3 py-2 text-sm"
+        :class="
+          tab === 'kiem-toan'
+            ? 'border-b-2 border-slate-800 font-semibold'
+            : 'chu-phu'
+        "
+        @click="tab = 'kiem-toan'"
+      >
+        Kiểm toán
+      </button>
     </nav>
 
     <!-- Tab Chỉ số: dùng v-show để giữ trạng thái khi chuyển tab -->
@@ -288,20 +469,6 @@ function fmtDate(iso?: string): string {
             class="ml-2 rounded border px-2 py-1"
           />
         </label>
-        <label class="text-sm">
-          Địa bàn
-          <input
-            v-model="filter.diaBan"
-            type="text"
-            maxlength="63"
-            placeholder="Mã địa bàn"
-            class="ml-2 rounded border px-2 py-1"
-          />
-        </label>
-        <p class="text-xs chu-phu">
-          Bộ lọc cần API hỗ trợ tham số thang và dia_ban; hiện số liệu vẫn theo
-          toàn bộ địa bàn của bạn.
-        </p>
       </div>
 
       <p v-if="loading" class="chu-phu">Đang tải chỉ số...</p>
@@ -329,60 +496,60 @@ function fmtDate(iso?: string): string {
         </p>
 
         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <button
-            v-for="m in data.metrics"
+          <KpiCard
+            v-for="m in kpiCards"
             :key="m.code"
-            class="rounded-lg kinh p-4 text-left shadow hover:ring-2 hover:ring-slate-300"
-            @click="openLineage(m.code)"
-          >
-            <div class="text-sm chu-phu">{{ nhanChiSo(m.code) }}</div>
-            <div class="mt-1 text-2xl font-semibold">
-              {{ dinhDangGiaTri(m) }}
-            </div>
-            <div v-if="m.error" class="mt-1 text-xs text-amber-700">
-              Không có số liệu
-            </div>
-          </button>
+            :label="m.label"
+            :value="m.value"
+            :unit="m.unit"
+            :icon="m.icon"
+            :tone="m.tone"
+            :trend="m.trend"
+            :series="m.series"
+            :hint="m.error ? 'Không có số liệu cho kỳ này' : 'Bấm để xem phả hệ chỉ số'"
+            @select="openLineage(m.code)"
+          />
         </div>
 
-        <div class="rounded-lg kinh p-4 shadow">
-          <h2 class="mb-2 text-sm font-semibold chu-phu">
-            Biểu đồ số lượng
-          </h2>
-          <svg
-            viewBox="0 0 520 160"
-            class="w-full"
-            role="img"
-            aria-label="Biểu đồ cột các chỉ số"
-          >
-            <g v-for="b in bars" :key="b.code">
-              <rect
-                :x="b.x"
-                :y="140 - b.h"
-                width="40"
-                :height="b.h"
-                class="fill-slate-700"
-              />
-              <text
-                :x="b.x + 20"
-                :y="155"
-                text-anchor="middle"
-                font-size="8"
-                class="fill-slate-500"
-              >
-                {{ b.label.slice(0, 12) }}
-              </text>
-              <text
-                :x="b.x + 20"
-                :y="136 - b.h"
-                text-anchor="middle"
-                font-size="9"
-                class="fill-slate-800"
-              >
-                {{ b.value }}
-              </text>
-            </g>
-          </svg>
+        <div class="grid gap-4 lg:grid-cols-2">
+          <DonutChart title="Hồ sơ theo trạng thái" :items="statusItems" />
+          <LineChart title="Hồ sơ theo tháng (6 tháng)" :labels="trendLabels" :series="trendLines" />
+        </div>
+        <BarChart title="Tải việc theo cán bộ" :items="workloadItems" />
+
+        <p v-if="dashboardLoading" class="chu-phu">Đang tải biểu đồ và danh sách…</p>
+        <p v-else-if="dashboardError" class="text-amber-700">Không tải được dữ liệu biểu đồ: {{ dashboardError }}</p>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-lg kinh p-4 shadow">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold chu-phu">Hồ sơ quá hạn</h2>
+              <span class="rounded-full bg-rose-100 px-2 text-xs text-rose-800 dark:bg-rose-950 dark:text-rose-200">{{ overdue?.items?.length || 0 }}</span>
+            </div>
+            <p v-if="!overdue?.items?.length" class="mt-2 text-sm chu-phu">Không có hồ sơ quá hạn.</p>
+            <ul v-else class="mt-2 list-none space-y-2 p-0 text-sm">
+              <li v-for="h in overdue.items.slice(0, 5)" :key="h.id" class="border-b border-slate-200 pb-2 last:border-0 dark:border-slate-700">
+                <a :href="'/?tab=ho-so'" target="_blank" rel="noopener" class="font-medium underline">{{ h.ma_ho_so }}</a>
+                <span class="block chu-phu">{{ h.ho_ten }} · {{ h.dia_chi_cong_trinh }}</span>
+                <span class="block text-xs text-rose-700 dark:text-rose-300">Hạn: {{ fmtDate(h.han_tong_at) }} · {{ nhanTrangThai(h.trang_thai) }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-lg kinh p-4 shadow">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold chu-phu">Việc cần xử lý hôm nay</h2>
+              <span class="rounded-full bg-amber-100 px-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">{{ todayTasks?.items?.length || 0 }}</span>
+            </div>
+            <p v-if="!todayTasks?.items?.length" class="mt-2 text-sm chu-phu">Không có việc đến hạn hôm nay.</p>
+            <ul v-else class="mt-2 list-none space-y-2 p-0 text-sm">
+              <li v-for="h in todayTasks.items.slice(0, 5)" :key="h.id" class="border-b border-slate-200 pb-2 last:border-0 dark:border-slate-700">
+                <a :href="'/?tab=ban-lam-viec'" target="_blank" rel="noopener" class="font-medium underline">{{ h.ma_ho_so }}</a>
+                <span class="block chu-phu">{{ h.ho_ten }} · {{ h.buoc || "Đang xử lý" }}</span>
+                <span class="block text-xs text-amber-700 dark:text-amber-300">Hạn bước: {{ fmtDate(h.han_buoc_at || h.han_tong_at) }}</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div v-if="selected" class="rounded-lg kinh p-4 shadow">
@@ -428,6 +595,22 @@ function fmtDate(iso?: string): string {
 
     <!-- Tab Trợ lý -->
     <section v-show="tab === 'tro-ly'" class="space-y-4">
+      <div class="rounded-lg kinh p-4 shadow">
+        <h2 class="text-sm font-semibold">Trợ lý pháp lý</h2>
+        <p class="mt-1 text-sm chu-phu">Hỏi về quy định cấp phép xây dựng. Câu trả lời chỉ dùng khi có trích dẫn nguồn.</p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <button
+            v-for="q in SUGGESTED"
+            :key="q"
+            type="button"
+            class="rounded-full border border-slate-300 px-3 py-1 text-xs hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+            @click="hoiNhanh(q)"
+          >
+            {{ q }}
+          </button>
+        </div>
+      </div>
+
       <form class="flex gap-2" @submit.prevent="ask()">
         <input
           v-model="question"
@@ -446,18 +629,44 @@ function fmtDate(iso?: string): string {
       </form>
       <p v-if="askError" class="text-red-700">{{ askError }}</p>
 
-      <div v-if="answer" class="rounded-lg kinh p-4 shadow">
-        <p class="whitespace-pre-line">{{ answerText }}</p>
-        <ol
-          v-if="answer.citations.length"
-          class="mt-3 list-decimal space-y-1 pl-5 text-sm chu-phu"
-        >
-          <li v-for="c in answer.citations" :key="c.chunk_id">
-            <span class="font-semibold">{{ c.nguon }}</span
-            >: {{ c.trich }}
-          </li>
-        </ol>
+      <div v-if="asking" class="rounded-lg kinh p-4 shadow" aria-live="polite">
+        <p class="text-sm chu-phu">Đang tra cứu tri thức…</p>
+        <div class="mt-3 animate-pulse space-y-2">
+          <div class="h-3 w-3/4 rounded bg-slate-200 dark:bg-slate-700"></div>
+          <div class="h-3 w-full rounded bg-slate-200 dark:bg-slate-700"></div>
+          <div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div>
+        </div>
       </div>
+
+      <div v-else-if="answer" class="rounded-lg kinh p-4 shadow" aria-live="polite">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-semibold">Câu trả lời</h2>
+          <button type="button" class="text-xs underline chu-phu" @click="copyAnswer()">
+            {{ daChep ? "Đã chép" : "Chép câu trả lời" }}
+          </button>
+        </div>
+        <div class="markdown mt-2" v-html="answerHtml"></div>
+        <div v-if="answer.citations.length" class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span class="chu-phu">Căn cứ:</span>
+          <span
+            v-for="c in answer.citations"
+            :key="c.chunk_id"
+            class="rounded-full border border-sky-300 bg-sky-50 px-2 py-1 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100"
+            :title="c.trich"
+          >
+            [{{ c.so }}] {{ tenNguon(c.nguon) }}
+          </span>
+        </div>
+      </div>
+
+      <div v-else class="rounded-lg kinh p-4 text-sm chu-phu shadow">
+        Chào bạn. Hãy chọn một câu hỏi gợi ý hoặc nhập câu hỏi về cấp phép xây dựng.
+      </div>
+    </section>
+
+    <!-- Tab Kiểm toán (chỉ dx:auditor / quản trị) -->
+    <section v-if="laKiemToan" v-show="tab === 'kiem-toan'">
+      <AuditorPanel />
     </section>
   </div>
 </template>

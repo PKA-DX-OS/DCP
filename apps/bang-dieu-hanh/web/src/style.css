@@ -56,6 +56,30 @@ body {
   color: var(--mau-canh-bao);
 }
 
+/* Nội dung Markdown của trợ lý (đã escape trước khi render) */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  font-weight: 600;
+  margin: 1rem 0 0.35rem;
+  line-height: 1.35;
+}
+.markdown h1 { font-size: 1.15rem; }
+.markdown h2 { font-size: 1.05rem; }
+.markdown h3, .markdown h4 { font-size: 0.98rem; }
+.markdown p { margin: 0.35rem 0; }
+.markdown ul, .markdown ol { margin: 0.35rem 0; padding-left: 1.25rem; }
+.markdown li { margin: 0.15rem 0; }
+.markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+  background: var(--mau-mat-kinh);
+  border: 1px solid var(--mau-vien);
+}
+
 :focus-visible {
   outline: 2px solid var(--mau-tieu-diem);
   outline-offset: 2px;

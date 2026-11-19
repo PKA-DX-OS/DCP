@@ -177,6 +177,21 @@ VALUES
      'Hoàng Văn Bình', 'Bổ sung sơ đồ cấp điện và ghi rõ công suất phụ tải.', 'loi', 'mo',
      now() - interval '2 days');
 
+-- 5. Thông báo mẫu cho chuông B-UX-04.
+DELETE FROM core.notifications
+WHERE tenant = 'phuong-a'
+  AND title IN ('Có nhận xét thẩm định mới', 'Hồ sơ CP-HERO-2026-001 đã được thẩm định');
+INSERT INTO core.notifications (tenant, user_sub, title, body, link)
+SELECT 'phuong-a', u.id, 'Có nhận xét thẩm định mới',
+       'Hồ sơ CP-HERO-2026-001 có nhận xét mức lỗi ở bộ môn MEP.', '/?tab=ban-lam-viec'
+FROM core.users_directory u
+WHERE u.tenant = 'phuong-a' AND u.username = 'cdt.minh';
+INSERT INTO core.notifications (tenant, user_sub, title, body, link)
+SELECT 'phuong-a', u.id, 'Hồ sơ CP-HERO-2026-001 đã được thẩm định',
+       'Phiên bản thiết kế v2 đã đủ bộ môn bắt buộc và đạt.', '/?tab=ban-lam-viec'
+FROM core.users_directory u
+WHERE u.tenant = 'phuong-a' AND u.username = 'td.binh';
+
 COMMIT;
 """
 

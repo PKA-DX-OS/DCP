@@ -175,3 +175,48 @@ async def on_time(months: int = Query(default=12, ge=1, le=24), authorization: s
             months,
         )
     return {"tenant": claims.tenant, "months": months, "items": [dict(r) for r in rows]}
+
+
+@router.get("/overdue")
+async def overdue(authorization: str = Header(...)):
+    """Hồ sơ quá hạn hoặc đã quá hạn tổng, cho dashboard lãnh đạo (B-UX-01)."""
+    claims = verify_jwt_token(authorization)
+    yeu_cau_can_bo(claims)
+    async with get_db_connection(claims) as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, ma_ho_so, ho_ten, dia_chi_cong_trinh, trang_thai, buoc,
+                   han_tong_at, han_buoc_at
+            FROM app_cap_phep.ho_so
+            WHERE tenant = core.jwt_tenant()
+              AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')
+              AND (qua_han = true OR (han_tong_at IS NOT NULL AND han_tong_at < now()))
+            ORDER BY han_tong_at NULLS LAST
+            LIMIT 50
+            """
+        )
+    return {"tenant": claims.tenant, "items": [dict(r) for r in rows]}
+
+
+@router.get("/today-tasks")
+async def today_tasks(authorization: str = Header(...)):
+    """Hồ sơ có hạn bước hôm nay hoặc đang chờ xử lý (B-UX-01)."""
+    claims = verify_jwt_token(authorization)
+    yeu_cau_can_bo(claims)
+    async with get_db_connection(claims) as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, ma_ho_so, ho_ten, dia_chi_cong_trinh, trang_thai, buoc,
+                   han_tong_at, han_buoc_at
+            FROM app_cap_phep.ho_so
+            WHERE tenant = core.jwt_tenant()
+              AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')
+              AND (
+                  (han_buoc_at IS NOT NULL AND han_buoc_at::date <= current_date + 1)
+                  OR (han_buoc_at IS NULL AND buoc IS NOT NULL)
+              )
+            ORDER BY han_buoc_at NULLS LAST
+            LIMIT 50
+            """
+        )
+    return {"tenant": claims.tenant, "items": [dict(r) for r in rows]}
