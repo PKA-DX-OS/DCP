@@ -14,6 +14,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       </div>
 
       <form id="form-nop-ho-so" class="hop-than" @submit.prevent="handleSubmit">
+        <div class="mb-3 flex items-center justify-between gap-2 md:hidden" role="status" aria-live="polite">
+          <span class="text-[13px] font-semibold">Bước {{ step + 1 }}/3</span>
+          <span class="text-[12px] text-phu">{{ ["Chủ đầu tư", "Công trình", "Giấy tờ kèm theo"][step] }}</span>
+        </div>
+        <div :class="step !== 0 ? 'hidden md:block' : ''">
         <h4 class="muc-con">Chủ đầu tư</h4>
         <div class="grid sm:grid-cols-3 gap-3">
           <div>
@@ -47,7 +52,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             <input id="input-dien-thoai" v-model="form.dien_thoai" required inputmode="tel" autocomplete="tel" class="o" placeholder="0901234567" />
           </div>
         </div>
+        </div>
 
+        <div :class="step !== 1 ? 'hidden md:block' : ''">
         <h4 class="muc-con">Công trình</h4>
         <label for="input-dia-chi" class="nhan">Địa chỉ công trình</label>
         <input id="input-dia-chi" v-model="form.dia_chi_cong_trinh" required class="o" placeholder="Số 123 Đường Mẫu, Phường A" />
@@ -69,7 +76,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           <input type="checkbox" v-model="form.khu_quan_ly_kien_truc" class="w-4 h-4 accent-[rgb(var(--c-cham))]" />
           Công trình nằm trong khu vực có quy chế quản lý kiến trúc
         </label>
+        </div>
 
+        <div :class="step !== 2 ? 'hidden md:block' : ''">
         <h4 class="muc-con">Giấy tờ kèm theo</h4>
         <p v-if="loadingRequirements" class="goi-y m-0" role="status">Đang tải danh mục giấy tờ…</p>
         <DocumentChecklist v-else v-model="docs" :requirements="requirements" :errors="tatCaLoi" :form-values="form" />
@@ -82,11 +91,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </ul>
         </div>
 
+        <div class="mt-4 flex justify-between gap-2 md:hidden">
+          <button type="button" class="btn min-h-[44px]" :disabled="step === 0" @click="step--">Quay lại</button>
+          <button type="button" class="btn min-h-[44px]" :disabled="step === 2" @click="step++">Tiếp tục</button>
+        </div>
         <div class="flex justify-end gap-2 mt-6">
-          <button type="button" class="btn" @click="$emit('close')">Hủy</button>
-          <button type="submit" id="btn-submit-nop-ho-so" class="btn btn-chinh" :disabled="submitting || loadingRequirements">
+          <button type="button" class="btn min-h-[44px]" @click="$emit('close')">Hủy</button>
+          <button type="submit" id="btn-submit-nop-ho-so" class="btn btn-chinh min-h-[44px]" :disabled="submitting || loadingRequirements">
             {{ submitting ? "Đang kiểm tra và nộp…" : "Kiểm tra và nộp hồ sơ" }}
           </button>
+        </div>
         </div>
       </form>
     </div>
@@ -141,6 +155,7 @@ const emit = defineEmits<{
 }>();
 
 const form = ref<NopHoSoPayload>(nhap.form);
+const step = ref(0);
 
 // Mỗi loại giấy trong danh mục có một mục riêng: tệp, ngày cấp/hết hạn, thông tin đối chiếu
 const docs = ref<Record<string, DocEntry>>(nhap.docs);
