@@ -48,6 +48,13 @@
   --ds-radius-md: 12px;
   --ds-radius-lg: 16px;
 
+  /* Bảng màu biểu đồ 5 màu, đủ phân biệt ở cả nền đêm và nền sáng */
+  --ds-chart-1: 96 165 250;
+  --ds-chart-2: 134 239 172;
+  --ds-chart-3: 252 211 77;
+  --ds-chart-4: 167 139 250;
+  --ds-chart-5: 252 165 165;
+
   --ds-shadow: 0 1px 2px rgba(2, 6, 16, 0.24), 0 4px 12px rgba(2, 6, 16, 0.16);
   --ds-shadow-lg: 0 16px 48px rgba(2, 6, 16, 0.4);
   --ds-overlay: rgba(2, 6, 16, 0.6);
@@ -67,6 +74,12 @@
   --ds-warning: 161 98 7;
   --ds-danger: 185 28 28;
   --ds-info: 29 78 216;
+
+  --ds-chart-1: 29 78 216;
+  --ds-chart-2: 21 128 61;
+  --ds-chart-3: 161 98 7;
+  --ds-chart-4: 109 40 217;
+  --ds-chart-5: 185 28 28;
 
   --ds-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.06);
   --ds-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.18);
