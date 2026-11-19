@@ -1,0 +1,81 @@
+{
+  "phien_ban": {
+    "id": "7a1c2e00-0000-4000-8000-000000000101",
+    "ho_so_id": "7a1c2e00-0000-4000-8000-000000000001",
+    "so_phien_ban": 1,
+    "mo_ta_thay_doi": "Hồ sơ thiết kế ban đầu",
+    "trang_thai": "khong_dat",
+    "created_by": "Nguyễn Văn Minh",
+    "created_at": "2026-11-02T09:00:00+07:00"
+  },
+  "nhom": [
+    {
+      "bo_mon": "kien_truc",
+      "ten": "Kiến trúc",
+      "bat_buoc": true,
+      "ban_ve": [
+        {
+          "id": "7a1c2e00-0000-4000-8000-000000000201",
+          "phien_ban_id": "7a1c2e00-0000-4000-8000-000000000101",
+          "bo_mon": "kien_truc",
+          "ten": "KT-01 Mặt bằng tầng 1-3",
+          "file_id": "7a1c2e00-0000-4000-8000-000000000701",
+          "sha256": "aeb0721c2a47619c433f3da9d641dc74cdcbef6e8ff9e827323e89202b087f8a",
+          "kich_thuoc": 1249576,
+          "trang_thai": "dat",
+          "nguoi_tham_dinh": "Thẩm định viên Lê Văn Bình",
+          "ngay_tham_dinh": "2026-11-05T10:00:00+07:00",
+          "so_nhan_xet_mo": 0,
+          "created_at": "2026-11-02T09:15:00+07:00"
+        },
+        {
+          "id": "7a1c2e00-0000-4000-8000-000000000202",
+          "phien_ban_id": "7a1c2e00-0000-4000-8000-000000000101",
+          "bo_mon": "kien_truc",
+          "ten": "KT-02 Mặt đứng",
+          "file_id": "7a1c2e00-0000-4000-8000-000000000702",
+          "sha256": "1965b40e849cf3d9bd05981d2a0c73484f2e8e02d960de77f0d1308e5031e601",
+          "kich_thuoc": 1250576,
+          "trang_thai": "dat",
+          "nguoi_tham_dinh": "Thẩm định viên Lê Văn Bình",
+          "ngay_tham_dinh": "2026-11-05T10:05:00+07:00",
+          "so_nhan_xet_mo": 0,
+          "created_at": "2026-11-02T09:15:00+07:00"
+        }
+      ]
+    },
+    {
+      "bo_mon": "ket_cau",
+      "ten": "Kết cấu",
+      "bat_buoc": true,
+      "ban_ve": []
+    },
+    {
+      "bo_mon": "mep",
+      "ten": "Cơ điện (MEP)",
+      "bat_buoc": true,
+      "ban_ve": [
+        {
+          "id": "7a1c2e00-0000-4000-8000-000000000203",
+          "phien_ban_id": "7a1c2e00-0000-4000-8000-000000000101",
+          "bo_mon": "mep",
+          "ten": "ME-01 Cấp điện, cấp thoát nước",
+          "file_id": "7a1c2e00-0000-4000-8000-000000000703",
+          "sha256": "3ac6dbf1594f2b69edd19c21c1063c226e3be2fc85e8815e03ea77c2d6db06e0",
+          "kich_thuoc": 1251576,
+          "trang_thai": "khong_dat",
+          "nguoi_tham_dinh": "Thẩm định viên Lê Văn Bình",
+          "ngay_tham_dinh": "2026-11-05T10:20:00+07:00",
+          "so_nhan_xet_mo": 1,
+          "created_at": "2026-11-02T09:15:00+07:00"
+        }
+      ]
+    },
+    {
+      "bo_mon": "pccc",
+      "ten": "Phòng cháy chữa cháy",
+      "bat_buoc": false,
+      "ban_ve": []
+    }
+  ]
+}

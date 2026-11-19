@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       <nav class="flex gap-1 px-5 pt-2 border-b border-vien-nhat overflow-x-auto" aria-label="Các phần của hồ sơ">
         <button
-          v-for="m in MUC"
+          v-for="m in mucHien"
           :key="m.id"
           type="button"
           :id="`tab-chi-tiet-${m.id}`"
@@ -148,6 +148,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             </li>
           </ol>
         </section>
+
+        <!-- Phần do feature đăng ký (features/registry.ts: DOSSIER_TABS) -->
+        <section v-for="t in tabMoRong" :id="'muc-' + t.ma" :key="t.ma" class="mt-5">
+          <h4 class="muc-con">{{ t.ten }}</h4>
+          <component :is="t.component" :dossier="dossier" :user-token="userToken" />
+        </section>
       </div>
 
       <div class="hop-chan">
@@ -178,6 +184,8 @@ import { API_BASE } from "../config";
 import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, tenVai, ngayNgan, ngayGio } from "../utils/labels";
 import type { HoSo } from "../types";
 import { formatStatus, getStatusBadgeClass, formatNumberVi } from "../utils/formatters";
+import { dossierTabsChoVai } from "../features/registry";
+import { useOptionalFeatureContext } from "../features/context";
 
 const props = defineProps<{
   dossier: HoSo;
@@ -213,7 +221,10 @@ const VAI_CAN_BO = [
   "dx:platform-admin",
 ];
 const laCanBo = computed(() => readRoles(props.userToken).some((r) => VAI_CAN_BO.includes(r)));
+const featureCtx = useOptionalFeatureContext();
+const tabMoRong = computed(() => dossierTabsChoVai(featureCtx?.vaiTro.value ?? [], props.dossier));
 const MUC = computed(() => MUC_CO_BAN.filter((m) => laCanBo.value || (m.id !== "block-dossier-planning" && m.id !== "block-dossier-acceptance")));
+const mucHien = computed(() => [...MUC.value, ...tabMoRong.value.map((t) => ({ id: `muc-${t.ma}`, ten: t.ten }))]);
 const mucDangXem = ref<string>(MUC_CO_BAN[0].id);
 function denMuc(id: string) {
   mucDangXem.value = id;
