@@ -155,12 +155,12 @@ defineExpose({ taiViec });
               <span :class="mucUuTien(t).lop">{{ mucUuTien(t).nhan }}</span>
             </div>
             <div class="goi-y mt-1">
-              Hồ sơ <b>{{ thongTin(t).ma }}</b><template v-if="thongTin(t).diaChi"> · {{ thongTin(t).diaChi }}</template>
+              Mã hồ sơ: <b>{{ thongTin(t).ma }}</b><template v-if="thongTin(t).diaChi"> · {{ thongTin(t).diaChi }}</template>
             </div>
             <div class="goi-y">Hạn: {{ dinhDangHan(t) }}<template v-if="thongTin(t).trangThai"> · Trạng thái: {{ thongTin(t).trangThai }}</template></div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button class="btn btn-sm" @click="emit('mo-ho-so', thongTin(t).id, thongTin(t).ma)">Xem &amp; xử lý</button>
+            <button class="btn btn-sm" @click="emit('mo-ho-so', thongTin(t).id, thongTin(t).ma)">Xem hồ sơ</button>
             <button
               v-if="actions.laNguoiDuocGiao(t)"
               class="btn btn-sm btn-chinh"
