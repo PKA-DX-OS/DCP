@@ -102,7 +102,7 @@ flow_policies:
     taskPheDuyet: [pheDuyet, dongYCapPhep, yKienPheDuyet]
     taskPheDuyetTruyCapKhan: [quyetDinh, lyDoTuChoi, p_ho_so_id, ho_so_id]
     taskChoBoSung: [noiDungBoSung, taiLieuBoSung]
-  submitter_tasks: ["taskChoBoSung"]
+  submitter_tasks: ["taskChoBoSung", "taskBoSungThietKe"]
   variable_roles:
     quy_hoach_pass: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua", "app:cap-phep:lanh-dao"]
     quy_hoach_fail_rules: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua"]
