@@ -1,0 +1,40 @@
+{
+  "ho_so_id": "7a1c2e00-0000-4000-8000-000000000001",
+  "phien_ban_id": "7a1c2e00-0000-4000-8000-000000000101",
+  "so_phien_ban": 1,
+  "bo_mon": [
+    {
+      "bo_mon": "kien_truc",
+      "ten": "Kiến trúc",
+      "bat_buoc": true,
+      "so_ban_ve": 2,
+      "ket_qua": "dat"
+    },
+    {
+      "bo_mon": "ket_cau",
+      "ten": "Kết cấu",
+      "bat_buoc": true,
+      "so_ban_ve": 0,
+      "ket_qua": "chua_co"
+    },
+    {
+      "bo_mon": "mep",
+      "ten": "Cơ điện (MEP)",
+      "bat_buoc": true,
+      "so_ban_ve": 1,
+      "ket_qua": "khong_dat"
+    },
+    {
+      "bo_mon": "pccc",
+      "ten": "Phòng cháy chữa cháy",
+      "bat_buoc": false,
+      "so_ban_ve": 0,
+      "ket_qua": "chua_co"
+    }
+  ],
+  "thieu_bo_mon": [
+    "ket_cau"
+  ],
+  "nhan_xet_mo": 1,
+  "ket_luan": "khong_dat"
+}
