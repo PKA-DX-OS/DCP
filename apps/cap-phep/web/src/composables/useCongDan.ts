@@ -89,6 +89,9 @@ export function useCongDan(getToken: () => Promise<string | null>, getSub: () =>
           chu_dau_tu_sub: getSub(),
           dien_tich_san_m2: Number(form.dien_tich_san_m2) || 100,
           khu_quan_ly_kien_truc: Boolean(form.khu_quan_ly_kien_truc),
+          dia_chi_cong_trinh: form.dia_chi_cong_trinh,
+          trang_thai_ho_so: "DA_NOP",
+          do_uu_tien: "binh_thuong",
         });
       } catch {
         notify(`Đã nộp hồ sơ ${res.ma_ho_so} nhưng chưa chuyển được tới một cửa. Phường sẽ xử lý thủ công.`, "canh_bao");

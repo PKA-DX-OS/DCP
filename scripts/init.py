@@ -302,13 +302,14 @@ def main():
             if u and u not in origins:
                 origins.append(u)
         allowed_origins = " ".join(origins)
-        content = apisix_template.read_text(encoding="utf-8")
-        content = re.sub(
-            r"connect-src 'self' [^;\"]*",
-            f"connect-src 'self' {allowed_origins}",
-            content
+        # P0-05: ghép route fragment (core/apisix/routes/*.yaml) vào template.
+        import build_apisix
+        import yaml as _yaml
+        data = build_apisix.build(allowed_origins)
+        apisix_yaml.write_text(
+            _yaml.safe_dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False) + "\n#END\n",
+            encoding="utf-8",
         )
-        apisix_yaml.write_text(content, encoding="utf-8")
         print(f"  - Đã kết xuất apisix.yaml từ template với CSP: {allowed_origins}")
 
     # 5. Khởi tạo tệp JWKS cho PostgREST (đồng bộ thật khi Keycloak khởi động)

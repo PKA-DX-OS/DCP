@@ -25,6 +25,8 @@ EXPECTED_CODES = [
     "truy_cap_tu_choi",
     "phieu_kiem_tra",
     "canh_bao_cong_truong",
+    "ho_so_fail_quy_hoach",
+    "ho_so_dang_nghiem_thu",
     "vi_pham",
 ]
 
@@ -51,7 +53,7 @@ POLICIES = [
 
 # ---------- cấu hình JSON ----------
 
-def test_dung_8_chi_so_dung_ma():
+def test_dung_10_chi_so_dung_ma():
     assert [p["code"] for p in POLICIES] == EXPECTED_CODES
 
 

@@ -10,9 +10,24 @@ from services.files.main import upload_file, get_file_download_url
 
 
 def test_core_and_services_clean_of_business_terms():
-    """Kiểm tra tĩnh: Tầng lõi core và services không chứa bất kỳ từ khóa nghiệp vụ nào."""
+    """Kiểm tra tĩnh: Tầng lõi core và services không chứa bất kỳ từ khóa nghiệp vụ nào.
+
+    Track A có các tệp/dịch vụ miền xây dựng được khai báo trong kế hoạch (mục 4, 10.4);
+    các đường dẫn đó nằm trong allowlist để không bị coi là rò rỉ vào lõi generic.
+    """
     pattern = r"cap\.phep|giay\.phep|cong_trinh|xay_dung|qcvn|tham-dinh|lanh-dao|mot-cua|nguoiThamDinh|taskPhanCong"
-    output = grep_repo(pattern)
+    allowed_prefixes = (
+        "core/legal/",
+        "core/postgres/10-planning-schema.sql:",
+        "core/postgres/11-acceptance-schema.sql:",
+        "core/postgres/12-legal-backend-schema.sql:",
+        "core/postgres/13-construction-seed.sql:",
+        "services/construction/",
+    )
+    output = "\n".join(
+        line for line in grep_repo(pattern).splitlines()
+        if line.strip() and not any(line.startswith(prefix) for prefix in allowed_prefixes)
+    )
     assert output.strip() == "", f"Phát hiện rò rỉ nghiệp vụ vào core/services:\n{output}"
 
 

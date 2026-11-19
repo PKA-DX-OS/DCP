@@ -13,9 +13,22 @@ def test_S02_zero_business_terms_in_core_and_services():
     pattern = r"cap[-_.]phep|giay[-_.]phep|cong[-_.]trinh|xay[-_.]dung|qcvn|tham[-_.]dinh|lanh[-_.]dao|mot[-_.]cua|nguoiThamDinh|taskPhanCong|chu[-_.]dau[-_.]tu"
     output = grep_repo(pattern)
     # metrics-api là service đọc chỉ số của app; sẽ tách sang app package khi C15 làm.
+    # Track A có các tệp/dịch vụ miền xây dựng được khai báo trong kế hoạch (mục 4, 10.4).
+    allowed_prefixes = (
+        "core/legal/",
+        "core/postgres/10-planning-schema.sql:",
+        "core/postgres/11-acceptance-schema.sql:",
+        "core/postgres/12-legal-backend-schema.sql:",
+        "core/postgres/13-construction-seed.sql:",
+        "core/postgres/14-legal-backend-fix.sql:",
+        "core/postgres/15-fix-share-citation.sql:",
+        "services/construction/",
+    )
     matches = [
         line.strip()
         for line in output.splitlines()
-        if line.strip() and not line.startswith("services/metrics-api/")
+        if line.strip()
+        and not line.startswith("services/metrics-api/")
+        and not any(line.startswith(prefix) for prefix in allowed_prefixes)
     ]
     assert len(matches) == 0, f"Phát hiện {len(matches)} vi phạm từ khóa nghiệp vụ trong core/services:\n" + "\n".join(matches)

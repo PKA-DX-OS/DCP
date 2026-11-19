@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# APISIX route fragment — Track A: nghiệm thu, hoàn công.
+# Dịch vụ construction nhận đúng tiền tố /api/v1/acceptance.
+
+routes:
+  - id: route_svc_acceptance
+    uri: /api/v1/acceptance*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1

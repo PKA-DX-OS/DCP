@@ -8,14 +8,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <div class="hop-dau">
         <div>
           <span class="mo">Chi tiết hồ sơ</span>
-          <h3 id="detail-ma-ho-so" class="ma">{{ dossier.ma_ho_so }}</h3>
+          <h3 id="detail-ma-ho-so" class="ma">{{ hoSoHienTai.ma_ho_so }}</h3>
           <div class="flex flex-wrap items-center gap-2 mt-1.5">
-            <span id="detail-trang-thai" :class="getStatusBadgeClass(dossier.trang_thai)">{{ formatStatus(dossier.trang_thai) }}</span>
-            <span class="mo">Bước hiện tại: <span id="detail-buoc">{{ tenBuoc(dossier.buoc) }}</span></span>
+            <span id="detail-trang-thai" :class="getStatusBadgeClass(hoSoHienTai.trang_thai)">{{ formatStatus(hoSoHienTai.trang_thai) }}</span>
+            <span class="mo">Bước hiện tại: <span id="detail-buoc">{{ tenBuoc(hoSoHienTai.buoc) }}</span></span>
           </div>
         </div>
         <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>
       </div>
+
+      <DossierActionBar v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" @done="hoSoCapNhat = $event" />
 
       <nav class="flex gap-1 px-5 pt-2 border-b border-vien-nhat overflow-x-auto" aria-label="Các phần của hồ sơ">
         <button
@@ -100,6 +102,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </ul>
         </section>
 
+        <PlanningPanel v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" :la-can-bo="laCanBo" />
+        <AcceptancePanel v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" />
+
         <section id="block-dossier-progress" class="mt-5" aria-labelledby="tieu-de-tien-trinh">
           <h4 id="tieu-de-tien-trinh" class="text-[14px] font-semibold m-0 mb-2">Tiến trình quy trình</h4>
           <ol id="list-dossier-progress" class="list-none m-0 p-0 flex flex-wrap gap-x-2 gap-y-1 text-[13px]">
@@ -114,8 +119,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               <span v-if="i < TIEN_TRINH.length - 1" class="text-phu" aria-hidden="true">›</span>
             </li>
           </ol>
-          <p v-if="dossier.trang_thai === 'TU_CHOI'" class="text-son text-[13px] mt-2 mb-0">Hồ sơ đã bị từ chối.</p>
-          <p v-else-if="dossier.trang_thai === 'CAN_BO_SUNG'" class="text-vang text-[13px] mt-2 mb-0">Đang chờ chủ đầu tư bổ sung hồ sơ.</p>
+          <p v-if="hoSoHienTai.trang_thai === 'TU_CHOI'" class="text-son text-[13px] mt-2 mb-0">Hồ sơ đã bị từ chối.</p>
+          <p v-else-if="hoSoHienTai.trang_thai === 'CAN_BO_SUNG'" class="text-vang text-[13px] mt-2 mb-0">Đang chờ chủ đầu tư bổ sung hồ sơ.</p>
         </section>
 
         <section id="block-dossier-audit" class="mt-5" aria-labelledby="tieu-de-lich-su">
@@ -153,11 +158,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       <div class="hop-chan">
         <button
-          v-if="dossier.trang_thai === 'CAN_BO_SUNG'"
+          v-if="hoSoHienTai.trang_thai === 'CAN_BO_SUNG'"
           type="button"
           id="btn-modal-supplement"
           class="btn mr-auto text-vang"
-          @click="$emit('supplement', dossier)"
+          @click="$emit('supplement', hoSoHienTai)"
         >Bổ sung hồ sơ</button>
         <button type="button" id="btn-close-modal-detail" class="btn" @click="$emit('close')">Đóng</button>
       </div>
@@ -170,6 +175,10 @@ import { ref, computed, onMounted } from "vue";
 import IconX from "./IconX.vue";
 import { notify } from "../composables/useToast";
 import { useModal } from "../composables/useModal";
+import PlanningPanel from "../features/planning/PlanningPanel.vue";
+import AcceptancePanel from "../features/acceptance/AcceptancePanel.vue";
+import DossierActionBar from "./DossierActionBar.vue";
+import { readRoles } from "../auth";
 import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo } from "../api";
 import { API_BASE } from "../config";
 import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, tenVai, ngayNgan, ngayGio } from "../utils/labels";
@@ -190,19 +199,33 @@ const emit = defineEmits<{
 
 const hop = ref<HTMLElement | null>(null);
 const than = ref<HTMLElement | null>(null);
+const hoSoCapNhat = ref<any>(null);
+const hoSoHienTai = computed(() => hoSoCapNhat.value || props.dossier);
 useModal(hop, () => emit("close"));
 
 /** Thanh tab chuyển nhanh tới từng phần; mọi phần vẫn hiển thị để đọc liền một mạch. */
-const MUC = [
+const MUC_CO_BAN = [
   { id: "muc-thong-tin", ten: "Thông tin" },
   { id: "block-dossier-files", ten: "Giấy tờ" },
+  { id: "block-dossier-planning", ten: "Quy hoạch" },
+  { id: "block-dossier-acceptance", ten: "Nghiệm thu" },
   { id: "block-dossier-audit", ten: "Lịch sử xử lý" },
   { id: "block-dossier-progress", ten: "Tiến trình" },
 ] as const;
+const VAI_CAN_BO = [
+  "app:cap-phep:mot-cua",
+  "app:cap-phep:tham-dinh",
+  "app:cap-phep:lanh-dao",
+  "app:cap-phep:trat-tu-xd",
+  "dx:auditor",
+  "dx:platform-admin",
+];
+const laCanBo = computed(() => readRoles(props.userToken).some((r) => VAI_CAN_BO.includes(r)));
 const featureCtx = useOptionalFeatureContext();
 const tabMoRong = computed(() => dossierTabsChoVai(featureCtx?.vaiTro.value ?? [], props.dossier));
-const mucHien = computed(() => [...MUC, ...tabMoRong.value.map((t) => ({ id: `muc-${t.ma}`, ten: t.ten }))]);
-const mucDangXem = ref<string>(MUC[0].id);
+const MUC = computed(() => MUC_CO_BAN.filter((m) => laCanBo.value || (m.id !== "block-dossier-planning" && m.id !== "block-dossier-acceptance")));
+const mucHien = computed(() => [...MUC.value, ...tabMoRong.value.map((t) => ({ id: `muc-${t.ma}`, ten: t.ten }))]);
+const mucDangXem = ref<string>(MUC_CO_BAN[0].id);
 function denMuc(id: string) {
   mucDangXem.value = id;
   than.value?.querySelector<HTMLElement>(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -210,8 +233,8 @@ function denMuc(id: string) {
 
 const TIEN_TRINH = ["tiep_nhan", "phan_cong", "tham_dinh", "phe_duyet", "hoan_thanh"];
 const viTriBuoc = computed(() => {
-  if (props.dossier.trang_thai === "DA_CAP") return TIEN_TRINH.length;
-  const i = TIEN_TRINH.indexOf(String(props.dossier.buoc || ""));
+  if (hoSoHienTai.value.trang_thai === "DA_CAP") return TIEN_TRINH.length;
+  const i = TIEN_TRINH.indexOf(String(hoSoHienTai.value.buoc || ""));
   return i < 0 ? 0 : i;
 });
 

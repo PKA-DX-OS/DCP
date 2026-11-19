@@ -207,6 +207,9 @@ def start_cap_phep(token: str, ho_so: dict, extra: dict | None = None) -> str:
         "object_id": ho_so["id"],
         "ma_ho_so": ho_so["ma_ho_so"],
         "chu_dau_tu_sub": sub_of(token),
+        "dia_chi_cong_trinh": ho_so.get("dia_chi_cong_trinh"),
+        "trang_thai_ho_so": ho_so.get("trang_thai", "DA_NOP"),
+        "do_uu_tien": "binh_thuong",
     }
     variables.update(extra or {})
     return start_process(token, "cap-phep", variables, business_key=ho_so["ma_ho_so"])
