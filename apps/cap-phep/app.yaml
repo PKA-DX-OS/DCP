@@ -31,6 +31,7 @@ bpmn:
   - bpmn/hau-kiem.bpmn20.xml
   - bpmn/quy-hoach.bpmn20.xml
   - bpmn/nghiem-thu.bpmn20.xml
+  - bpmn/tham-dinh-thiet-ke.bpmn20.xml
 
 doc_templates:
   - doc_type: giay-phep-xay-dung
@@ -88,6 +89,9 @@ flow_policies:
     taskNghiemThuKetCau: [ket_qua_nghiem_thu, ghi_chu]
     taskNghiemThuHoanThien: [ket_qua_nghiem_thu, ghi_chu]
     taskHoanCong: [so_bien_ban, ket_qua_nghiem_thu]
+    taskThamDinhBoMon: [ket_qua_bo_mon, nhan_xet_bo_mon]
+    taskTongHopThietKe: [ket_luan_thiet_ke, ghi_chu_thiet_ke]
+    taskBoSungThietKe: [mo_ta_bo_sung]
     taskKiemTraHopLe: [hoSoHopLe, lyDoTra, lyDoBoSung]
     taskPhanCong: [nguoiThamDinh, lanhDaoPhanCong]
     taskThamDinh: [ketQuaThamDinh, noiDungThamDinh]
@@ -108,6 +112,11 @@ flow_policies:
     ghi_chu: ["app:cap-phep:tham-dinh", "app:cap-phep:trat-tu-xd", "app:cap-phep:mot-cua"]
     noi_dung_khac_phuc: ["app:cap-phep:chu-dau-tu", "app:cap-phep:trat-tu-xd"]
     so_bien_ban: ["app:cap-phep:mot-cua", "app:cap-phep:lanh-dao"]
+    ket_qua_bo_mon: ["app:cap-phep:tham-dinh"]
+    nhan_xet_bo_mon: ["app:cap-phep:tham-dinh"]
+    ket_luan_thiet_ke: ["app:cap-phep:lanh-dao"]
+    ghi_chu_thiet_ke: ["app:cap-phep:lanh-dao"]
+    mo_ta_bo_sung: ["app:cap-phep:chu-dau-tu"]
     noiDungBoSung: ["app:cap-phep:chu-dau-tu"]
     taiLieuBoSung: ["app:cap-phep:chu-dau-tu"]
     nguoiThamDinh: ["app:cap-phep:lanh-dao"]
@@ -130,6 +139,7 @@ flow_policies:
     cap-phep: taskKiemTraHopLe
     quy-hoach: taskKiemTraQuyHoach
     nghiem-thu: taskNghiemThuMong
+    tham-dinh-thiet-ke: taskThamDinhBoMon
   task_transitions:
     taskKiemTraHopLe: taskPhanCong
     taskChoBoSung: taskKiemTraHopLe
@@ -143,6 +153,9 @@ flow_policies:
     taskKhacPhucMong: taskNghiemThuMong
     taskNghiemThuKetCau: taskNghiemThuHoanThien
     taskNghiemThuHoanThien: taskHoanCong
+    taskThamDinhBoMon: taskTongHopThietKe
+    taskTongHopThietKe: taskBoSungThietKe
+    taskBoSungThietKe: taskThamDinhBoMon
   sla:
     taskKiemTraHopLe: P3D
     taskPhanCong: P2D
@@ -157,6 +170,12 @@ flow_policies:
     taskNghiemThuKetCau: P3D
     taskNghiemThuHoanThien: P3D
     taskHoanCong: P3D
+    taskThamDinhBoMon: P5D
+    taskTongHopThietKe: P2D
+    taskBoSungThietKe: P7D
+  default_process_variables:
+    tham-dinh-thiet-ke:
+      bo_mon_can_tham_dinh: ["kien_truc", "ket_cau", "mep", "pccc"]
   on_timer: app_cap_phep_private.ghi_qua_han
   sync_state_sql: app_cap_phep_private.sync_flow_state
   sync_state_sql_by_process:
