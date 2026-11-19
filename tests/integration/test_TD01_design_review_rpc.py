@@ -126,6 +126,15 @@ def test_TD01_phien_ban_ban_ve_nhan_xet_va_trang_thai(ho_so_moi, token):
     for bv_id in v2_ids:
         assert _rpc(td, "danh_gia_ban_ve", {"p_ban_ve_id": bv_id, "p_ket_qua": "dat"}).status_code == 200
 
+    ds_pb = _rpc(td, "ds_phien_ban", {"p_ho_so_id": ho_so_id})
+    assert ds_pb.status_code == 200, ds_pb.text
+    phien_ban = ds_pb.json()
+    assert [x["so_phien_ban"] for x in phien_ban] == [2, 1]
+    assert len(phien_ban[0]["ban_ve"]) == 3
+    assert len(phien_ban[1]["ban_ve"]) == 2
+    assert phien_ban[1]["trang_thai"] == "khong_dat"
+    assert phien_ban[0]["trang_thai"] == "dat"
+
     status2 = _rpc(td, "trang_thai_tham_dinh", {"p_ho_so_id": ho_so_id})
     assert status2.status_code == 200, status2.text
     assert status2.json()["ket_luan"] == "dat"
@@ -165,6 +174,14 @@ def test_TD01_danh_muc_bo_mon_va_rls_doc(ho_so_moi, token):
     nguoi_khac = httpx.get(url, headers={"Authorization": f"Bearer {khac}"}, timeout=30.0)
     assert nguoi_khac.status_code == 200, nguoi_khac.text
     assert nguoi_khac.json() == []
+
+    phuong_b = token("td.phuongb")
+    khac_tenant = httpx.get(url, headers={"Authorization": f"Bearer {phuong_b}"}, timeout=30.0)
+    assert khac_tenant.status_code == 200, khac_tenant.text
+    assert khac_tenant.json() == []
+    rpc_khac_tenant = _rpc(phuong_b, "ds_ban_ve", {"p_ho_so_id": ho_so_moi["id"]})
+    assert rpc_khac_tenant.status_code == 404, rpc_khac_tenant.text
+    assert rpc_khac_tenant.json()["code"] == "PT404"
 
     anon = httpx.get(url, timeout=30.0)
     assert anon.status_code in (401, 403), anon.text
@@ -248,26 +265,61 @@ def test_TD01_kiem_tra_tham_so_va_tep(ho_so_moi, token):
     assert r.status_code == 400, r.text
     assert r.json()["code"] == "22023"
 
+    bv_key = f"bv-{uuid.uuid4().hex}"
     r = _rpc(cdt, "them_ban_ve", {
         "p_phien_ban_id": pb["id"],
         "p_bo_mon": "kien_truc",
         "p_ten": "Bản vẽ hợp lệ",
         "p_file_id": dung_ho_so,
+        "p_idempotency_key": bv_key,
     })
     assert r.status_code == 200, r.text
     bv_id = r.json()["id"]
+    lai_bv = _rpc(cdt, "them_ban_ve", {
+        "p_phien_ban_id": pb["id"],
+        "p_bo_mon": "kien_truc",
+        "p_ten": "Bản vẽ hợp lệ",
+        "p_file_id": dung_ho_so,
+        "p_idempotency_key": bv_key,
+    })
+    assert lai_bv.status_code == 200 and lai_bv.json()["id"] == bv_id
+
+    nx_key = f"nx-{uuid.uuid4().hex}"
+    nx1 = _rpc(td, "them_nhan_xet", {
+        "p_ban_ve_id": bv_id,
+        "p_noi_dung": "Kiểm tra lại kết cấu",
+        "p_muc_do": "canh_bao",
+        "p_idempotency_key": nx_key,
+    })
+    assert nx1.status_code == 200, nx1.text
+    nx2 = _rpc(td, "them_nhan_xet", {
+        "p_ban_ve_id": bv_id,
+        "p_noi_dung": "Kiểm tra lại kết cấu",
+        "p_muc_do": "canh_bao",
+        "p_idempotency_key": nx_key,
+    })
+    assert nx2.status_code == 200 and nx2.json()["id"] == nx1.json()["id"]
+
     r = _rpc(td, "danh_gia_ban_ve", {"p_ban_ve_id": bv_id, "p_ket_qua": "chua_dat"})
     assert r.status_code == 400, r.text
     assert r.json()["code"] == "22023"
     r = _rpc(td, "them_nhan_xet", {"p_ban_ve_id": bv_id, "p_noi_dung": "x", "p_muc_do": "nang"})
     assert r.status_code == 400, r.text
 
+    # Vai sai: thẩm định viên không tạo phiên bản; chủ hồ sơ không nhận xét.
+    r = _rpc(td, "tao_phien_ban", {"p_ho_so_id": ho_so_id, "p_mo_ta": "Sai vai"})
+    assert r.status_code == 403, r.text
+    r = _rpc(cdt, "them_nhan_xet", {"p_ban_ve_id": bv_id, "p_noi_dung": "Sai vai", "p_muc_do": "gop_y"})
+    assert r.status_code == 403, r.text
+
 
 def test_TD01_bpmn_tham_dinh_da_bo_mon(ho_so_moi, token):
     cdt = token("cdt.minh")
     td = token("td.binh")
     ld = token("ld.hoa")
-    proc = start_process(cdt, "tham-dinh-thiet-ke", {
+    mc = token("mc.thu")
+    # Một cửa khởi động để chủ đầu tư không bị quy tắc phân tách nhiệm vụ chặn ở task bổ sung.
+    proc = start_process(mc, "tham-dinh-thiet-ke", {
         "ho_so_id": ho_so_moi["id"],
         "ma_ho_so": ho_so_moi["ma_ho_so"],
         "chu_dau_tu_sub": "cdt.minh",
@@ -283,10 +335,20 @@ def test_TD01_bpmn_tham_dinh_da_bo_mon(ho_so_moi, token):
         _hoan_thanh(td, t["id"], {"ket_qua_bo_mon": "dat"})
 
     hop = _cho_viec(ld, proc, "taskTongHopThietKe")[0]
-    _hoan_thanh(ld, hop["id"], {"ket_luan_thiet_ke": "dat"})
+    _hoan_thanh(ld, hop["id"], {"ket_luan_thiet_ke": "khong_dat"})
+
+    bo_sung = _cho_viec(cdt, proc, "taskBoSungThietKe")[0]
+    _hoan_thanh(cdt, bo_sung["id"], {"mo_ta_bo_sung": "Bổ sung kết cấu và MEP"})
+
+    bo_mon_lan_2 = _cho_viec(td, proc, "taskThamDinhBoMon", so_luong=4)
+    assert len(bo_mon_lan_2) == 4
+    for t in bo_mon_lan_2:
+        _hoan_thanh(td, t["id"], {"ket_qua_bo_mon": "dat"})
+    hop2 = _cho_viec(ld, proc, "taskTongHopThietKe")[0]
+    _hoan_thanh(ld, hop2["id"], {"ket_luan_thiet_ke": "dat"})
 
     for _ in range(15):
-        if not _viec_cua(td, proc) and not _viec_cua(ld, proc):
+        if not _viec_cua(td, proc) and not _viec_cua(ld, proc) and not _viec_cua(cdt, proc):
             return
         time.sleep(1)
     raise AssertionError(f"Quy trình {proc} chưa kết thúc")

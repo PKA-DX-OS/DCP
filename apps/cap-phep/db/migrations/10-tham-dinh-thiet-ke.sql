@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS app_cap_phep.ban_ve (
     ngay_tham_dinh timestamptz,
     created_by text,
     created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
     idempotency_key text,
     UNIQUE (tenant, phien_ban_id, file_id),
     UNIQUE (tenant, idempotency_key),
@@ -73,6 +74,9 @@ CREATE TABLE IF NOT EXISTS app_cap_phep.ban_ve (
 
 CREATE INDEX IF NOT EXISTS idx_ban_ve_phien_ban
     ON app_cap_phep.ban_ve (tenant, phien_ban_id, bo_mon, created_at);
+
+ALTER TABLE app_cap_phep.ban_ve
+    ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS app_cap_phep.nhan_xet_tham_dinh (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -88,6 +92,7 @@ CREATE TABLE IF NOT EXISTS app_cap_phep.nhan_xet_tham_dinh (
     ghi_chu_xu_ly text,
     xu_ly_luc timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
     idempotency_key text,
     UNIQUE (tenant, idempotency_key),
     CONSTRAINT chk_nhan_xet_muc_do CHECK (muc_do IN ('loi', 'canh_bao', 'gop_y')),
@@ -96,6 +101,9 @@ CREATE TABLE IF NOT EXISTS app_cap_phep.nhan_xet_tham_dinh (
 
 CREATE INDEX IF NOT EXISTS idx_nhan_xet_phien_ban
     ON app_cap_phep.nhan_xet_tham_dinh (tenant, phien_ban_id, trang_thai, created_at);
+
+ALTER TABLE app_cap_phep.nhan_xet_tham_dinh
+    ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 --------------------------------------------------------------------------------
 -- 3. Hàm quyền và audit
@@ -182,6 +190,16 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION app_cap_phep_private.cham_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at := now();
+    RETURN NEW;
+END;
+$$;
+
 DO $$
 DECLARE v_table text;
 BEGIN
@@ -192,8 +210,16 @@ BEGIN
             'FOR EACH ROW EXECUTE FUNCTION app_cap_phep_private.trg_audit_thiet_ke()',
             v_table, v_table
         );
+        EXECUTE format('DROP TRIGGER IF EXISTS trg_cham_%I ON app_cap_phep.%I', v_table, v_table);
+        EXECUTE format(
+            'CREATE TRIGGER trg_cham_%I BEFORE UPDATE ON app_cap_phep.%I '
+            'FOR EACH ROW EXECUTE FUNCTION app_cap_phep_private.cham_updated_at()',
+            v_table, v_table
+        );
     END LOOP;
 END $$;
+
+GRANT EXECUTE ON FUNCTION app_cap_phep_private.cham_updated_at() TO web_user, svc, dxos_svc, dxos_owner;
 
 --------------------------------------------------------------------------------
 -- 4. RLS: đọc theo địa bàn + chủ hồ sơ/cán bộ; ghi chỉ qua RPC
