@@ -55,6 +55,8 @@ def test_BU01_dashboard_lanh_dao_co_kpi_chart_va_danh_sach():
             page.get_by_text("Hồ sơ quá hạn").first.wait_for(timeout=20000)
             page.get_by_text("Việc cần xử lý hôm nay").wait_for(timeout=20000)
             assert page.get_by_text("Hồ sơ mới trong kỳ").count() >= 1
+            assert page.get_by_role("button", name="Xuất Excel").count() >= 1
+            assert page.get_by_role("button", name="Xuất PDF").count() >= 1
         finally:
             ctx.close()
             browser.close()

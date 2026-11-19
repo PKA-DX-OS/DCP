@@ -7,7 +7,7 @@ import { askAssistant, checkPlanning, fetchPlanningDocuments, fetchPlanningParce
 import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { notify } from "../../composables/useToast";
 import { Badge, Button } from "../../design-system";
-import PlanningMap from "./PlanningMap.vue";
+import MapView from "../../components/MapView.vue";
 
 const props = defineProps<{
   dossier: any;
@@ -223,7 +223,7 @@ onMounted(taiDuLieu);
     </div>
     <template v-else>
       <div class="grid gap-3 md:grid-cols-[1fr_240px] mb-3">
-        <PlanningMap :zones="zones" :parcels="parcels" :selected-id="selectedId" @select="chonThuaDat" />
+        <MapView title="Bản đồ quy hoạch" :zones="zones" :parcels="parcels" :selected-id="selectedId" @select="chonThuaDat" />
         <div class="the p-3">
           <label class="nhan" for="planning-parcel">Thửa đất kiểm tra</label>
           <select id="planning-parcel" v-model="selectedId" class="o w-full">
