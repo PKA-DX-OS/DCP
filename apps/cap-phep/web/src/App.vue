@@ -9,7 +9,9 @@ import { useCongDan } from "./composables/useCongDan";
 import { batAnhSang } from "./utils/anhSang";
 import type { DocEntry, HoSo, NopHoSoPayload } from "./types";
 import Navbar from "./components/Navbar.vue";
+import LogoMark from "./components/LogoMark.vue";
 import ToastHost from "./components/ToastHost.vue";
+import { useTheme } from "./composables/useTheme";
 import CreateDossierModal from "./components/CreateDossierModal.vue";
 import DetailDossierModal from "./components/DetailDossierModal.vue";
 import SupplementModal from "./components/SupplementModal.vue";
@@ -34,6 +36,7 @@ const FEATURES_HIEN = computed(() => tabsChoVai(vaiTro.value));
 const TABS = computed(() => FEATURES_HIEN.value.map((f) => ({ ma: f.ma, ten: f.ten })));
 const thongBao = useNotifications(() => subNguoiDung.value);
 const cd = useCongDan(getValidToken, () => subNguoiDung.value);
+const { theme, toggle: doiGiaoDien } = useTheme();
 
 const KHOA_URL = "tab";
 const tab = ref<string>("");
@@ -124,17 +127,43 @@ onMounted(async () => {
 </script>
 
 <template>
+  <a
+    href="#main"
+    class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-slate-900"
+  >Bỏ qua điều hướng</a>
   <ToastHost />
 
-  <div v-if="trang === 'dang_kiem_tra'" class="p-6 text-phu">Đang kiểm tra đăng nhập...</div>
+  <div v-if="trang === 'dang_kiem_tra'" class="p-6 text-phu" role="status">Đang kiểm tra đăng nhập...</div>
 
-  <div v-else-if="trang === 'chua_dang_nhap'" class="the m-6 p-6">
-    <h1 class="tieu-de-trang">Cần đăng nhập</h1>
-    <p class="text-phu mt-2">Người dân nộp và theo dõi hồ sơ; cán bộ phường xử lý hồ sơ được giao.</p>
-    <div class="mt-4 flex flex-wrap gap-2">
-      <button class="btn-chinh" @click="login()">Đăng nhập</button>
-      <a class="btn inline-flex" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
-    </div>
+  <div v-else-if="trang === 'chua_dang_nhap'" class="login-shell">
+    <button class="btn btn-sm absolute right-4 top-4" :aria-label="theme === 'dark' ? 'Chuyển nền sáng' : 'Chuyển nền tối'" @click="doiGiaoDien()">
+      {{ theme === "dark" ? "Nền sáng" : "Nền tối" }}
+    </button>
+    <section id="main" class="brand-hero the" aria-labelledby="brand-title">
+      <div class="flex items-center gap-3">
+        <LogoMark :size="52" />
+        <div>
+          <p class="mo m-0">Nền tảng dịch vụ công</p>
+          <h1 id="brand-title" class="m-0 text-[30px] leading-tight sm:text-[38px]">DX-OS Open-Core</h1>
+        </div>
+      </div>
+      <p class="brand-tagline">Nền tảng cấp phép xây dựng số, bảo mật và minh bạch.</p>
+      <div class="brand-actions">
+        <button type="button" class="brand-choice" @click="login()">
+          <span class="brand-choice-icon" aria-hidden="true">🏠</span>
+          <span><b>Dành cho công dân</b><span>Nộp hồ sơ, theo dõi tiến độ và nhận kết quả.</span></span>
+        </button>
+        <button type="button" class="brand-choice" @click="login()">
+          <span class="brand-choice-icon" aria-hidden="true">🏛️</span>
+          <span><b>Dành cho cán bộ</b><span>Tiếp nhận, thẩm định và phê duyệt hồ sơ.</span></span>
+        </button>
+      </div>
+      <div class="mt-6 flex flex-wrap items-center gap-3 text-sm">
+        <button type="button" class="btn-chinh min-h-[44px]" @click="login()">Đăng nhập</button>
+        <a class="btn inline-flex min-h-[44px]" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
+        <a class="btn inline-flex min-h-[44px]" href="/dieu-hanh/" target="_blank" rel="noopener">Bảng điều hành</a>
+      </div>
+    </section>
   </div>
 
   <div v-else-if="trang === 'khong_quyen'" class="the m-6 p-6">
@@ -158,7 +187,7 @@ onMounted(async () => {
     />
 
     <!-- v-show giữ trạng thái màn hình khi chuyển tab -->
-    <main>
+    <main id="main">
       <div v-for="f in FEATURES_HIEN" v-show="tab === f.ma" :key="f.ma"><component :is="f.component" /></div>
     </main>
   </div>

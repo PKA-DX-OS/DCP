@@ -64,3 +64,27 @@ export function apiGet<T>(path: string): Promise<T> {
 export function apiPost<T>(path: string, body: unknown): Promise<T> {
   return request<T>("POST", path, body);
 }
+
+/** Tải tệp xuất (Excel/PDF) kèm token, trả Blob để trình duyệt lưu. */
+export async function apiDownload(path: string): Promise<Blob> {
+  const token = await getValidToken();
+  if (!token) {
+    await login();
+    throw new ApiError(401, "CHUA_DANG_NHAP", "Cần đăng nhập");
+  }
+  const resp = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "*/*" },
+  });
+  if (!resp.ok) throw new ApiError(resp.status, "LOI_TAI_TEP", `Không tải được tệp (${resp.status})`);
+  return await resp.blob();
+}
+
+/** Lưu Blob thành tệp trên máy người dùng. */
+export function luuBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { apiGet } from "../api";
+import { apiDownload, apiGet, luuBlob } from "../api";
 
 interface AuditItem {
   id: number | string;
@@ -82,6 +82,13 @@ async function xacMinhLai(): Promise<void> {
     error.value = e instanceof Error ? e.message : "Không xác minh được chuỗi";
   }
 }
+async function xuatExcel(): Promise<void> {
+  try {
+    luuBlob(await apiDownload("/export/audit.xlsx"), `audit-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Không xuất được Excel";
+  }
+}
 function xuatCsv(): void {
   const header = ["Thời gian", "Người thực hiện", "Hành động", "Đối tượng", "ID đối tượng", "Hash", "Prev hash"];
   const rows = daLoc.value.map((x) => [
@@ -123,7 +130,8 @@ onMounted(tai);
         </span>
         <button class="rounded border px-3 py-1 text-sm" :disabled="loading" @click="tai">Tải lại</button>
         <button class="rounded border px-3 py-1 text-sm" @click="xacMinhLai">Xác minh</button>
-        <button class="rounded bg-slate-800 px-3 py-1 text-sm text-white" @click="xuatCsv">Xuất CSV</button>
+        <button class="rounded border px-3 py-1 text-sm" @click="xuatCsv">Xuất CSV</button>
+        <button class="rounded bg-slate-800 px-3 py-1 text-sm text-white" @click="xuatExcel">Xuất Excel</button>
       </div>
     </div>
 

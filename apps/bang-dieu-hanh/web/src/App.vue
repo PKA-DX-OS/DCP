@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles } from "./auth";
-import { ApiError, apiGet, apiPost } from "./api";
+import { ApiError, apiDownload, apiGet, apiPost, luuBlob } from "./api";
 import { formatThoiDiem, nhanChiSo } from "./utils/metrics";
 import { renderMarkdown, tenNguon } from "./utils/markdown";
 import { useTheme } from "./composables/useTheme";
@@ -13,6 +13,7 @@ import DonutChart from "./components/DonutChart.vue";
 import LineChart from "./components/LineChart.vue";
 import BarChart from "./components/BarChart.vue";
 import AuditorPanel from "./components/AuditorPanel.vue";
+import LogoMark from "./components/LogoMark.vue";
 
 const { cheDo } = useTheme();
 
@@ -257,6 +258,28 @@ async function taiTatCa(): Promise<void> {
   await Promise.all([loadMetrics(), loadDashboard()]);
 }
 
+const dangXuatTep = ref(false);
+async function xuatPdf(): Promise<void> {
+  dangXuatTep.value = true;
+  try {
+    luuBlob(await apiDownload("/export/metrics.pdf"), "bao-cao-tong-hop.pdf");
+  } catch (e) {
+    loadError.value = e instanceof Error ? e.message : "Không xuất được PDF";
+  } finally {
+    dangXuatTep.value = false;
+  }
+}
+async function xuatExcel(): Promise<void> {
+  dangXuatTep.value = true;
+  try {
+    luuBlob(await apiDownload("/export/dossiers.xlsx"), `ho-so-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } catch (e) {
+    loadError.value = e instanceof Error ? e.message : "Không xuất được Excel";
+  } finally {
+    dangXuatTep.value = false;
+  }
+}
+
 // Phả hệ
 const selected = ref<string | null>(null);
 const lineage = ref<Lineage | null>(null);
@@ -372,24 +395,32 @@ function fmtDate(iso?: string): string {
 </script>
 
 <template>
+  <a href="#bdh-main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-slate-900">Bỏ qua điều hướng</a>
   <div v-if="auth === 'dang_kiem_tra'" class="chu-phu">
     Đang kiểm tra đăng nhập...
   </div>
 
-  <div
-    v-else-if="auth === 'chua_dang_nhap'"
-    class="rounded-lg kinh p-6 shadow"
-  >
-    <h1 class="text-xl font-semibold">Cần đăng nhập</h1>
-    <p class="mt-2 chu-phu">
-      Đăng nhập bằng tài khoản lãnh đạo để xem bảng điều hành.
-    </p>
-    <button
-      class="mt-4 rounded bg-slate-800 px-4 py-2 text-white"
-      @click="login()"
-    >
-      Đăng nhập
+  <div v-else-if="auth === 'chua_dang_nhap'" class="login-shell">
+    <button class="absolute right-4 top-4 rounded border border-slate-300 px-3 py-2 text-sm" :aria-label="cheDo === 'toi' ? 'Chuyển nền sáng' : 'Chuyển nền tối'" @click="doiGiaoDien()">
+      {{ cheDo === "toi" ? "Nền sáng" : "Nền tối" }}
     </button>
+    <section class="brand-hero kinh" aria-labelledby="bdh-title">
+      <div class="flex items-center gap-3">
+        <LogoMark :size="48" />
+        <div>
+          <p class="m-0 text-xs chu-phu">DX-OS Open-Core</p>
+          <h1 id="bdh-title" class="m-0 text-2xl font-semibold">Bảng điều hành lãnh đạo</h1>
+        </div>
+      </div>
+      <p class="mt-3 max-w-xl text-sm chu-phu">
+        Theo dõi hồ sơ, tải việc, cảnh báo quá hạn và kiểm toán chuỗi dữ liệu của địa bàn.
+      </p>
+      <div class="mt-5 flex flex-wrap gap-2">
+        <button class="min-h-[44px] rounded bg-slate-800 px-4 py-2 text-white" @click="login()">Đăng nhập</button>
+        <a class="inline-flex min-h-[44px] items-center rounded border border-slate-300 px-4 py-2 text-sm" href="/">Về trang cấp phép</a>
+        <a class="inline-flex min-h-[44px] items-center rounded border border-slate-300 px-4 py-2 text-sm" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
+      </div>
+    </section>
   </div>
 
   <div
@@ -408,15 +439,17 @@ function fmtDate(iso?: string): string {
     </button>
   </div>
 
-  <div v-else class="space-y-4">
-    <header class="flex items-center justify-between">
+  <div v-else id="bdh-main" class="space-y-4">
+    <header class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-xl font-semibold">Bảng điều hành lãnh đạo</h1>
-      <button class="text-sm chu-phu underline" @click="doiGiaoDien()">
-        {{ cheDo === "toi" ? "Giao diện sáng" : "Giao diện tối" }}
-      </button>
-      <button class="text-sm chu-phu underline" @click="logout()">
-        Đăng xuất
-      </button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="min-h-[44px] rounded border px-3 py-1 text-sm" :disabled="dangXuatTep" @click="xuatExcel">Xuất Excel</button>
+        <button class="min-h-[44px] rounded border px-3 py-1 text-sm" :disabled="dangXuatTep" @click="xuatPdf">Xuất PDF</button>
+        <button class="min-h-[44px] text-sm chu-phu underline" @click="doiGiaoDien()">
+          {{ cheDo === "toi" ? "Giao diện sáng" : "Giao diện tối" }}
+        </button>
+        <button class="min-h-[44px] text-sm chu-phu underline" @click="logout()">Đăng xuất</button>
+      </div>
     </header>
 
     <nav class="flex gap-2 border-b">
