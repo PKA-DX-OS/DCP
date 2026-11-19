@@ -146,6 +146,21 @@ class CompleteTaskRequest(BaseModel):
     variables: Dict[str, Any] = {}
 
 
+class AssignTaskRequest(BaseModel):
+    user_sub: str
+    reason: str = ""
+
+
+class RemindTaskRequest(BaseModel):
+    message: Optional[str] = None
+
+
+async def _la_quan_ly(claims) -> bool:
+    policy = await get_flow_policies()
+    roles = set(policy.get("manager_roles", [])) | {"dx:tenant-admin", "dx:platform-admin"}
+    return any(r in claims.roles for r in roles)
+
+
 class StartProcessRequest(BaseModel):
     process_key: str
     business_key: Optional[str] = None
@@ -313,6 +328,185 @@ async def get_task_detail(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"loi": f"Lỗi kết nối Flowable: {e}"},
         )
+
+
+def _task_due(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+@app.get("/api/v1/flow/escalations")
+async def list_escalations(
+    window_hours: int = Query(default=24, ge=1, le=720),
+    authorization: str = Header(...),
+):
+    """Danh sách việc quá hạn/sắp hạn cho lãnh đạo (A-FLOW-04)."""
+    claims = verify_jwt_token(authorization)
+    if not await _la_quan_ly(claims):
+        raise HTTPException(status_code=403, detail={"loi": "Chỉ lãnh đạo/một cửa được xem danh sách quá hạn"})
+    now = datetime.now(timezone.utc)
+    try:
+        async with get_flowable_client() as client:
+            resp = await client.get(
+                "/service/runtime/tasks",
+                params={"tenantId": claims.tenant, "size": 1000, "includeProcessVariables": "true"},
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail={"loi": f"Flowable trả {resp.status_code}"})
+            raw = resp.json().get("data", [])
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"loi": f"Không đọc được Flowable: {exc}"})
+
+    policy = await get_flow_policies()
+    visible = set(policy.get("task_list_variables", []))
+    items = []
+    for t in raw:
+        due = _task_due(t.get("dueDate"))
+        if not due:
+            continue
+        con_lai = (due - now).total_seconds() / 3600
+        if con_lai > window_hours:
+            continue
+        t["variables"] = [v for v in (t.get("variables") or []) if v.get("name") in visible]
+        items.append({
+            "id": t.get("id"),
+            "name": t.get("name"),
+            "taskDefinitionKey": t.get("taskDefinitionKey"),
+            "processInstanceId": t.get("processInstanceId"),
+            "assignee": t.get("assignee"),
+            "dueDate": t.get("dueDate"),
+            "qua_han": con_lai < 0,
+            "con_lai_gio": round(con_lai, 1),
+            "variables": t["variables"],
+        })
+    items.sort(key=lambda x: x["con_lai_gio"])
+    return {"tenant": claims.tenant, "now": now.isoformat(), "count": len(items), "items": items}
+
+
+@app.post("/api/v1/flow/tasks/{task_id}/assign")
+async def assign_task(task_id: str, req: AssignTaskRequest, authorization: str = Header(...)):
+    """Phân công lại việc cho cán bộ khác (A-FLOW-03)."""
+    claims = verify_jwt_token(authorization)
+    if not await _la_quan_ly(claims):
+        raise HTTPException(status_code=403, detail={"loi": "Chỉ lãnh đạo/một cửa được phân công lại"})
+    if not req.user_sub.strip():
+        raise HTTPException(status_code=422, detail={"loi": "Thiếu người được phân công"})
+
+    pool = await get_db_pool()
+    if not pool:
+        raise HTTPException(status_code=503, detail={"loi": "Cơ sở dữ liệu tạm thời không sẵn sàng"})
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow(
+            """
+            SELECT id::text AS sub, username, full_name
+            FROM core.users_directory
+            WHERE tenant = $1 AND active = true
+              AND (id::text = $2 OR username = $2)
+            """,
+            claims.tenant, req.user_sub,
+        )
+    if not user:
+        raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy cán bộ trong địa bàn"})
+
+    try:
+        async with get_flowable_client() as client:
+            task_resp = await client.get(f"/service/runtime/tasks/{task_id}")
+            if task_resp.status_code != 200:
+                raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy nhiệm vụ"})
+            task = task_resp.json()
+            if task.get("tenantId") != claims.tenant:
+                raise HTTPException(status_code=403, detail={"loi": "Nhiệm vụ thuộc địa bàn khác"})
+            upd = await client.put(f"/service/runtime/tasks/{task_id}", json={"assignee": user["sub"]})
+            if upd.status_code not in (200, 204):
+                raise HTTPException(status_code=502, detail={"loi": f"Flowable từ chối phân công: {upd.status_code}"})
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"loi": f"Không phân công được: {exc}"})
+
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO core.notifications (tenant, user_sub, title, body, link)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            claims.tenant,
+            user["sub"],
+            "Bạn được phân công việc mới",
+            req.reason or f"Việc {task.get('name') or task_id} đã được giao cho bạn.",
+            f"/?tab=ban-lam-viec",
+        )
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="task.reassigned",
+        actor_sub=claims.sub,
+        object_type="task",
+        object_id=task_id,
+        detail={
+            "assignee": user["sub"],
+            "username": user["username"],
+            "reason": req.reason,
+            "task_def": task.get("taskDefinitionKey"),
+            "process_instance_id": task.get("processInstanceId"),
+        },
+    )
+    return {
+        "status": "assigned",
+        "task_id": task_id,
+        "assignee": user["sub"],
+        "username": user["username"],
+        "full_name": user["full_name"],
+    }
+
+
+@app.post("/api/v1/flow/tasks/{task_id}/remind")
+async def remind_task(task_id: str, req: RemindTaskRequest, authorization: str = Header(...)):
+    """Gửi nhắc việc cho người đang xử lý (A-FLOW-04)."""
+    claims = verify_jwt_token(authorization)
+    if not await _la_quan_ly(claims):
+        raise HTTPException(status_code=403, detail={"loi": "Chỉ lãnh đạo/một cửa được nhắc việc"})
+    try:
+        async with get_flowable_client() as client:
+            resp = await client.get(f"/service/runtime/tasks/{task_id}")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy nhiệm vụ"})
+            task = resp.json()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"loi": f"Không đọc được nhiệm vụ: {exc}"})
+    if task.get("tenantId") != claims.tenant:
+        raise HTTPException(status_code=403, detail={"loi": "Nhiệm vụ thuộc địa bàn khác"})
+    assignee = task.get("assignee")
+    if not assignee:
+        raise HTTPException(status_code=422, detail={"loi": "Việc chưa được giao cho cán bộ cụ thể"})
+
+    body = req.message or f"Nhắc việc {task.get('name') or task_id}: hạn xử lý {task.get('dueDate') or 'chưa đặt'}."
+    pool = await get_db_pool()
+    if pool:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO core.notifications (tenant, user_sub, title, body, link)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                claims.tenant, assignee, "Nhắc việc quá hạn/sắp hạn", body, "/?tab=ban-lam-viec",
+            )
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="task.reminded",
+        actor_sub=claims.sub,
+        object_type="task",
+        object_id=task_id,
+        detail={"assignee": assignee, "message": body, "due_date": task.get("dueDate")},
+    )
+    return {"status": "reminded", "task_id": task_id, "assignee": assignee}
 
 
 @app.post("/api/v1/flow/tasks/{task_id}/complete")
@@ -938,7 +1132,8 @@ async def start_process(
         )
 
     # V2-08 / V3-10: Gọi hàm SQL đồng bộ trạng thái khi khởi động quy trình nếu app khai báo
-    sync_state_sql = policy.get("sync_state_sql")
+    sync_state_by_process = policy.get("sync_state_sql_by_process", {})
+    sync_state_sql = sync_state_by_process.get(req.process_key) or policy.get("sync_state_sql")
     if sync_state_sql and proc_id:
         try:
             pool = await get_db_pool()

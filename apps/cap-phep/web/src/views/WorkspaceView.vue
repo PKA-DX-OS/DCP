@@ -4,8 +4,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { getUser, getValidToken, readRoles } from "../auth";
-import { fetchTasks } from "../api/flow";
+import { fetchTasks, remindTask } from "../api/flow";
 import { useDossierActions, type NguoiDung } from "../composables/useDossierActions";
+import { notify } from "../composables/useToast";
 import type { FlowTask } from "../types";
 
 type BoLoc = "tat-ca" | "qua-han" | "sap-han";
@@ -18,9 +19,11 @@ const loi = ref("");
 const boLoc = ref<BoLoc>("tat-ca");
 const loaiViec = ref<LoaiViec>("tat-ca");
 const dangLam = ref<string | null>(null);
+const dangNhac = ref<string | null>(null);
 
 const actions = useDossierActions(getValidToken, () => nguoi.value);
 const emit = defineEmits<{ (e: "mo-ho-so", idHoacMa: string, ma: string): void }>();
+const laQuanLy = computed(() => (nguoi.value?.roles || []).some((r) => ["app:cap-phep:lanh-dao", "app:cap-phep:mot-cua", "dx:tenant-admin", "dx:platform-admin"].includes(r)));
 
 function bien(t: FlowTask, ten: string): any {
   return ((t.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value;
@@ -96,6 +99,20 @@ async function hoanThanh(t: FlowTask): Promise<void> {
   if (ok) await taiViec();
 }
 
+async function nhacViec(t: FlowTask): Promise<void> {
+  dangNhac.value = t.id;
+  try {
+    const token = await getValidToken();
+    if (!token) throw new Error("Hết phiên, vui lòng đăng nhập lại");
+    await remindTask(token, t.id);
+    notify("Đã gửi nhắc việc cho cán bộ đang xử lý", "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không gửi được nhắc việc", "loi");
+  } finally {
+    dangNhac.value = null;
+  }
+}
+
 function dinhDangHan(t: FlowTask): string {
   const han = hanCuaViec(t);
   return han ? new Date(han).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Không có hạn";
@@ -160,6 +177,12 @@ defineExpose({ taiViec });
             <div class="goi-y">Hạn: {{ dinhDangHan(t) }}<template v-if="thongTin(t).trangThai"> · Trạng thái: {{ thongTin(t).trangThai }}</template></div>
           </div>
           <div class="flex flex-wrap gap-2">
+            <button
+              v-if="laQuanLy && hanCuaViec(t) !== null && hanCuaViec(t)! < Date.now()"
+              class="btn btn-sm text-vang"
+              :disabled="dangNhac === t.id"
+              @click="nhacViec(t)"
+            >{{ dangNhac === t.id ? "Đang nhắc…" : "Nhắc việc" }}</button>
             <button class="btn btn-sm" @click="emit('mo-ho-so', thongTin(t).id, thongTin(t).ma)">Xem hồ sơ</button>
             <button
               v-if="actions.laNguoiDuocGiao(t)"
