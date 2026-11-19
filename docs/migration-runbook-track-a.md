@@ -33,6 +33,11 @@ Thứ tự Track A:
 | `13-construction-seed.sql` | 3 thửa + 2 vùng phuong-a, 1 thửa phuong-b, ma trận thẩm quyền, phí/lưu trữ |
 | `14-legal-backend-fix.sql` | Wrapper thẩm quyền cho `web_user` |
 | `15-fix-share-citation.sql` | Sửa căn cứ chia sẻ sang NĐ 278/2025 |
+| `05-track-a-workflows.sql` | Cột process quy hoạch/nghiệm thu + hàm sync |
+| `06-subject-authority.sql` | RPC cập nhật đối tượng/thẩm quyền |
+| `07-warning-confirmation.sql` | Danh sách + xác nhận cảnh báo |
+| `08-warning-function-fix.sql` | Sửa kiểu dữ liệu cảnh báo |
+| `09-workflow-sync-fix.sql` | Sửa sync process id khi không có JWT tenant |
 
 ## 2. Migration ứng dụng cấp phép
 
@@ -57,9 +62,11 @@ docker compose exec -T -e DXOS_OWNER_PASSWORD=<secret> construction `
 ```powershell
 py -3 scripts/seed_legal.py          # 50 văn bản + 24 trích dẫn + RAG chunks
 py -3 scripts/seed_hero.py           # CP-HERO-2026-001 và CP-HERO-ACC-2026-001
+py -3 scripts/ingest_legal_pdfs.py   # toàn văn 50 PDF + 03_PHAN_TICH vào RAG
 ```
 
 `seed_legal.py` dùng `docker exec` mặc định; thêm `--no-docker` nếu chạy psql trực tiếp.
+`ingest_legal_pdfs.py` cần `pymupdf` trên máy chạy script và nguồn `TaiLieuHanhChinh_C3`.
 
 ## 4. APISIX route fragment
 

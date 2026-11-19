@@ -105,6 +105,29 @@ export async function supplementHoSo(token: string, payload: any): Promise<any> 
   return apiJson("/rest/rpc/bo_sung_ho_so", { token, method: "POST", body: payload }, "Lỗi bổ sung hồ sơ");
 }
 
+export async function updateSubjectAuthority(
+  token: string,
+  hoSoId: string,
+  payload: { doi_tuong?: string; trong_kcn?: boolean; cap_hanh_chinh?: string },
+): Promise<any> {
+  return apiJson(
+    "/rest/rpc/cap_nhat_thong_tin_tham_quyen",
+    {
+      token,
+      method: "POST",
+      body: {
+        p_ho_so_id: hoSoId,
+        p_doi_tuong: payload.doi_tuong || null,
+        p_loai_cong_trinh: "nha_o_rieng_le",
+        p_cap_cong_trinh: null,
+        p_trong_kcn: payload.trong_kcn ?? null,
+        p_cap_hanh_chinh: payload.cap_hanh_chinh || null,
+      },
+    },
+    "Lỗi cập nhật thông tin thẩm quyền",
+  );
+}
+
 export async function openHoSo(token: string, idOrCode: string): Promise<any> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode.trim());
   const body = isUuid ? { p_id: idOrCode.trim() } : { p_ma_ho_so: idOrCode.trim() };

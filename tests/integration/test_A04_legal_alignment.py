@@ -134,6 +134,112 @@ def test_A04_dinh_danh_dia_diem_12_so():
     assert missing.json()["found"] is False
 
 
+def test_A04_canh_bao_va_xac_nhan_canh_bao():
+    token = get_token("mc.thu")
+    headers = {"Authorization": f"Bearer {token}"}
+    ho_so_id = run_sql("SELECT id FROM app_cap_phep.ho_so WHERE ma_ho_so = 'CP-HERO-2026-001';")
+    assert ho_so_id
+    warn = httpx.get(f"{GATEWAY_URL}/api/v1/planning/validation/{ho_so_id}", headers=headers, timeout=20.0)
+    assert warn.status_code == 200, warn.text
+    body = warn.json()
+    assert body["items"]
+    assert any(x["ma"] == "dien_tich_nguong" for x in body["items"])
+
+    confirm = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/validation/{ho_so_id}/confirm",
+        headers=headers,
+        json={"ghi_chu": "Cán bộ đã kiểm tra cảnh báo"},
+        timeout=20.0,
+    )
+    assert confirm.status_code == 200, confirm.text
+    assert confirm.json()["xac_nhan_at"]
+
+
+def test_A04_cap_nhat_doi_tuong_va_tham_quyen():
+    token = get_token("mc.thu")
+    headers = {"Authorization": f"Bearer {token}"}
+    ho_so_id = run_sql("SELECT id FROM app_cap_phep.ho_so WHERE ma_ho_so = 'CP-HERO-2026-001';")
+    assert ho_so_id
+
+    try:
+        upd = httpx.post(
+            f"{GATEWAY_URL}/api/v1/rest/rpc/cap_nhat_thong_tin_tham_quyen",
+            headers=headers,
+            json={"p_ho_so_id": ho_so_id, "p_doi_tuong": "to_chuc", "p_trong_kcn": False, "p_cap_hanh_chinh": "tinh"},
+            timeout=20.0,
+        )
+        assert upd.status_code == 200, upd.text
+        assert upd.json()["co_quan_cap"] == "Sở Xây dựng"
+    finally:
+        httpx.post(
+            f"{GATEWAY_URL}/api/v1/rest/rpc/cap_nhat_thong_tin_tham_quyen",
+            headers=headers,
+            json={"p_ho_so_id": ho_so_id, "p_doi_tuong": "ho_gia_dinh_ca_nhan", "p_trong_kcn": False, "p_cap_hanh_chinh": "xa"},
+            timeout=20.0,
+        )
+
+
+def test_A04_phi_bien_lai_va_luu_tru_lifecycle():
+    token = get_token("mc.thu")
+    headers = {"Authorization": f"Bearer {token}"}
+    ho_so_id = run_sql("SELECT id FROM app_cap_phep.ho_so WHERE ma_ho_so = 'CP-HERO-2026-001';")
+    assert ho_so_id
+
+    fee = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/fees",
+        headers=headers,
+        json={"ten_thu_tuc": "Kiểm thử phí A04", "muc_phi": 1000, "can_cu": "Kiểm thử"},
+        timeout=20.0,
+    )
+    assert fee.status_code == 200, fee.text
+
+    receipt = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/bien-lai",
+        headers=headers,
+        json={"ho_so_id": ho_so_id, "so_bien_lai": f"BL-A04-{uuid.uuid4().hex[:8]}", "so_tien": 50000},
+        timeout=20.0,
+    )
+    assert receipt.status_code == 200, receipt.text
+    rid = receipt.json()["id"]
+    reconciled = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/bien-lai/{rid}/status",
+        headers=headers,
+        json={"trang_thai": "da_doi_soat"},
+        timeout=20.0,
+    )
+    assert reconciled.status_code == 200, reconciled.text
+    assert reconciled.json()["trang_thai"] == "da_doi_soat"
+
+    archive = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/archive/{ho_so_id}",
+        headers=headers,
+        json={"nhom_ho_so": "cap_phep_xay_dung"},
+        timeout=20.0,
+    )
+    assert archive.status_code == 200, archive.text
+    aid = archive.json()["id"]
+    moved = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/archive/{aid}/status",
+        headers=headers,
+        json={"trang_thai": "chuyen_giao"},
+        timeout=20.0,
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["trang_thai"] == "chuyen_giao"
+
+
+def test_A04_chia_se_payload_toi_thieu():
+    token = get_token("mc.thu")
+    headers = {"Authorization": f"Bearer {token}"}
+    ho_so_id = run_sql("SELECT id FROM app_cap_phep.ho_so WHERE ma_ho_so = 'CP-HERO-2026-001';")
+    resp = httpx.get(f"{GATEWAY_URL}/api/v1/planning/share/payload/{ho_so_id}", headers=headers, timeout=20.0)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["can_cu_phap_ly"] == "ND-278/2025/ND-CP"
+    assert body["cccd_masked"].startswith("*")
+    assert len(body["cccd_masked"]) == 12
+
+
 def test_A04_chia_se_du_lieu_theo_nd_278_va_luu_tru():
     token = get_token("mc.thu")
     headers = {"Authorization": f"Bearer {token}"}
@@ -165,7 +271,7 @@ def test_A04_chia_se_du_lieu_theo_nd_278_va_luu_tru():
         timeout=20.0,
     )
     assert archive.status_code == 200, archive.text
-    assert archive.json()["trang_thai"] == "dang_luu_tru"
+    assert archive.json()["trang_thai"] in ("dang_luu_tru", "chuyen_giao", "tieu_huy", "het_han")
     listing = httpx.get(f"{GATEWAY_URL}/api/v1/planning/archive", headers=headers, timeout=20.0)
     assert listing.status_code == 200, listing.text
     assert any(x["ho_so_id"] == ho_so_id for x in listing.json())

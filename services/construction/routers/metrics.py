@@ -143,3 +143,35 @@ async def acceptance_progress(month: Optional[str] = Query(default=None), author
             thang,
         )
     return {"tenant": claims.tenant, "month": thang, "items": [dict(r) for r in rows]}
+
+
+@router.get("/on-time")
+async def on_time(months: int = Query(default=12, ge=1, le=24), authorization: str = Header(...)):
+    """Tỷ lệ hồ sơ DA_CAP đúng hạn theo từng tháng của địa bàn."""
+    claims = verify_jwt_token(authorization)
+    yeu_cau_can_bo(claims)
+    async with get_db_connection(claims) as conn:
+        rows = await conn.fetch(
+            """
+            WITH m AS (
+                SELECT generate_series(
+                    date_trunc('month', now()) - ($1 - 1) * interval '1 month',
+                    date_trunc('month', now()),
+                    interval '1 month'
+                )::date AS thang
+            )
+            SELECT to_char(m.thang, 'YYYY-MM') AS thang,
+                   count(h.id) AS da_cap,
+                   count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) AS dung_han,
+                   COALESCE(round(100.0 * count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) / NULLIF(count(h.id), 0), 1), 0) AS ty_le
+            FROM m
+            LEFT JOIN app_cap_phep.ho_so h
+              ON h.tenant = core.jwt_tenant()
+             AND h.trang_thai = 'DA_CAP'
+             AND date_trunc('month', h.updated_at)::date = m.thang
+            GROUP BY m.thang
+            ORDER BY m.thang
+            """,
+            months,
+        )
+    return {"tenant": claims.tenant, "months": months, "items": [dict(r) for r in rows]}
