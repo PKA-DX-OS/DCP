@@ -13,11 +13,12 @@ import { feature as duLieu } from "./du-lieu";
 import { feature as banLamViec } from "./ban-lam-viec";
 import { feature as congTrinh } from "./cong-trinh";
 import { feature as truyCapKhan } from "./truy-cap-khan";
+import { dossierTab as thietKe } from "./design-review";
 
 export const FEATURES: readonly AppFeature[] = [hoSo, duLieu, banLamViec, congTrinh, truyCapKhan];
 
 /** Phần mở rộng của chi tiết hồ sơ; 5.1, 5.2, 5.5 đăng ký ở đây. */
-export const DOSSIER_TABS: readonly DossierTab[] = [];
+export const DOSSIER_TABS: readonly DossierTab[] = [thietKe];
 
 export function tabsChoVai(vaiTro: string[], ds: readonly AppFeature[] = FEATURES): AppFeature[] {
   return ds.filter((f) => f.hienThi(vaiTro)).sort((a, b) => a.thuTu - b.thuTu);
