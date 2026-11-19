@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Fragment route dùng chung cho Track A. Không chứa route cụ thể;
+# route nghiệp vụ nằm trong planning.yaml và acceptance.yaml.
+
+routes: []
