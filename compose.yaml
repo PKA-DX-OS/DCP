@@ -246,7 +246,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-files
     restart: unless-stopped
     profiles: [core]
@@ -289,7 +289,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-softhsm-init
     restart: "no"
     profiles: [core]
@@ -310,7 +310,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-doc-sign
     restart: unless-stopped
     profiles: [core]
@@ -365,7 +365,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-flow
     restart: unless-stopped
     profiles: [core]
@@ -406,7 +406,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-ingest
     restart: unless-stopped
     profiles: [core]
@@ -443,7 +443,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-ngsi-ld
     restart: unless-stopped
     profiles: [core]
@@ -479,7 +479,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-audit
     restart: unless-stopped
     profiles: [core]
@@ -518,7 +518,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-outbox-relay
     restart: unless-stopped
     profiles: [core]
@@ -559,7 +559,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-metrics-api
     restart: unless-stopped
     profiles: [core]
@@ -595,7 +595,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-export-warm
     restart: unless-stopped
     profiles: [core]
@@ -631,7 +631,7 @@ services:
     build:
       context: ./apps/cap-phep/web
       dockerfile: Dockerfile
-    image: dxos/cap-phep-web:1.1.0
+    image: dxos/cap-phep-web:1.0
     container_name: dxos-main-web
     restart: unless-stopped
     profiles: [core]
@@ -649,7 +649,7 @@ services:
     build:
       context: ./apps/bang-dieu-hanh/web
       dockerfile: Dockerfile
-    image: dxos/bang-dieu-hanh-web:1.1.0
+    image: dxos/bang-dieu-hanh-web:1.0
     container_name: dxos-bang-dieu-hanh-web
     restart: unless-stopped
     profiles: [core]
@@ -712,7 +712,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.1.0
+    image: dxos/services:1.0
     container_name: dxos-assistant
     restart: unless-stopped
     profiles: [core, ai]
@@ -748,7 +748,7 @@ services:
     build:
       context: .
       dockerfile: tools/Dockerfile
-    image: dxos/tools:1.1.0
+    image: dxos/tools:1.0
     container_name: dxos-sensor-sim
     restart: unless-stopped
     profiles: [sim]
@@ -771,7 +771,7 @@ services:
     build:
       context: .
       dockerfile: tools/Dockerfile
-    image: dxos/tools:1.1.0
+    image: dxos/tools:1.0
     profiles: [tools, gitops]
     networks:
       - edge

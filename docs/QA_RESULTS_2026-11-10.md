@@ -11,7 +11,7 @@ Cách chạy từng bộ test xem [install.md](install.md#6-kiểm-thử-sau-cà
 ## 1. Lần chạy 18/11/2026: kiểm tra tĩnh và test không cần stack
 
 - **Mã:** nhánh `feat/duyanh`, các commit C11–C15 đặt trên `develop` f20196f (chưa đẩy lên GitHub tại thời điểm chạy).
-  Phiên bản image trong `compose.yaml`: `1.1.0`.
+  Phiên bản image trong `compose.yaml`: `1.0`.
 - **Môi trường:** Linux 6.18 x86_64 (container phát triển, không có Docker), Python 3.13.17,
   pytest 9.2.0, pytest-asyncio 1.5.0, ruff 0.17.5, reuse 6.3.0, Node 22.23.4, npm 10.9.9,
   vitest 3.2.7, Playwright cho Python 1.65.2 (không tải được trình duyệt Chromium trong môi trường

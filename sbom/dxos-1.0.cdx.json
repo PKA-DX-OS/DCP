@@ -1,21 +1,21 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:20931233-1ad1-4fcb-a107-a18abad23f37",
+  "serialNumber": "urn:uuid:b7f077a5-d228-472b-8522-c957514c7a84",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-18T11:08:03.726324+00:00",
+    "timestamp": "2026-11-19T04:57:30.156934+00:00",
     "tools": [
       {
         "vendor": "DX-OS",
         "name": "scripts/sbom.py",
-        "version": "1.1.0"
+        "version": "1.0"
       }
     ],
     "component": {
       "type": "application",
       "name": "dxos-open-core",
-      "version": "1.1.0",
+      "version": "1.0",
       "licenses": [
         {
           "license": {

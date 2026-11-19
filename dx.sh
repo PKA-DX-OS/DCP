@@ -74,9 +74,9 @@ cmd_init() {
   else
     echo "--> Python trên máy thiếu cryptography/pyyaml/httpx; chạy init trong image tools..."
     # Build thẳng bằng docker build: chưa có .env thì docker compose không đọc được compose.yaml
-    run docker build -f tools/Dockerfile -t dxos/tools:1.1.0 .
+    run docker build -f tools/Dockerfile -t dxos/tools:1.0 .
     # Chạy bằng uid/gid của người dùng để .env, secrets/ không thuộc root (Linux, WSL)
-    run docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd):/app" -w /app dxos/tools:1.1.0 scripts/init.py "$@"
+    run docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd):/app" -w /app dxos/tools:1.0 scripts/init.py "$@"
   fi
 }
 
@@ -200,7 +200,7 @@ case "$COMMAND" in
     ;;
   release)
     PY=$(host_python) || PY=python3
-    run "$PY" scripts/release.py --version "${1:-1.1.0}"
+    run "$PY" scripts/release.py --version "${1:-1.0}"
     ;;
   reset)          cmd_reset "$@" ;;
 esac
