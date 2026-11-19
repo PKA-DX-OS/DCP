@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-.PHONY: help init init-demo up down reset logs ps doctor backup restore gitops seed sync-users app-install app-uninstall config build test test-unit test-integration test-e2e check-no-fakes license-check sbom verify
+.PHONY: help init init-demo up down reset logs ps doctor backup restore gitops seed sync-users app-install app-uninstall migrate config build test test-unit test-integration test-e2e check-no-fakes license-check sbom verify
 
 APP ?= cap-phep
 PYTHON ?= python3
@@ -17,7 +17,7 @@ help:
 	@echo "  make down / reset      Dừng (giữ dữ liệu) / xóa toàn bộ dữ liệu (hỏi xác nhận)"
 	@echo "  make doctor / ps / logs"
 	@echo "  make backup / restore / gitops"
-	@echo "  make app-install APP=cap-phep / seed / sync-users"
+	@echo "  make app-install APP=cap-phep / seed / sync-users / migrate"
 	@echo "  make test / test-integration / test-e2e"
 	@echo "  make verify            compose config + no-fakes + license"
 	@echo "Tương đương: ./dx.sh <lệnh>  (./dx.sh help để xem đủ)"
@@ -57,6 +57,9 @@ gitops:
 
 seed:
 	$(DX) seed
+
+migrate:
+	$(PYTHON) scripts/migrate.py
 
 sync-users:
 	$(DX) sync-users
