@@ -1,0 +1,28 @@
+[
+  {
+    "id": "7a1c2e00-0000-4000-8000-000000000301",
+    "ban_ve_id": "7a1c2e00-0000-4000-8000-000000000203",
+    "phien_ban_id": "7a1c2e00-0000-4000-8000-000000000101",
+    "bo_mon": "mep",
+    "nguoi": "Thẩm định viên Lê Văn Bình",
+    "noi_dung": "Thiếu sơ đồ nguyên lý cấp điện tầng 3.",
+    "muc_do": "loi",
+    "trang_thai": "da_xu_ly",
+    "ghi_chu_xu_ly": "Đã bổ sung ở phiên bản 2.",
+    "xu_ly_luc": "2026-11-10T08:32:00+07:00",
+    "created_at": "2026-11-05T10:20:00+07:00"
+  },
+  {
+    "id": "7a1c2e00-0000-4000-8000-000000000302",
+    "ban_ve_id": "7a1c2e00-0000-4000-8000-000000000201",
+    "phien_ban_id": "7a1c2e00-0000-4000-8000-000000000101",
+    "bo_mon": "kien_truc",
+    "nguoi": "Thẩm định viên Lê Văn Bình",
+    "noi_dung": "Nên ghi rõ cao độ sàn mái.",
+    "muc_do": "gop_y",
+    "trang_thai": "mo",
+    "ghi_chu_xu_ly": null,
+    "xu_ly_luc": null,
+    "created_at": "2026-11-05T10:01:00+07:00"
+  }
+]
