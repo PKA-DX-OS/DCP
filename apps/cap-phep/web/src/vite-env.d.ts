@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly VITE_OIDC_REALM?: string;
   /** Liên kết mã nguồn (AGPL-3.0 Mục 13). */
   readonly VITE_SOURCE_URL?: string;
+  /** "1" để build kèm trang demo design system (?tab=design-system). */
+  readonly VITE_DEMO_MODE?: string;
 }
 
 interface ImportMeta {
