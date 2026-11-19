@@ -21,6 +21,8 @@ def test_A05_metric_bo_sung_cho_dashboard():
         "/api/v1/metrics/planning-fail",
         "/api/v1/metrics/acceptance-progress",
         "/api/v1/metrics/on-time?months=6",
+        "/api/v1/metrics/overdue",
+        "/api/v1/metrics/today-tasks",
     ):
         resp = httpx.get(f"{GATEWAY_URL}{path}", headers=h, timeout=20.0)
         assert resp.status_code == 200, f"{path}: {resp.text}"

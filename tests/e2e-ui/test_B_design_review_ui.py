@@ -51,7 +51,7 @@ def test_B_design_review_tab_versions_comments():
             page.locator("#modal-detail-dossier").wait_for(timeout=20000)
             page.get_by_role("button", name="Thiết kế", exact=True).click()
             page.locator("#block-design-review").wait_for(timeout=20000)
-            page.get_by_text("Đủ bộ môn bắt buộc").wait_for(timeout=20000)
+            page.locator("#design-review-summary").get_by_text("Đủ bộ môn bắt buộc", exact=True).wait_for(timeout=20000)
 
             page.get_by_role("tab", name=re.compile("Phiên bản")).click()
             page.locator("#design-review-versions").wait_for(timeout=20000)

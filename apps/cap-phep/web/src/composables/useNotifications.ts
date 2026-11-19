@@ -7,6 +7,14 @@ import { apiJson } from "../api/client";
 import { notify } from "./useToast";
 
 export type TrangThaiKetNoi = "dang_ket_noi" | "da_ket_noi" | "mat_ket_noi";
+export interface ThongBao {
+  id: string;
+  title: string;
+  body: string;
+  link: string | null;
+  read_at: string | null;
+  created_at: string | null;
+}
 
 /**
  * Nhận sự kiện SSE của đúng người dùng và đúng tenant.
@@ -16,6 +24,7 @@ export type TrangThaiKetNoi = "dang_ket_noi" | "da_ket_noi" | "mat_ket_noi";
 export function useNotifications(getUserSub: () => string | undefined) {
   const trangThai = ref<TrangThaiKetNoi>("dang_ket_noi");
   const chuaDoc = ref(0);
+  const danhSach = ref<ThongBao[]>([]);
   let es: EventSource | null = null;
   let lanThu = 0;
   let hen: number | undefined;
@@ -67,16 +76,35 @@ export function useNotifications(getUserSub: () => string | undefined) {
     hen = window.setTimeout(() => void ketNoi(), ms);
   }
 
+  async function taiDanhSach(): Promise<void> {
+    const token = await getValidToken();
+    if (!token) return;
+    try {
+      const r = await apiJson<{ items: ThongBao[]; unread: number }>(
+        "/flow/notifications?limit=20",
+        { token },
+        "Không tải được thông báo",
+      );
+      danhSach.value = r.items || [];
+      chuaDoc.value = Number(r.unread ?? 0);
+    } catch {
+      /* giữ danh sách cũ; SSE vẫn hoạt động */
+    }
+  }
+
   function xuLy(d: any): void {
     const sub = getUserSub();
     if (d?.sub && sub && d.sub !== sub) return;
     chuaDoc.value += 1;
     notify(String(d?.message ?? d?.noi_dung ?? "Có cập nhật hồ sơ"), "tin");
+    void taiDanhSach();
+    window.dispatchEvent(new CustomEvent("dxos:tasks-changed"));
   }
 
   function batDau(): void {
     if (dangChay) return;
     dangChay = true;
+    void taiDanhSach();
     void ketNoi();
   }
 
@@ -87,11 +115,34 @@ export function useNotifications(getUserSub: () => string | undefined) {
     window.clearTimeout(hen);
   }
 
-  /** Đánh dấu đã đọc: đặt lại bộ đếm trên màn hình. */
-  function danhDauDaDoc(): void {
+  /** Đánh dấu tất cả đã đọc trên server và đặt lại bộ đếm. */
+  async function danhDauDaDoc(): Promise<void> {
     chuaDoc.value = 0;
+    danhSach.value = danhSach.value.map((x) => ({ ...x, read_at: x.read_at || new Date().toISOString() }));
+    const token = await getValidToken();
+    if (!token) return;
+    try {
+      await apiJson("/flow/notifications/read-all", { token, method: "POST" }, "Không đánh dấu được thông báo");
+    } catch {
+      /* lần tải sau sẽ đồng bộ lại */
+    }
+  }
+
+  async function danhDauMot(id: string): Promise<void> {
+    const item = danhSach.value.find((x) => x.id === id);
+    if (item && !item.read_at) {
+      item.read_at = new Date().toISOString();
+      chuaDoc.value = Math.max(0, chuaDoc.value - 1);
+    }
+    const token = await getValidToken();
+    if (!token) return;
+    try {
+      await apiJson(`/flow/notifications/${encodeURIComponent(id)}/read`, { token, method: "POST" }, "Không đánh dấu được thông báo");
+    } catch {
+      /* lần tải sau sẽ đồng bộ lại */
+    }
   }
 
   onBeforeUnmount(dungLai);
-  return { trangThai, chuaDoc, batDau, dungLai, danhDauDaDoc };
+  return { trangThai, chuaDoc, danhSach, batDau, dungLai, danhDauDaDoc, danhDauMot, taiDanhSach };
 }

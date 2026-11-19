@@ -1570,6 +1570,104 @@ async def notify_sse(tenant: str, payload: Dict[str, Any]):
             logger.debug(f"Lỗi gửi tin SSE tới client: {e}")
 
 
+@app.get("/api/v1/flow/notifications")
+async def list_notifications(
+    limit: int = Query(default=20, ge=1, le=100),
+    authorization: str = Header(...),
+):
+    """Thông báo của người dùng hiện tại (B-UX-04)."""
+    claims = verify_jwt_token(authorization)
+    pool = await get_db_pool()
+    if not pool:
+        raise HTTPException(status_code=503, detail={"loi": "Cơ sở dữ liệu tạm thời không sẵn sàng"})
+    username = getattr(claims, "preferred_username", None) or ""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, title, body, link, read_at, created_at
+            FROM core.notifications
+            WHERE tenant = $1
+              AND (user_sub = $2 OR ($3 <> '' AND user_sub = $3))
+            ORDER BY created_at DESC
+            LIMIT $4
+            """,
+            claims.tenant,
+            str(claims.sub),
+            username,
+            limit,
+        )
+        unread = await conn.fetchval(
+            """
+            SELECT count(*) FROM core.notifications
+            WHERE tenant = $1 AND read_at IS NULL
+              AND (user_sub = $2 OR ($3 <> '' AND user_sub = $3))
+            """,
+            claims.tenant,
+            str(claims.sub),
+            username,
+        )
+    return {
+        "items": [
+            {
+                "id": str(r["id"]),
+                "title": r["title"],
+                "body": r["body"],
+                "link": r["link"],
+                "read_at": r["read_at"].isoformat() if r["read_at"] else None,
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            }
+            for r in rows
+        ],
+        "unread": int(unread or 0),
+    }
+
+
+@app.post("/api/v1/flow/notifications/read-all")
+async def mark_all_notifications_read(authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    pool = await get_db_pool()
+    if not pool:
+        raise HTTPException(status_code=503, detail={"loi": "Cơ sở dữ liệu tạm thời không sẵn sàng"})
+    username = getattr(claims, "preferred_username", None) or ""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE core.notifications SET read_at = now()
+            WHERE tenant = $1 AND read_at IS NULL
+              AND (user_sub = $2 OR ($3 <> '' AND user_sub = $3))
+            """,
+            claims.tenant,
+            str(claims.sub),
+            username,
+        )
+    return {"status": "ok"}
+
+
+@app.post("/api/v1/flow/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, authorization: str = Header(...)):
+    claims = verify_jwt_token(authorization)
+    pool = await get_db_pool()
+    if not pool:
+        raise HTTPException(status_code=503, detail={"loi": "Cơ sở dữ liệu tạm thời không sẵn sàng"})
+    username = getattr(claims, "preferred_username", None) or ""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE core.notifications SET read_at = now()
+            WHERE id = $1::uuid AND tenant = $2
+              AND (user_sub = $3 OR ($4 <> '' AND user_sub = $4))
+            RETURNING id
+            """,
+            notification_id,
+            claims.tenant,
+            str(claims.sub),
+            username,
+        )
+    if row is None:
+        raise HTTPException(status_code=404, detail={"loi": "Không tìm thấy thông báo"})
+    return {"status": "ok", "id": str(row["id"])}
+
+
 @app.post("/api/v1/events/ticket")
 async def create_sse_ticket(
     authorization: Optional[str] = Header(None),

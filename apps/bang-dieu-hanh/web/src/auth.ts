@@ -80,5 +80,10 @@ export function readRoles(accessToken: string | null | undefined): string[] {
 
 /** Chỉ lãnh đạo hoặc quản trị nền tảng mới được xem bảng điều hành. */
 export function canViewDashboard(roles: string[]): boolean {
-  return roles.includes("app:cap-phep:lanh-dao") || roles.includes("dx:platform-admin");
+  return (
+    roles.includes("app:cap-phep:lanh-dao") ||
+    roles.includes("dx:platform-admin") ||
+    roles.includes("dx:tenant-admin") ||
+    roles.includes("dx:auditor")
+  );
 }
