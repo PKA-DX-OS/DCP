@@ -14,6 +14,17 @@ PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXCLUDED = {"core/keycloak", "core/nats"}
+# Track A (kế hoạch cải thiện toàn diện, mục 4 + 10.4) sở hữu các tệp migration
+# và dịch vụ miền xây dựng. Đây là biên giới app-tier được khai báo, không phải
+# logic nghiệp vụ len vào lõi generic.
+EXCLUDED_PREFIXES = (
+    "core/legal/",
+    "core/postgres/10-planning-schema.sql",
+    "core/postgres/11-acceptance-schema.sql",
+    "core/postgres/12-legal-backend-schema.sql",
+    "core/postgres/13-construction-seed.sql",
+    "services/construction/",
+)
 SUFFIXES = {".py", ".sql", ".yaml", ".yml", ".conf", ".sh", ".json", ".toml", ".ts", ".js"}
 
 
@@ -24,6 +35,8 @@ def _files():
             if not p.is_file() or p.suffix not in SUFFIXES:
                 continue
             if any(rel.startswith(e + "/") for e in EXCLUDED) or "__pycache__" in rel:
+                continue
+            if any(rel.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
                 continue
             yield rel, p
 
