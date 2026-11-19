@@ -25,6 +25,7 @@ $Help = [ordered]@{
     "restore"        = "restore [--list|--chi-kiem|--id ID] [--yes]  Phuc hoi tu ban sao luu (kiem ma bam truoc khi ghi)"
     "app-install"    = "app-install [app]        Cai hoac nang cap goi ung dung (mac dinh cap-phep)"
     "app-uninstall"  = "app-uninstall [app]      Go goi ung dung (xoa schema cua app, can --yes)"
+    "migrate"        = "migrate [--status|--dry-run] Chay migration PostgreSQL loi tren DB dang chay"
     "seed"           = "seed [tham so seed.py]   Nap du lieu mau va tai khoan demo"
     "sync-users"     = "sync-users               Dong bo nguoi dung Keycloak sang core.users_directory"
     "bao-init"       = "bao-init                 Khoi tao OpenBao (Shamir 5/3) va khoa ky doc-sign"
@@ -192,6 +193,11 @@ switch ($Command) {
         Invoke-Tools @("scripts/app_manager.py", "uninstall", $app)
     }
     "seed"           { Assert-Env; Invoke-Tools (@("apps/cap-phep/seed/seed.py") + $Rest) }
+    "migrate"        {
+        $py = Get-HostPython
+        if (-not $py) { $py = "python" }
+        Invoke-Step $py (@("scripts/migrate.py") + $Rest)
+    }
     "sync-users"     { Assert-Env; Invoke-Tools @("scripts/sync_users.py") }
     "bao-init"       { Assert-Env; Invoke-Tools @("scripts/bao_ops.py", "init") }
     "bao-unseal"     { Assert-Env; Invoke-Tools @("scripts/bao_ops.py", "unseal") }
