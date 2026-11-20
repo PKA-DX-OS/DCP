@@ -418,6 +418,7 @@ defineExpose({ taiViec });
             <div class="flex flex-wrap items-center gap-2">
               <span class="tt tt-lam">{{ formatStatus(selectedDossier.trang_thai || "") || "Đang xử lý" }}</span>
               <span v-if="selectedDossier.buoc" class="text-[12.5px] text-phu">Bước: {{ tenBuoc(selectedDossier.buoc) }}</span>
+              <button type="button" class="btn btn-sm btn-chinh" @click="moHoSoDayDu">Mở hồ sơ đầy đủ</button>
             </div>
           </div>
 
@@ -535,7 +536,6 @@ defineExpose({ taiViec });
           </div>
 
           <div class="mt-5 flex flex-wrap gap-2">
-            <button class="btn" @click="moHoSoDayDu">Mở hồ sơ đầy đủ</button>
             <button
               v-if="selectedTask && actions.laNguoiDuocGiao(selectedTask)"
               class="btn btn-chinh"

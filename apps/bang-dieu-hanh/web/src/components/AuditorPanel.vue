@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { apiDownload, apiGet, luuBlob } from "../api";
+import { apiDownload, apiGet, apiPost, luuBlob } from "../api";
 
 interface AuditItem {
   id: number | string;
@@ -35,7 +35,9 @@ interface VerifyResponse {
 const duLieu = ref<AuditResponse | null>(null);
 const xacMinh = ref<VerifyResponse | null>(null);
 const loading = ref(false);
+const sealing = ref(false);
 const error = ref("");
+const thongBao = ref("");
 const locEntity = ref("");
 const locActor = ref("");
 const locAction = ref("");
@@ -82,6 +84,25 @@ async function xacMinhLai(): Promise<void> {
     error.value = e instanceof Error ? e.message : "Không xác minh được chuỗi";
   }
 }
+async function niemPhong(): Promise<void> {
+  if (!window.confirm("Niêm phong chuỗi kiểm toán hiện tại vào kho WORM? Thao tác này ghi thêm một bản niêm phong, không sửa nhật ký.")) return;
+  sealing.value = true;
+  error.value = "";
+  thongBao.value = "";
+  try {
+    const kq = await apiPost<{ status: string; last_audit_id: number; head_hash: string; object_key: string }>(
+      "/audit/seal",
+      {},
+    );
+    thongBao.value = `Đã niêm phong đến bản ghi ${kq.last_audit_id}, head ${kq.head_hash.slice(0, 12)}…`;
+    await tai();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Không niêm phong được chuỗi kiểm toán";
+  } finally {
+    sealing.value = false;
+  }
+}
+
 async function xuatExcel(): Promise<void> {
   try {
     luuBlob(await apiDownload("/export/audit.xlsx"), `audit-${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -130,6 +151,9 @@ onMounted(tai);
         </span>
         <button class="rounded border px-3 py-1 text-sm" :disabled="loading" @click="tai">Tải lại</button>
         <button class="rounded border px-3 py-1 text-sm" @click="xacMinhLai">Xác minh</button>
+        <button class="rounded border px-3 py-1 text-sm" :disabled="sealing" @click="niemPhong">
+          {{ sealing ? "Đang niêm phong…" : "Niêm phong" }}
+        </button>
         <button class="rounded border px-3 py-1 text-sm" @click="xuatCsv">Xuất CSV</button>
         <button class="rounded bg-slate-800 px-3 py-1 text-sm text-white" @click="xuatExcel">Xuất Excel</button>
       </div>
@@ -157,6 +181,10 @@ onMounted(tai);
         Head hash: <code>{{ xacMinh?.head_hash || "—" }}</code> · {{ duLieu?.count ?? 0 }} bản ghi gần nhất
       </p>
     </div>
+
+    <p v-if="thongBao" class="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100">
+      {{ thongBao }}
+    </p>
 
     <div v-if="loading" class="kinh animate-pulse space-y-3 p-4 shadow" role="status" aria-busy="true">
       <span class="sr-only">Đang tải nhật ký</span>

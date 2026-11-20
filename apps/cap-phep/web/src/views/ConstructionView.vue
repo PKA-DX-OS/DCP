@@ -22,6 +22,7 @@ const loi = ref("");
 const quyenLapPhieu = ref(false);
 const chon = ref<string | null>(null);
 const dangGuiCamBien = ref<string | null>(null);
+const nguonLoc = ref<"tat-ca" | "cam_bien" | "chu_dong">("tat-ca");
 
 function coCanhBao(c: any): boolean {
   const a = c?.canh_bao_gan_nhat;
@@ -34,6 +35,10 @@ function tenChiSo(value: string): string {
 }
 
 const phieuCuaChon = computed(() => phieu.value.filter((p) => p.cong_trinh_id === chon.value));
+const phieuLoc = computed(() =>
+  phieu.value.filter((p) => nguonLoc.value === "tat-ca" || p.nguon === nguonLoc.value),
+);
+const soCanhBaoCamBien = computed(() => phieu.value.filter((p) => p.nguon === "cam_bien").length);
 
 async function taiDuLieu(): Promise<void> {
   dangTai.value = true;
@@ -111,8 +116,15 @@ onMounted(async () => {
     <template v-else>
     <section class="mt-6" aria-labelledby="tieu-de-phieu-kiem-tra">
       <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id="tieu-de-phieu-kiem-tra" class="text-[15px] font-semibold m-0">Phiếu kiểm tra hiện trường</h3>
-        <span class="goi-y">{{ phieu.length }} phiếu</span>
+        <div>
+          <h3 id="tieu-de-phieu-kiem-tra" class="text-[15px] font-semibold m-0">Phiếu kiểm tra hiện trường</h3>
+          <p class="m-0 mt-1 text-[12.5px] text-phu">{{ phieu.length }} phiếu · {{ soCanhBaoCamBien }} cảnh báo cảm biến</p>
+        </div>
+        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Lọc nguồn phiếu kiểm tra">
+          <button type="button" class="btn btn-sm" :class="nguonLoc === 'tat-ca' && 'btn-chinh'" @click="nguonLoc = 'tat-ca'">Tất cả</button>
+          <button type="button" class="btn btn-sm" :class="nguonLoc === 'cam_bien' && 'btn-chinh'" @click="nguonLoc = 'cam_bien'">Cảnh báo cảm biến</button>
+          <button type="button" class="btn btn-sm" :class="nguonLoc === 'chu_dong' && 'btn-chinh'" @click="nguonLoc = 'chu_dong'">Kiểm tra chủ động</button>
+        </div>
       </div>
       <div class="the overflow-hidden">
         <div class="overflow-x-auto">
@@ -129,7 +141,7 @@ onMounted(async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="p in phieu" :key="p.id">
+              <tr v-for="p in phieuLoc" :key="p.id">
                 <td class="whitespace-nowrap font-medium">{{ p.ma_cong_trinh || "—" }}</td>
                 <td class="max-w-[240px]">{{ p.dia_chi || "—" }}</td>
                 <td class="whitespace-nowrap">{{ p.nguon === "cam_bien" ? "Cảnh báo cảm biến" : "Kiểm tra chủ động" }}</td>
@@ -145,8 +157,10 @@ onMounted(async () => {
                 </td>
                 <td class="whitespace-nowrap text-phu">{{ p.created_at ? new Date(p.created_at).toLocaleString("vi-VN") : "—" }}</td>
               </tr>
-              <tr v-if="!phieu.length">
-                <td colspan="7" class="py-6 text-center text-phu">Chưa có phiếu kiểm tra nào.</td>
+              <tr v-if="!phieuLoc.length">
+                <td colspan="7" class="py-6 text-center text-phu">
+                  {{ nguonLoc === "tat-ca" ? "Chưa có phiếu kiểm tra nào." : "Không có phiếu thuộc nguồn đang lọc." }}
+                </td>
               </tr>
             </tbody>
           </table>

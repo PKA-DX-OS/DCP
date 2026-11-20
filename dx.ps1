@@ -127,6 +127,10 @@ function Invoke-Up {
     Invoke-Step "docker" @("compose", "restart", "postgrest")
     Write-Host "--> Kiem tra OpenBao..."
     Confirm-OpenBao
+    Write-Host "--> Chay migration PostgreSQL loi..."
+    $pyMigrate = Get-HostPython
+    if (-not $pyMigrate) { $pyMigrate = "python" }
+    Invoke-Step $pyMigrate @("scripts/migrate.py")
     Write-Host "--> Cai/nang cap goi ung dung cap-phep..."
     Invoke-Tools @("scripts/app_manager.py", "install", "cap-phep")
     if ((-not (Test-Path "secrets\demo-accounts.txt")) -and (Test-Demo)) {

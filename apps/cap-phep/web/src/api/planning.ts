@@ -29,10 +29,6 @@ export async function checkPlanning(token: string, body: PlanningCheckBody): Pro
   return apiJson("/planning/check", { token, method: "POST", body }, "Lỗi kiểm tra quy hoạch");
 }
 
-export async function fetchLegalCitations(token: string, topic: string): Promise<any[]> {
-  return apiJson<any[]>(`/planning/legal/citations?topic=${encodeURIComponent(topic)}`, { token }, "Lỗi tải trích dẫn pháp lý");
-}
-
 export async function askAssistant(token: string, question: string): Promise<any> {
   return apiJson("/assistant/ask", { token, method: "POST", body: { question, app: "cap-phep" } }, "Lỗi hỏi trợ lý");
 }

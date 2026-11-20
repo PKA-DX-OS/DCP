@@ -14,6 +14,7 @@ import LineChart from "./components/LineChart.vue";
 import BarChart from "./components/BarChart.vue";
 import AuditorPanel from "./components/AuditorPanel.vue";
 import TenantAdminPanel from "./components/TenantAdminPanel.vue";
+import DsarPanel from "./components/DsarPanel.vue";
 import LogoMark from "./components/LogoMark.vue";
 
 const { cheDo } = useTheme();
@@ -86,7 +87,7 @@ interface DanhSachHoSo {
 
 const KEY_FILTER = "dxos-bdh-filter";
 const APP_CODE = "cap-phep";
-type Tab = "chi-so" | "tro-ly" | "kiem-toan" | "quan-tri";
+type Tab = "chi-so" | "tro-ly" | "du-lieu-ca-nhan" | "kiem-toan" | "quan-tri";
 
 type AuthState = "dang_kiem_tra" | "chua_dang_nhap" | "khong_quyen" | "ok";
 const auth = ref<AuthState>("dang_kiem_tra");
@@ -112,6 +113,11 @@ const laKiemToan = computed(() =>
 );
 const laQuanTri = computed(() =>
   vaiTro.value.some((r) => ["dx:tenant-admin", "dx:platform-admin"].includes(r)),
+);
+const laDsar = computed(() =>
+  vaiTro.value.some((r) =>
+    ["dx:dpo", "dx:tenant-admin", "dx:platform-admin", "app:cap-phep:lanh-dao"].includes(r),
+  ),
 );
 
 // Bộ lọc giữ nguyên khi chuyển tab và khi tải lại trang (sessionStorage)
@@ -545,6 +551,7 @@ function fmtDate(iso?: string): string {
       <nav v-if="auth === 'ok'" class="relative mx-auto flex h-[46px] max-w-[1320px] gap-7 overflow-x-auto px-4 sm:px-6" aria-label="Điều hướng bảng điều hành">
         <button type="button" class="tab-chinh" :class="tab === 'chi-so' && 'tab-dang-mo'" :aria-current="tab === 'chi-so' ? 'page' : undefined" @click="tab = 'chi-so'">Chỉ số điều hành</button>
         <button type="button" class="tab-chinh" :class="tab === 'tro-ly' && 'tab-dang-mo'" :aria-current="tab === 'tro-ly' ? 'page' : undefined" @click="tab = 'tro-ly'">Hỏi đáp quy định</button>
+        <button v-if="laDsar" type="button" class="tab-chinh" :class="tab === 'du-lieu-ca-nhan' && 'tab-dang-mo'" :aria-current="tab === 'du-lieu-ca-nhan' ? 'page' : undefined" @click="tab = 'du-lieu-ca-nhan'">Dữ liệu cá nhân</button>
         <button v-if="laKiemToan" type="button" class="tab-chinh" :class="tab === 'kiem-toan' && 'tab-dang-mo'" :aria-current="tab === 'kiem-toan' ? 'page' : undefined" @click="tab = 'kiem-toan'">Kiểm toán</button>
         <button v-if="laQuanTri" type="button" class="tab-chinh" :class="tab === 'quan-tri' && 'tab-dang-mo'" :aria-current="tab === 'quan-tri' ? 'page' : undefined" @click="tab = 'quan-tri'">Quản trị</button>
       </nav>
@@ -859,6 +866,11 @@ function fmtDate(iso?: string): string {
       <div v-else class="rounded-lg kinh p-4 text-sm chu-phu shadow">
         Chào bạn. Hãy chọn một câu hỏi gợi ý hoặc nhập câu hỏi về cấp phép xây dựng.
       </div>
+    </section>
+
+    <!-- Tab Dữ liệu cá nhân (DSAR: lãnh đạo / quản trị / DPO) -->
+    <section v-if="laDsar" v-show="tab === 'du-lieu-ca-nhan'">
+      <DsarPanel />
     </section>
 
     <!-- Tab Kiểm toán (chỉ dx:auditor / quản trị) -->

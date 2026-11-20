@@ -91,7 +91,27 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             <div class="flex flex-wrap gap-2 mt-4">
               <a :href="'/kiem-tra/' + permitInfo.ma_cong_khai" target="_blank" rel="noopener" class="btn btn-sm">Mở trang tra cứu</a>
               <button type="button" id="btn-download-permit" class="btn btn-sm btn-chinh" @click="downloadPermit">Tải giấy phép (PDF)</button>
+              <button
+                v-if="laLanhDao && permitInfo.trang_thai === 'valid' && permitDocId"
+                type="button"
+                class="btn btn-sm text-son"
+                @click="hienThuHoi = !hienThuHoi"
+              >
+                Thu hồi giấy phép
+              </button>
             </div>
+            <form v-if="hienThuHoi" class="mt-3 rounded-[12px] border border-vien-nhat p-2" @submit.prevent="thuHoiGiayPhep">
+              <label class="block">
+                <span class="nhan">Lý do thu hồi (bắt buộc)</span>
+                <input v-model="lyDoThuHoi" class="o w-full" required placeholder="Ví dụ: phát hiện sai lệch thông tin cấp phép" />
+              </label>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-sm text-son" :disabled="dangThuHoi || !lyDoThuHoi.trim()">
+                  {{ dangThuHoi ? "Đang thu hồi…" : "Xác nhận thu hồi" }}
+                </button>
+                <button type="button" class="btn btn-sm" @click="hienThuHoi = false">Hủy</button>
+              </div>
+            </form>
           </template>
         </section>
 
@@ -109,6 +129,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 <span :class="['tt', docTone(d)]">{{ docStatusLabel(d) }}</span>
               </div>
               <p v-if="d.trang_thai_kiem_tra === 'khong_dat' && d.ly_do" class="text-son text-[13px] mt-1 mb-0">Lý do: {{ d.ly_do }}</p>
+              <div v-if="d.file_id && (d.mime === 'application/pdf' || String(d.ten_file || '').toLowerCase().endsWith('.pdf'))" class="mt-2">
+                <button type="button" class="btn btn-sm" :disabled="dangXemTruoc === d.id" @click="xemTruocTep(d)">
+                  {{ dangXemTruoc === d.id ? "Đang tải…" : "Xem trước PDF" }}
+                </button>
+              </div>
               <div v-if="laCanBo && userToken" class="mt-2 flex flex-wrap items-center gap-2">
                 <span class="goi-y">Đánh giá giấy tờ:</span>
                 <button type="button" class="btn btn-sm" :disabled="dangLuuTep === d.id" @click="danhGiaTep(d, 'dat')">Đạt</button>
@@ -200,11 +225,22 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         <button type="button" id="btn-close-modal-detail" class="btn" @click="$emit('close')">Đóng</button>
       </div>
     </div>
+
+    <div v-if="previewUrl" class="fixed inset-0 z-[90] flex flex-col bg-black/70 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Xem trước tệp PDF">
+      <div class="mx-auto flex w-full max-w-[1000px] items-center justify-between gap-3 rounded-t-[14px] bg-white px-4 py-2 text-slate-900">
+        <b class="min-w-0 truncate text-[13.5px]">{{ previewName }}</b>
+        <div class="flex gap-2">
+          <a :href="previewUrl" target="_blank" rel="noopener" class="btn btn-sm">Mở tab mới</a>
+          <button type="button" class="btn btn-sm" @click="dongXemTruoc">Đóng</button>
+        </div>
+      </div>
+      <iframe :src="previewUrl" title="Xem trước tệp PDF" class="mx-auto h-full w-full max-w-[1000px] rounded-b-[14px] bg-white"></iframe>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import IconX from "./IconX.vue";
 import { notify } from "../composables/useToast";
 import { useModal } from "../composables/useModal";
@@ -215,6 +251,7 @@ import DossierWarnings from "./DossierWarnings.vue";
 import DossierLegalPanel from "./DossierLegalPanel.vue";
 import { readRoles } from "../auth";
 import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo, reviewDossierFile } from "../api";
+import { revokeSignedDocument } from "../api/legal";
 import { API_BASE } from "../config";
 import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, tenVai, ngayNgan, ngayGio } from "../utils/labels";
 import type { HoSo } from "../types";
@@ -265,6 +302,7 @@ const VAI_KIEM_TRA = [
 ];
 const laCanBo = computed(() => readRoles(props.userToken).some((r) => VAI_CAN_BO.includes(r)));
 const coTheKiemTra = computed(() => readRoles(props.userToken).some((r) => VAI_KIEM_TRA.includes(r)));
+const laLanhDao = computed(() => readRoles(props.userToken).includes("app:cap-phep:lanh-dao"));
 const featureCtx = useOptionalFeatureContext();
 const tabMoRong = computed(() => dossierTabsChoVai(featureCtx?.vaiTro.value ?? [], props.dossier));
 const MUC = computed(() =>
@@ -296,12 +334,22 @@ const viTriBuoc = computed(() => {
 
 const permitInfo = ref<any>(null);
 const loadingPermit = ref(false);
+const hienThuHoi = ref(false);
+const lyDoThuHoi = ref("");
+const dangThuHoi = ref(false);
 const isPades = computed(() => String(permitInfo.value?.thuat_toan || "").startsWith("PAdES"));
+const permitDocId = computed(() => {
+  const match = String(permitInfo.value?.file_url || "").match(/\/docs\/([^/]+)\/download/);
+  return match?.[1] || "";
+});
 const docs = ref<any[]>([]);
 const loadingDocs = ref(false);
 const dangDanhGia = ref("");
 const lyDoTep = ref("");
 const dangLuuTep = ref("");
+const previewUrl = ref("");
+const previewName = ref("");
+const dangXemTruoc = ref("");
 
 // Trạng thái kiểm tra từng giấy tờ do cán bộ đánh giá (đạt / không đạt / cách ly)
 function docStatusLabel(d: any): string {
@@ -359,6 +407,33 @@ async function danhGiaTep(d: any, trangThai: "dat" | "khong_dat"): Promise<void>
     dangLuuTep.value = "";
   }
 }
+async function xemTruocTep(d: any): Promise<void> {
+  if (!props.userToken || !d.file_id) return;
+  dangXemTruoc.value = d.id;
+  try {
+    const blob = await downloadFile(props.userToken, `/files/${encodeURIComponent(d.file_id)}/download`);
+    if (!String(d.mime || "").includes("pdf") && !blob.type.includes("pdf")) {
+      notify("Tệp này không phải PDF nên chưa xem trước được. Hãy tải về để mở.", "canh_bao");
+      return;
+    }
+    dongXemTruoc();
+    previewUrl.value = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+    previewName.value = d.ten_loai || d.loai || "Tệp đính kèm";
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không xem trước được tệp", "loi");
+  } finally {
+    dangXemTruoc.value = "";
+  }
+}
+
+function dongXemTruoc(): void {
+  if (previewUrl.value) window.URL.revokeObjectURL(previewUrl.value);
+  previewUrl.value = "";
+  previewName.value = "";
+}
+
+onBeforeUnmount(dongXemTruoc);
+
 const auditList = ref<any[]>([]);
 const lichSuTheoThoiGian = computed(() =>
   [...auditList.value].sort((a, b) => new Date(a.at || 0).getTime() - new Date(b.at || 0).getTime()),
@@ -395,6 +470,29 @@ async function downloadPermit() {
     setTimeout(() => window.URL.revokeObjectURL(url), 5000);
   } catch (err: any) {
     notify(`Không tải được giấy phép: ${err.message}`, "loi");
+  }
+}
+
+async function thuHoiGiayPhep() {
+  if (!props.userToken || !permitDocId.value) {
+    notify("Không xác định được văn bản cần thu hồi", "loi");
+    return;
+  }
+  if (!lyDoThuHoi.value.trim()) {
+    notify("Nhập lý do thu hồi giấy phép", "canh_bao");
+    return;
+  }
+  dangThuHoi.value = true;
+  try {
+    await revokeSignedDocument(props.userToken, permitDocId.value, lyDoThuHoi.value.trim());
+    permitInfo.value = await fetchPermitInfo(props.userToken, props.dossier.id);
+    hienThuHoi.value = false;
+    lyDoThuHoi.value = "";
+    notify("Đã thu hồi giấy phép và ghi nhận vào nhật ký", "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không thu hồi được giấy phép", "loi");
+  } finally {
+    dangThuHoi.value = false;
   }
 }
 

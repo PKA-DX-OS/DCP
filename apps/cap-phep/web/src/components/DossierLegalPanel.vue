@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 import { computed, onMounted, reactive, ref } from "vue";
 import {
   attachDossierLocation,
+  checkAuthority,
   createArchive,
   createFee,
   createReceipt,
@@ -29,6 +30,14 @@ const props = defineProps<{
 }>();
 
 const authority = ref<any | null>(null);
+const authorityTheoThongTin = ref<any | null>(null);
+const authorityForm = reactive({
+  loai_cong_trinh: "nha_o_rieng_le",
+  cap_cong_trinh: "",
+  doi_tuong: "ho_gia_dinh_ca_nhan",
+  trong_kcn: false,
+  cap_hanh_chinh: "xa",
+});
 const location = ref<any | null>(null);
 const fees = ref<any[]>([]);
 const receipts = ref<any[]>([]);
@@ -131,6 +140,24 @@ async function kiemTraThamQuyen(): Promise<void> {
   try {
     authority.value = await fetchDossierAuthority(props.token, props.dossier.id);
     notify("Đã kiểm tra thẩm quyền hồ sơ", "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không kiểm tra được thẩm quyền", "loi");
+  } finally {
+    saving.value = "";
+  }
+}
+
+async function kiemTraThamQuyenTheoThongTin(): Promise<void> {
+  saving.value = "authority-form";
+  try {
+    authorityTheoThongTin.value = await checkAuthority(props.token, {
+      loai_cong_trinh: authorityForm.loai_cong_trinh,
+      cap_cong_trinh: authorityForm.cap_cong_trinh || null,
+      doi_tuong: authorityForm.doi_tuong,
+      trong_kcn: authorityForm.trong_kcn,
+      cap_hanh_chinh: authorityForm.cap_hanh_chinh || null,
+    });
+    notify("Đã kiểm tra thẩm quyền theo thông tin nhập", "ok");
   } catch (e) {
     notify(e instanceof Error ? e.message : "Không kiểm tra được thẩm quyền", "loi");
   } finally {
@@ -340,6 +367,58 @@ onMounted(tai);
             <p v-if="authority.legal_citation_key" class="m-0 text-phu">Căn cứ: {{ authority.legal_citation_key }}</p>
           </div>
           <p v-else class="mt-2 mb-0 text-phu text-[13px]">Chưa có kết quả kiểm tra thẩm quyền.</p>
+
+          <details class="mt-3 border-t border-vien-nhat pt-2">
+            <summary class="cursor-pointer text-[12.5px] font-medium">Kiểm tra thẩm quyền theo thông tin công trình</summary>
+            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+              <label><span class="nhan">Loại công trình</span>
+                <select v-model="authorityForm.loai_cong_trinh" class="o w-full">
+                  <option value="nha_o_rieng_le">Nhà ở riêng lẻ</option>
+                  <option value="nha_o">Nhà ở</option>
+                  <option value="cong_trinh_cong_cong">Công trình công cộng</option>
+                  <option value="cong_trinh_khac">Công trình khác</option>
+                </select>
+              </label>
+              <label><span class="nhan">Cấp công trình</span>
+                <select v-model="authorityForm.cap_cong_trinh" class="o w-full">
+                  <option value="">Không xác định</option>
+                  <option value="cap_1">Cấp I</option>
+                  <option value="cap_2">Cấp II</option>
+                  <option value="cap_3">Cấp III</option>
+                  <option value="cap_4">Cấp IV</option>
+                </select>
+              </label>
+              <label><span class="nhan">Đối tượng</span>
+                <select v-model="authorityForm.doi_tuong" class="o w-full">
+                  <option value="ho_gia_dinh_ca_nhan">Hộ gia đình, cá nhân</option>
+                  <option value="to_chuc">Tổ chức</option>
+                  <option value="doanh_nghiep">Doanh nghiệp</option>
+                </select>
+              </label>
+              <label><span class="nhan">Cấp hành chính</span>
+                <select v-model="authorityForm.cap_hanh_chinh" class="o w-full">
+                  <option value="xa">Cấp xã</option>
+                  <option value="huyen">Cấp huyện</option>
+                  <option value="tinh">Cấp tỉnh</option>
+                </select>
+              </label>
+              <label class="flex items-center gap-2 sm:col-span-2">
+                <input v-model="authorityForm.trong_kcn" type="checkbox" class="h-4 w-4" />
+                <span class="text-[12.5px]">Công trình nằm trong khu công nghiệp</span>
+              </label>
+            </div>
+            <button type="button" class="btn btn-sm mt-2" :disabled="saving === 'authority-form'" @click="kiemTraThamQuyenTheoThongTin">
+              {{ saving === "authority-form" ? "Đang kiểm tra…" : "Kiểm tra thẩm quyền" }}
+            </button>
+            <div v-if="authorityTheoThongTin" class="mt-2 rounded-[12px] border border-vien-nhat p-2 text-[12.5px]">
+              <span class="tt" :class="authorityTheoThongTin.xac_dinh_duoc ? 'tt-xanh' : 'tt-vang'">
+                {{ authorityTheoThongTin.xac_dinh_duoc ? "Xác định được thẩm quyền" : "Chưa xác định được" }}
+              </span>
+              <p class="m-0 mt-1"><span class="text-phu">Cơ quan cấp:</span> {{ coQuan(authorityTheoThongTin) }}</p>
+              <p class="m-0"><span class="text-phu">Người ký:</span> {{ authorityTheoThongTin.nguoi_ky || "—" }}</p>
+              <p v-if="authorityTheoThongTin.legal_citation_key" class="m-0 text-phu">Căn cứ: {{ authorityTheoThongTin.legal_citation_key }}</p>
+            </div>
+          </details>
         </section>
 
         <section class="the p-3" aria-labelledby="tieu-de-dinh-danh">
