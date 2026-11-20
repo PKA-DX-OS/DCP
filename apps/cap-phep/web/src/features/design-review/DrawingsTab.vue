@@ -58,7 +58,7 @@ function kichThuoc(value?: number | null): string {
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex flex-wrap items-center gap-2">
             <h4 :id="`bo-mon-${n.bo_mon}`" class="m-0 text-ds-md font-semibold text-ds-text">{{ n.ten }}</h4>
-            <Badge :tone="n.bat_buoc ? 'danger' : 'neutral'" size="sm">{{ n.bat_buoc ? "Bắt buộc" : "Tùy chọn" }}</Badge>
+            <Badge :tone="n.bat_buoc ? 'info' : 'neutral'" size="sm">{{ n.bat_buoc ? "Bắt buộc" : "Tùy chọn" }}</Badge>
             <Badge :tone="toneKetQua(ketQuaBoMon(n))" size="sm">{{ nhanKetQua(ketQuaBoMon(n)) }}</Badge>
           </div>
           <span class="text-ds-xs text-ds-muted">{{ n.ban_ve.length }} bản vẽ</span>
