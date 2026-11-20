@@ -25,21 +25,17 @@ describe("KpiCard", () => {
     expect(mount(KpiCard, { props: { label: "x", value: 1, trend: -5 } }).text()).toContain("▼ 5%");
     expect(mount(KpiCard, { props: { label: "x", value: 1, trend: 0 } }).text()).toContain("■ 0%");
   });
-  test("có từ hai điểm thì vẽ sparkline có nhãn cho trình đọc màn hình", () => {
+  test("bố cục KPI cũ không vẽ sparkline", () => {
     const w = mount(KpiCard, { props: { label: "x", value: 3, series: [1, 4, 2] } });
-    const svg = w.get("svg[role='img']");
-    expect(svg.attributes("aria-label")).toBe("Xu hướng gần đây");
-    expect(w.get("polyline").attributes("points").split(" ")).toHaveLength(3);
+    expect(w.find("svg[role='img']").exists()).toBe(false);
   });
   test("bấm thẻ phát select để xem phả hệ", async () => {
     const w = mount(KpiCard, { props: { label: "x", value: 3 } });
     await w.trigger("click");
     expect(w.emitted("select")).toHaveLength(1);
   });
-  test("biểu tượng là hình nét SVG ẩn với trình đọc màn hình, không dùng emoji", () => {
+  test("ô KPI cũ không dùng emoji", () => {
     const w = mount(KpiCard, { props: { label: "x", value: 1, icon: "ho_so_qua_han" } });
-    const icon = w.get("svg[aria-hidden='true']");
-    expect(icon.findAll("path").length).toBeGreaterThan(1);
     expect(w.text()).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 });

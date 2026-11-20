@@ -90,7 +90,7 @@ def so_voi_nen(page, ten: str, che: list, vung=None) -> None:
     if os.getenv("UPDATE_BASELINE") == "1" or not nen.exists():
         BASELINE.mkdir(parents=True, exist_ok=True)
         nen.write_bytes(anh.read_bytes())
-        warnings.warn(f"Đã tạo ảnh nền {nen.relative_to(ROOT)}; kiểm bằng mắt rồi commit ảnh này")
+        warnings.warn(f"Đã tạo ảnh nền {nen.relative_to(ROOT)}; kiểm bằng mắt rồi commit ảnh này", stacklevel=2)
         return
     with Image.open(nen) as a, Image.open(anh) as b:
         tl = ty_le_khac(a, b)
@@ -132,12 +132,23 @@ def test_dashboard(page):
 def test_ban_lam_viec_va_chi_tiet_ho_so(page):
     _dang_nhap(page, "mc.thu")
     page.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    page.get_by_role("button", name="Xem hồ sơ").first.wait_for(timeout=CHO)
-    so_voi_nen(page, "ban-lam-viec", [page.locator("main li"), page.locator("header [aria-label^='Thông báo']")])
-    page.get_by_role("button", name="Xem hồ sơ").first.click()
+    # Bàn làm việc không tự mở hồ sơ (mỗi lần mở được ghi nhật ký truy cập): chọn việc đầu tiên
+    page.locator("aside button").first.click(timeout=CHO)
+    page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.wait_for(timeout=CHO)
+    so_voi_nen(
+        page,
+        "ban-lam-viec",
+        [
+            page.locator("aside button"),
+            page.locator("section dd"),
+            page.locator("section li"),
+            page.locator("header [aria-label^='Thông báo']"),
+        ],
+    )
+    page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     dlg = page.locator("[role='dialog']").first
     expect(dlg).to_be_visible(timeout=CHO)
-    che = [dlg.locator("dd"), dlg.locator("li"), dlg.locator("td"), dlg.locator("h3"), dlg.locator("svg")]
+    che = [dlg.locator("dd"), dlg.locator("li"), dlg.locator("td"), dlg.locator("#detail-ma-ho-so"), dlg.locator("svg")]
     so_voi_nen(page, "chi-tiet-ho-so", che)
     # Nhật ký xem hồ sơ dài thêm sau mỗi lần chạy nên chỉ chụp đúng phần cần so
     so_voi_nen(page, "quy-hoach", che + [page.locator(".leaflet-container")], page.locator("#block-dossier-planning"))

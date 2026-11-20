@@ -48,7 +48,7 @@ def test_BPLAT01_quan_tri_dia_ban_tao_va_xem_nguoi_dung():
         page = ctx.new_page()
         try:
             _dang_nhap(page, "admin", accounts["admin"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_text("Bảng điều hành lãnh đạo").first.wait_for(timeout=20000)
+            page.get_by_role("heading", name="Chỉ số điều hành").wait_for(timeout=20000)
             page.get_by_role("button", name="Quản trị", exact=True).click()
             page.get_by_role("heading", name="Quản trị địa bàn").wait_for(timeout=20000)
             page.get_by_text("phuong-a").first.wait_for(timeout=20000)
@@ -81,7 +81,7 @@ def test_BPLAT01_lanh_dao_khong_thay_tab_quan_tri():
         page = ctx.new_page()
         try:
             _dang_nhap(page, "ld.hoa", accounts["ld.hoa"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_text("Bảng điều hành lãnh đạo").first.wait_for(timeout=20000)
+            page.get_by_role("heading", name="Chỉ số điều hành").wait_for(timeout=20000)
             assert page.get_by_role("button", name="Quản trị", exact=True).count() == 0
         finally:
             ctx.close()

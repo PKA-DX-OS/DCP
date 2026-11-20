@@ -73,9 +73,11 @@ def _axe(page, ten: str) -> list:
     KET_QUA["axe"][ten] = {
         "serious_critical": [f"{v['id']} ({len(v['nodes'])})" for v in nang],
         "khac": [f"{v['id']}:{v['impact']}" for v in res["violations"] if v not in nang],
+        # Ghi phần tử của mọi vi phạm (kể cả mức thấp) để sửa được ngay từ báo cáo
         "chi_tiet": [
-            {"id": v["id"], "target": n.get("target"), "html": (n.get("html") or "")[:200], "ly_do": n.get("failureSummary")}
-            for v in nang for n in v["nodes"][:5]
+            {"id": v["id"], "impact": v["impact"], "target": n.get("target"), "html": (n.get("html") or "")[:200],
+             "ly_do": n.get("failureSummary")}
+            for v in res["violations"] for n in v["nodes"][:5]
         ],
     }
     return nang
@@ -127,7 +129,7 @@ def ghi_ket_qua(trinh_duyet):
         dong.append("")
         chi_tiet = [(k, c) for k, v in KET_QUA["axe"].items() for c in v.get("chi_tiet", [])]
         if chi_tiet:
-            dong += ["Phần tử vi phạm:", ""] + [f"- {k}: `{c['id']}` tại `{c['target']}`" for k, c in chi_tiet] + [""]
+            dong += ["Phần tử vi phạm:", ""] + [f"- {k}: `{c['id']}` ({c.get('impact')}) tại `{c['target']}`" for k, c in chi_tiet] + [""]
     if KET_QUA["hieu_nang"]:
         dong += ["| Trang | DCL (ms) | load (ms) | LCP (ms) | JS+CSS (KB) |", "| :--- | ---: | ---: | ---: | ---: |"]
         dong += [f"| {k} | {v['dcl_ms']} | {v['load_ms']} | {v['lcp_ms']} | {v['js_css_kb']} |" for k, v in KET_QUA["hieu_nang"].items()]
@@ -150,8 +152,9 @@ def test_khoi_dang_nhap_va_ban_lam_viec(ctx, trinh_duyet):
     p = ctx.new_page()
     _dang_nhap(p, "mc.thu")
     p.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    expect(p.get_by_role("button", name="Xem hồ sơ").first).to_be_visible(timeout=CHO)
-    p.get_by_role("button", name="Xem hồ sơ").first.click()
+    p.locator("aside button").first.click(timeout=CHO)
+    expect(p.get_by_role("button", name="Mở hồ sơ đầy đủ").first).to_be_visible(timeout=CHO)
+    p.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     expect(p.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
     KET_QUA["khoi"]["đăng nhập, bàn làm việc, chi tiết hồ sơ"] = "đạt"
 
@@ -180,9 +183,10 @@ def test_axe_ban_lam_viec_va_chi_tiet(ctx):
     p = ctx.new_page()
     _dang_nhap(p, "mc.thu")
     p.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    p.get_by_role("button", name="Xem hồ sơ").first.wait_for(timeout=CHO)
+    p.locator("aside button").first.click(timeout=CHO)
+    p.get_by_role("button", name="Mở hồ sơ đầy đủ").first.wait_for(timeout=CHO)
     loi = _axe(p, "bàn làm việc")
-    p.get_by_role("button", name="Xem hồ sơ").first.click()
+    p.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     p.locator("[role='dialog']").first.wait_for(timeout=CHO)
     loi += _axe(p, "chi tiết hồ sơ (cán bộ)")
     assert loi == [], _mo_ta(loi)

@@ -57,8 +57,8 @@ function kichThuoc(value?: number | null): string {
       <section v-for="n in nhom" :key="n.bo_mon" class="ds-glass p-4" :aria-labelledby="`bo-mon-${n.bo_mon}`">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex flex-wrap items-center gap-2">
-            <h5 :id="`bo-mon-${n.bo_mon}`" class="m-0 text-ds-md font-semibold text-ds-text">{{ n.ten }}</h5>
-            <Badge :tone="n.bat_buoc ? 'danger' : 'neutral'" size="sm">{{ n.bat_buoc ? "Bắt buộc" : "Tùy chọn" }}</Badge>
+            <h4 :id="`bo-mon-${n.bo_mon}`" class="m-0 text-ds-md font-semibold text-ds-text">{{ n.ten }}</h4>
+            <Badge :tone="n.bat_buoc ? 'info' : 'neutral'" size="sm">{{ n.bat_buoc ? "Bắt buộc" : "Tùy chọn" }}</Badge>
             <Badge :tone="toneKetQua(ketQuaBoMon(n))" size="sm">{{ nhanKetQua(ketQuaBoMon(n)) }}</Badge>
           </div>
           <span class="text-ds-xs text-ds-muted">{{ n.ban_ve.length }} bản vẽ</span>
@@ -98,12 +98,9 @@ function kichThuoc(value?: number | null): string {
             </tbody>
           </table>
         </div>
-        <EmptyState
-          v-else
-          class="py-6"
-          :title="n.bat_buoc ? 'Chưa có bản vẽ bắt buộc' : 'Chưa có bản vẽ'"
-          :description="coTheSua ? 'Thêm bản vẽ ở nút phía trên.' : 'Chủ đầu tư chưa nộp bản vẽ cho bộ môn này.'"
-        />
+        <p v-else class="mt-2 rounded-lg border border-dashed border-ds-border bg-ds-surface-2/40 px-3 py-2 text-ds-xs text-ds-muted">
+          {{ coTheSua ? "Chưa có bản vẽ. Thêm bản vẽ ở nút phía trên." : "Chủ đầu tư chưa nộp bản vẽ cho bộ môn này." }}
+        </p>
       </section>
       <EmptyState v-if="!nhom.length" title="Chưa có bộ môn" description="Danh mục bộ môn chưa được nạp." />
     </template>

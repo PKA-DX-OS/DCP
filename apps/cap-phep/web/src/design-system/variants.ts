@@ -50,13 +50,14 @@ export function fieldClasses(size: Size = "md", invalid = false): string {
 }
 
 const TONE: Record<Tone, string> = {
-  neutral: "bg-ds-muted/15 text-ds-muted",
-  brand: "bg-ds-brand/15 text-ds-brand",
-  success: "bg-ds-success/15 text-ds-success",
-  warning: "bg-ds-warning/15 text-ds-warning",
-  danger: "bg-ds-danger/15 text-ds-danger",
-  info: "bg-ds-info/15 text-ds-info",
-  gold: "bg-ds-gold/20 text-ds-gold",
+  // Bảng màu kính + champagne của bản cũ; các lớp nền đã có trong style.css.
+  neutral: "bg-mat-2 text-phu",
+  brand: "bg-cham/15 text-cham",
+  success: "bg-xanh-nen text-xanh",
+  warning: "bg-vang-nen text-vang",
+  danger: "bg-do-nen text-son",
+  info: "bg-lam-nen text-lam",
+  gold: "bg-cham/20 text-cham",
 };
 
 export function badgeClasses(tone: Tone = "neutral", size: "sm" | "md" = "md"): string {

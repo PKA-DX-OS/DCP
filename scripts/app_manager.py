@@ -377,6 +377,17 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                     json.dumps(manifest.break_glass),
                 )
 
+            if manifest.dsar_policies:
+                await conn.execute(
+                    """
+                    INSERT INTO core.app_policies (app_code, policy_type, policy_key, policy_data)
+                    VALUES ($1, 'dsar_policies', 'default', $2::jsonb)
+                    ON CONFLICT (app_code, policy_type, policy_key) DO UPDATE SET policy_data = EXCLUDED.policy_data
+                    """,
+                    app_code,
+                    json.dumps(manifest.dsar_policies),
+                )
+
             for thu_tu, m in enumerate(manifest.metrics, start=1):
                 await conn.execute(
                     """

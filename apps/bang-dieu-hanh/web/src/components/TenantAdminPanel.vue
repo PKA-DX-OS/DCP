@@ -67,6 +67,10 @@ const VAI_HE_THONG = new Set(["default-roles-dxos", "offline_access", "uma_autho
 function vaiHienThi(user: TenantUser): string[] {
   return (user.roles || []).filter((r) => !VAI_HE_THONG.has(r)).sort();
 }
+/** Tên vai dễ đọc (mô tả từ Keycloak); không có thì giữ mã vai. */
+function tenVai(role: string): string {
+  return vaiList.value.find((v) => v.role === role)?.description || role;
+}
 function vaiConLai(user: TenantUser): Vai[] {
   const daCo = new Set(user.roles || []);
   return vaiList.value.filter((v) => !daCo.has(v.role));
@@ -179,8 +183,8 @@ async function doiVai(user: TenantUser, role: string, action: "add" | "remove"):
     vaiChon[user.username] = vaiConLai(user)[0]?.role || "";
     thongBao.value =
       action === "add"
-        ? `Đã gán vai ${role} cho ${user.username}.`
-        : `Đã thu hồi vai ${role} của ${user.username}.`;
+        ? `Đã gán vai ${tenVai(role)} cho ${user.username}.`
+        : `Đã thu hồi vai ${tenVai(role)} của ${user.username}.`;
     await taiCachLy();
   } catch (e) {
     thongBaoLoi(e, "Không đổi được vai");
@@ -231,7 +235,10 @@ onMounted(async () => {
           <span class="text-xs chu-phu">{{ tenants.length }} địa bàn</span>
         </div>
 
-        <p v-if="loading" class="mt-3 text-sm chu-phu" role="status">Đang tải địa bàn…</p>
+        <div v-if="loading" class="mt-3 animate-pulse space-y-2" role="status" aria-busy="true">
+          <span class="sr-only">Đang tải địa bàn</span>
+          <div v-for="i in 3" :key="i" class="h-16 rounded-lg bg-slate-200 dark:bg-slate-700" aria-hidden="true"></div>
+        </div>
         <p v-else-if="!tenants.length" class="mt-3 text-sm chu-phu">Chưa có địa bàn nào.</p>
         <ul v-else class="mt-3 space-y-2">
           <li v-for="t in tenants" :key="t.tenant">
@@ -271,7 +278,7 @@ onMounted(async () => {
               Mã ĐVHC (không bắt buộc)
               <input id="tenant-dvhc" v-model.trim="form.ma_dvhc" class="mt-1 w-full rounded border px-2 py-2" placeholder="vd: 790103" inputmode="numeric" autocomplete="off" />
             </label>
-            <button type="submit" class="min-h-[44px] w-full rounded bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-50" :disabled="!coTheTao">
+            <button type="submit" class="min-h-[44px] w-full rounded bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="!coTheTao">
               {{ dangTao ? "Đang tạo…" : "Tạo địa bàn" }}
             </button>
             <p v-if="form.tenant && !maTenantHopLe" class="text-xs text-rose-700 dark:text-rose-300" role="alert">
@@ -299,7 +306,10 @@ onMounted(async () => {
           </button>
         </div>
 
-        <p v-if="loadingUsers" class="mt-3 text-sm chu-phu" role="status">Đang tải người dùng…</p>
+        <div v-if="loadingUsers" class="mt-3 animate-pulse space-y-3" role="status" aria-busy="true">
+          <span class="sr-only">Đang tải người dùng</span>
+          <div v-for="i in 3" :key="i" class="h-24 rounded-lg bg-slate-200 dark:bg-slate-700" aria-hidden="true"></div>
+        </div>
         <p v-else-if="!users.length" class="mt-3 text-sm chu-phu">Địa bàn chưa có người dùng trong danh mục.</p>
         <ul v-else class="mt-3 space-y-3">
           <li v-for="u in users" :key="u.sub" class="rounded-lg border p-3">
@@ -314,12 +324,12 @@ onMounted(async () => {
             </div>
 
             <div class="mt-2 flex flex-wrap items-center gap-1" aria-label="Vai hiện có">
-              <span v-for="r in vaiHienThi(u)" :key="r" class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs">
-                {{ r }}
+              <span v-for="r in vaiHienThi(u)" :key="r" class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs" :title="r">
+                {{ tenVai(r) }}
                 <button
                   type="button"
                   class="inline-flex h-6 w-6 items-center justify-center rounded-full text-base leading-none hover:bg-rose-100 dark:hover:bg-rose-950"
-                  :aria-label="`Thu hồi vai ${r} của ${u.username}`"
+                  :aria-label="`Thu hồi vai ${tenVai(r)} của ${u.username}`"
                   :disabled="dangDoiVai === `${u.username}:${r}:remove`"
                   @click="doiVai(u, r, 'remove')"
                 >×</button>
@@ -331,7 +341,7 @@ onMounted(async () => {
               <label class="text-xs" :for="`vai-${u.username}`">Gán vai
                 <select :id="`vai-${u.username}`" v-model="vaiChon[u.username]" class="mt-1 block min-h-[44px] rounded border px-2 py-1 text-sm">
                   <option value="">— Chọn vai —</option>
-                  <option v-for="v in vaiConLai(u)" :key="v.role" :value="v.role">{{ v.role }}</option>
+                  <option v-for="v in vaiConLai(u)" :key="v.role" :value="v.role">{{ v.description || v.role }}</option>
                 </select>
               </label>
               <button

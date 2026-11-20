@@ -11,10 +11,10 @@ const CDT = "app:cap-phep:chu-dau-tu";
 describe("tab theo vai (giữ nguyên như trước khi có registry)", () => {
   test.each([
     [[CDT], ["ho-so", "du-lieu"]],
-    [["app:cap-phep:mot-cua"], ["ban-lam-viec", "cong-trinh"]],
-    [["app:cap-phep:tham-dinh"], ["ban-lam-viec", "cong-trinh"]],
-    [["app:cap-phep:trat-tu-xd"], ["ban-lam-viec", "cong-trinh"]],
-    [["app:cap-phep:lanh-dao"], ["ban-lam-viec", "cong-trinh", "truy-cap-khan"]],
+    [["app:cap-phep:mot-cua"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
+    [["app:cap-phep:tham-dinh"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
+    [["app:cap-phep:trat-tu-xd"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
+    [["app:cap-phep:lanh-dao"], ["ban-lam-viec", "cong-trinh", "phap-luat", "truy-cap-khan"]],
     [[], []],
     [["dx:auditor"], []],
   ])("%j -> %j", (vai, kq) => {

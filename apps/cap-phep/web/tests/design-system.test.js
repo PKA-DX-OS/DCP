@@ -118,12 +118,13 @@ describe("token và component", () => {
   const tokens = readFileSync(new URL("tokens.css", DS), "utf8");
   test("theo giao diện kính sẵn có: cùng bảng màu style.css, bề mặt kính có làm mờ", () => {
     const style = readFileSync(new URL("../style.css", DS), "utf8");
-    expect(style).toContain("--c-lam: 96 165 250;");
-    expect(tokens).toContain("--ds-brand: 96 165 250;");
-    expect(tokens).toContain("--ds-success: 134 239 172;");
-    expect(tokens).toMatch(/\.ds-glass \{[^}]*background: var\(--kinh\);[^}]*backdrop-filter: blur/);
+    expect(style).toContain("--c-lam: 37 78 138;");
+    expect(tokens).toContain("--ds-brand: 160 112 30;");
+    expect(tokens).toContain("--ds-success: 24 122 78;");
+    expect(tokens).toMatch(/\.ds-glass \{[^}]*background: var\(--mat\);[^}]*backdrop-filter: blur/);
     expect(tokens).toMatch(/\.ds-hop \{[^}]*background: var\(--mat-noi\);/);
     expect(tokens).toContain("prefers-reduced-transparency");
+    expect(tokens).toContain(":root[data-theme=\"dark\"]");
   });
   test("thang chữ, khoảng cách và bo góc đủ bậc", () => {
     for (const px of [12, 13, 14, 16, 20, 24, 32]) expect(tokens).toContain(`: ${px}px;`);

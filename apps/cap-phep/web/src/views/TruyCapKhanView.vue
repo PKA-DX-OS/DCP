@@ -55,7 +55,7 @@ defineExpose({ tai });
   <section class="space-y-4">
     <div class="flex flex-wrap items-end gap-4">
       <div class="min-w-0">
-        <h2 class="tieu-de-trang">Truy cập khẩn chờ duyệt</h2>
+        <h1 class="tieu-de-trang">Truy cập khẩn chờ duyệt</h1>
         <p class="text-phu mt-1">Cán bộ chưa được giao hồ sơ xin mở trong thời gian ngắn. Người xin không tự duyệt được.</p>
       </div>
       <div class="flex-1"></div>

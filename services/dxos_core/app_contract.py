@@ -78,6 +78,7 @@ class AppManifest(BaseModel):
     flow_policies: Dict[str, Any] = {}
     doc_signers: Dict[str, Any] = {}
     break_glass: Dict[str, Any] = {}
+    dsar_policies: Dict[str, Any] = {}
     document_manifest: Optional[DocumentManifestDef] = None
 
 

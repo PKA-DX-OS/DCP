@@ -49,7 +49,8 @@ def nav(page):
 
 def mo_viec_dau_tien(page) -> None:
     nav(page).get_by_role("button", name="Bàn làm việc", exact=True).click()
-    page.get_by_role("button", name="Xem hồ sơ").first.click(timeout=CHO)
+    page.locator("aside button").first.click(timeout=CHO)
+    page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click(timeout=CHO)
     expect(page.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
 
 
@@ -92,7 +93,7 @@ def test_mot_cua(page):
     mo_viec_dau_tien(page)
     # Hồ sơ mở từ việc của mình có thanh hành động "Việc đang chờ bạn" và phần quy hoạch của cán bộ
     expect(page.locator("#block-dossier-actions")).to_be_visible(timeout=CHO)
-    expect(page.get_by_text(re.compile("^Việc đang chờ bạn"))).to_be_visible()
+    expect(page.locator("#modal-detail-dossier").get_by_text(re.compile("^Việc đang chờ bạn"))).to_be_visible()
     expect(page.locator("#block-dossier-planning")).to_be_attached(timeout=CHO)
 
 
@@ -105,12 +106,13 @@ def test_tham_dinh(page):
     tabs.get_by_role("button", name="Bàn làm việc", exact=True).click()
     expect(page.get_by_role("heading", name="Bàn làm việc")).to_be_visible(timeout=CHO)
     # td.binh chỉ có việc sau khi lãnh đạo phân công (cảnh 4 của demo); dữ liệu mẫu có thể chưa có
-    xem = page.get_by_role("button", name="Xem hồ sơ")
+    viec = page.locator("aside button")
     try:
-        xem.first.wait_for(timeout=5000)
+        viec.first.wait_for(timeout=5000)
     except sync_api.TimeoutError:
         pytest.skip("td.binh chưa được phân công hồ sơ nào: diễn cảnh 4 (ld.hoa phân công) rồi chạy lại")
-    xem.first.click()
+    viec.first.click()
+    page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     expect(page.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
     # Thẩm định viên thấy phần quy hoạch có nút kiểm tra
     expect(page.locator("#block-dossier-planning")).to_be_visible(timeout=CHO)
@@ -126,9 +128,9 @@ def test_lanh_dao(page):
     expect(page.get_by_role("heading", name="Truy cập khẩn chờ duyệt")).to_be_visible(timeout=CHO)
     # Bảng điều hành dùng chung phiên đăng nhập
     page.goto(f"{BASE_URL}/dieu-hanh/", wait_until="domcontentloaded")
-    expect(page.get_by_text("Bảng điều hành lãnh đạo").first).to_be_visible(timeout=CHO)
-    expect(page.get_by_role("button", name="Chỉ số", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Trợ lý", exact=True)).to_be_visible()
+    expect(page.get_by_text("Chỉ số điều hành").first).to_be_visible(timeout=CHO)
+    expect(page.get_by_role("button", name="Chỉ số điều hành", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Hỏi đáp quy định", exact=True)).to_be_visible()
 
 
 def test_trat_tu_xay_dung(page):

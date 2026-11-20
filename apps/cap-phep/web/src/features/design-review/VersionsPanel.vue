@@ -59,7 +59,7 @@ function ngay(value?: string | null): string {
       </div>
 
       <div v-if="soSanh && hienTai && truoc" class="rounded-ds-sm border border-ds-border bg-ds-surface-2/60 p-3">
-        <h5 class="m-0 text-ds-sm font-semibold text-ds-text">v{{ truoc.so_phien_ban }} → v{{ hienTai.so_phien_ban }}: {{ moTaSoSanh(soSanh) }}</h5>
+        <h4 class="m-0 text-ds-sm font-semibold text-ds-text">v{{ truoc.so_phien_ban }} → v{{ hienTai.so_phien_ban }}: {{ moTaSoSanh(soSanh) }}</h4>
         <ul class="mt-2 list-disc pl-5 text-ds-sm text-ds-text">
           <li v-for="bv in soSanh.them" :key="'them-' + bv.id">Thêm: {{ bv.ten }} ({{ bv.bo_mon }})</li>
           <li v-for="bv in soSanh.bo" :key="'bo-' + bv.id">Bỏ: {{ bv.ten }} ({{ bv.bo_mon }})</li>

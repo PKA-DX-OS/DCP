@@ -27,6 +27,8 @@ async def sync():
             f"  [PASS] Đã đồng bộ {summary['synced_count']}/{summary['total_keycloak_users']} người dùng "
             f"(đã vô hiệu hóa {summary['deactivated_count']} tài khoản không còn tồn tại)."
         )
+        if summary.get("realm_updated"):
+            print(f"  [PASS] Đã cập nhật cài đặt realm theo template: {', '.join(summary['realm_updated'])}.")
     except Exception as e:
         print(f"  [ERROR] Đồng bộ người dùng thất bại: {e}", file=sys.stderr)
         sys.exit(1)

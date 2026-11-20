@@ -4,7 +4,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
 import { computed } from "vue";
-import KpiIcon from "./KpiIcon.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -61,20 +60,31 @@ const shown = computed(() =>
 </script>
 
 <template>
-  <button type="button" class="kinh flex w-full flex-col gap-2 p-4 text-left shadow hover:ring-2 hover:ring-slate-300" :title="hint" @click="$emit('select')">
-    <div class="flex items-center justify-between gap-2">
-      <span class="text-sm chu-phu">{{ label }}</span>
-      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="tones[tone]" aria-hidden="true"><KpiIcon :ten="icon" class="h-[18px] w-[18px]" /></span>
-    </div>
-    <div class="flex items-baseline gap-1">
-      <span class="text-2xl font-semibold">{{ shown }}</span>
-      <span v-if="unit && value !== null" class="text-sm chu-phu">{{ unit }}</span>
-    </div>
-    <div class="flex items-end justify-between gap-2">
-      <span class="text-xs" :class="trendClass">{{ trendText || "—" }}</span>
-      <svg v-if="spark" viewBox="0 0 100 30" class="h-7 w-24" role="img" aria-label="Xu hướng gần đây">
-        <polyline :points="spark" fill="none" stroke="currentColor" stroke-width="2" class="text-sky-600 dark:text-sky-300" />
-      </svg>
-    </div>
+  <button type="button" class="chi-so" :title="hint" @click="$emit('select')">
+    <span class="nhan-nho block min-h-[34px]">{{ label }}</span>
+    <span :class="['so mt-3 block text-[40px] font-semibold leading-[1.05] tracking-[-0.02em]', tone === 'gold' ? 'text-cham' : 'text-chu']">
+      {{ shown }}
+    </span>
+    <span v-if="unit && value !== null" class="mt-2 block text-[13px] text-phu">{{ unit }}</span>
+    <span v-if="trendText" class="mt-1 block text-[12px]" :class="trendClass">{{ trendText }} so với kỳ trước</span>
   </button>
 </template>
+
+
+<style scoped>
+.chi-so {
+  text-align: left;
+  padding: 24px;
+  transition: background 500ms var(--em), box-shadow 500ms var(--em);
+  border: 0;
+  border-right: 1px solid var(--vien-nhat);
+  border-bottom: 1px solid var(--vien-nhat);
+  background: transparent;
+  color: inherit;
+}
+.chi-so:hover {
+  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), var(--sang-mat), transparent 70%), var(--mat-2);
+}
+.chi-so .so { transition: transform 500ms var(--em); }
+.chi-so:hover .so { transform: translateY(-3px); }
+</style>

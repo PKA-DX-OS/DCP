@@ -43,6 +43,10 @@ doc_templates:
 
 object_access:
   ho_so: app_cap_phep_private.can_access_ho_so
+  draft.ho_so: app_cap_phep_private.can_access_ho_so
+
+dsar_policies:
+  approver_roles: ["app:cap-phep:lanh-dao", "dx:tenant-admin", "dx:platform-admin"]
 
 break_glass:
   object_types: ["ho_so"]

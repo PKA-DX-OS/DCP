@@ -153,7 +153,8 @@ async def seal_audit_head(
         storage_client.ensure_buckets()
         storage_client.put_object("worm", seal_key, seal_payload.encode("utf-8"), "application/json")
 
-    async with get_db_connection(claims) as conn:
+    # Ghi bản niêm phong bằng kết nối dịch vụ: web_user chỉ được đọc audit_seal.
+    async with get_db_connection() as conn:
         await conn.execute(
             """
             INSERT INTO core.audit_seal (tenant, last_audit_id, head_hash, object_key)

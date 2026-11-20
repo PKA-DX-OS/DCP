@@ -70,7 +70,8 @@ def test_A_ui_tab_quy_hoach_nghiem_thu_va_action_bar():
             page.get_by_role("button", name="Đăng xuất").wait_for(timeout=20000)
 
             page.get_by_role("button", name="Bàn làm việc", exact=True).click()
-            page.get_by_role("button", name="Xem hồ sơ").first.click()
+            page.locator("aside button").first.click()
+            page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
             page.locator("#modal-detail-dossier").wait_for(timeout=20000)
 
             # Tab quy hoạch và nghiệm thu chỉ hiện cho cán bộ.
