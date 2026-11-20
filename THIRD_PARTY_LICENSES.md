@@ -84,7 +84,9 @@ Dự án tuân thủ nghiêm ngặt quy chế Hội thi Olympic Tin học Sinh v
 | `tailwindcss` | `3.4.17` | Thư viện import | MIT | Có | npm | Tiện ích CSS tạo kiểu giao diện |
 | `vite` | `6.2.0` | Công cụ phát triển | MIT | Có | npm | Công cụ đóng gói ứng dụng |
 | `typescript` | `5.7.3` | Công cụ phát triển | Apache-2.0 | Có | npm | Trình biên dịch TypeScript |
-| `vitest` | `3.0.7` | Công cụ phát triển | MIT | Có | npm | Kiểm thử đơn vị frontend |
+| `vitest` | `3.0.7` | Công cụ phát triển | MIT | Có | npm | Kiểm thử đơn vị frontend (cả hai ứng dụng web) |
+| `@vue/test-utils` | `2.6.0` | Công cụ phát triển | MIT | Có | npm | Gắn component Vue khi kiểm thử |
+| `happy-dom` | `20.14.6` | Công cụ phát triển | MIT | Có | npm | DOM giả lập cho test component |
 | `@playwright/test` | `1.50.1` | Công cụ phát triển | Apache-2.0 | Có | npm | Khung kiểm thử E2E trình duyệt |
 
 ---

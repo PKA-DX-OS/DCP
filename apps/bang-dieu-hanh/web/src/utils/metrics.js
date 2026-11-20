@@ -13,10 +13,30 @@ export const NHAN_CHI_SO = {
   phieu_kiem_tra: "Phiếu kiểm tra hiện trường",
   canh_bao_cong_truong: "Cảnh báo vượt ngưỡng công trường",
   vi_pham: "Vụ vi phạm đã kết luận",
+  ho_so_fail_quy_hoach: "Hồ sơ không đạt quy hoạch",
+  ho_so_dang_nghiem_thu: "Hồ sơ đang nghiệm thu",
+  ty_le_dung_han: "Tỷ lệ cấp phép đúng hạn",
 };
 
-export function nhanChiSo(code) {
-  return NHAN_CHI_SO[code] || code;
+/** Thứ tự thẻ chỉ số: 8 chỉ số điều hành trước, chỉ số quy hoạch/nghiệm thu sau. */
+export const THU_TU_CHI_SO = Object.keys(NHAN_CHI_SO);
+
+export function nhanChiSo(code, ten) {
+  return NHAN_CHI_SO[code] || ten || code;
+}
+
+/** Sắp chỉ số theo THU_TU_CHI_SO; mã chưa biết xếp cuối theo thứ tự API trả về. */
+export function sapXepChiSo(metrics) {
+  const vi = (m) => {
+    const i = THU_TU_CHI_SO.indexOf(m.code);
+    return i < 0 ? THU_TU_CHI_SO.length : i;
+  };
+  return [...(metrics || [])].map((m, i) => ({ m, i })).sort((a, b) => vi(a.m) - vi(b.m) || a.i - b.i).map((x) => x.m);
+}
+
+/** Đơn vị hiển thị gọn: "phần trăm" thành "%". */
+export function donViHienThi(unit) {
+  return unit === "phần trăm" ? "%" : unit || "";
 }
 
 /** Số nguyên có dấu phân cách hàng nghìn kiểu Việt Nam. */

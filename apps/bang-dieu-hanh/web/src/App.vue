@@ -5,7 +5,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles } from "./auth";
 import { ApiError, apiDownload, apiGet, apiPost, luuBlob } from "./api";
-import { formatThoiDiem, nhanChiSo } from "./utils/metrics";
+import { donViHienThi, formatThoiDiem, nhanChiSo, sapXepChiSo } from "./utils/metrics";
 import { renderMarkdown, tenNguon } from "./utils/markdown";
 import { useTheme } from "./composables/useTheme";
 import KpiCard from "./components/KpiCard.vue";
@@ -145,16 +145,6 @@ const todayTasks = ref<DanhSachHoSo | null>(null);
 const dashboardLoading = ref(false);
 const dashboardError = ref("");
 
-const KPI_ICON: Record<string, string> = {
-  ho_so_moi: "📄",
-  ho_so_dang_xu_ly: "⏳",
-  ho_so_qua_han: "⚠️",
-  thoi_gian_xu_ly_tb: "⏱️",
-  truy_cap_tu_choi: "🚫",
-  phieu_kiem_tra: "🔎",
-  canh_bao_cong_truong: "🔔",
-  vi_pham: "⚖️",
-};
 const KPI_TONE: Record<string, "brand" | "success" | "warning" | "danger" | "info" | "gold" | "neutral"> = {
   ho_so_moi: "brand",
   ho_so_dang_xu_ly: "info",
@@ -164,6 +154,9 @@ const KPI_TONE: Record<string, "brand" | "success" | "warning" | "danger" | "inf
   phieu_kiem_tra: "success",
   canh_bao_cong_truong: "warning",
   vi_pham: "danger",
+  ho_so_fail_quy_hoach: "danger",
+  ho_so_dang_nghiem_thu: "info",
+  ty_le_dung_han: "success",
 };
 const TRANG_THAI: Record<string, string> = {
   MOI_TAO: "Mới tạo",
@@ -205,12 +198,13 @@ function xuHuong(series: number[]): number | null {
   return ((nay - truoc) / truoc) * 100;
 }
 const kpiCards = computed(() =>
-  (data.value?.metrics ?? []).slice(0, 8).map((m) => {
+  sapXepChiSo(data.value?.metrics ?? []).map((m: any) => {
     const series = seriesCho(m.code);
     return {
       ...m,
-      label: nhanChiSo(m.code),
-      icon: KPI_ICON[m.code] || "•",
+      label: nhanChiSo(m.code, m.name),
+      unit: donViHienThi(m.unit),
+      icon: m.code,
       tone: KPI_TONE[m.code] || "brand",
       series,
       trend: xuHuong(series),
@@ -521,7 +515,17 @@ function fmtDate(iso?: string): string {
         </label>
       </div>
 
-      <p v-if="loading" class="chu-phu">Đang tải chỉ số...</p>
+      <div v-if="loading" class="grid grid-cols-2 gap-4 md:grid-cols-4" role="status" aria-busy="true">
+        <span class="sr-only">Đang tải chỉ số</span>
+        <div v-for="i in 8" :key="i" class="kinh flex animate-pulse flex-col gap-3 p-4 shadow" aria-hidden="true">
+          <div class="flex items-center justify-between gap-2">
+            <div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div>
+            <div class="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+          </div>
+          <div class="h-7 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div>
+          <div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      </div>
 
       <div v-else-if="loadError" class="rounded-lg kinh p-4 shadow">
         <p class="text-red-700">Không tải được số liệu: {{ loadError }}</p>
@@ -567,7 +571,13 @@ function fmtDate(iso?: string): string {
         </div>
         <BarChart title="Tải việc theo cán bộ" :items="workloadItems" />
 
-        <p v-if="dashboardLoading" class="chu-phu">Đang tải biểu đồ và danh sách…</p>
+        <div v-if="dashboardLoading" class="grid gap-4 lg:grid-cols-2" role="status" aria-busy="true">
+          <span class="sr-only">Đang tải danh sách hồ sơ</span>
+          <div v-for="i in 2" :key="i" class="kinh animate-pulse space-y-3 p-4 shadow" aria-hidden="true">
+            <div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div>
+            <div v-for="j in 4" :key="j" class="h-3 w-full rounded bg-slate-200 dark:bg-slate-700"></div>
+          </div>
+        </div>
         <p v-else-if="dashboardError" class="text-amber-700">Không tải được dữ liệu biểu đồ: {{ dashboardError }}</p>
 
         <div class="grid gap-4 lg:grid-cols-2">

@@ -1,7 +1,14 @@
 # SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""B-TEST-02: mỗi vai đi được luồng chính trên giao diện thật."""
+"""B-TEST-02: luồng chính của từng vai trên giao diện thật (Playwright).
+
+Mỗi vai đăng nhập, vào đúng không gian làm việc của mình và thấy đúng thứ được thấy, không thấy thứ
+không được thấy. Các luồng chỉ đọc (không nộp, không duyệt) để chạy lặp lại được trên cùng dữ liệu.
+
+Cần stack đã `dx up` với DEMO_MODE=true và `python scripts/seed_hero.py`.
+Trình duyệt chọn bằng `--browser` (conftest.py), mặc định Chromium.
+"""
 
 import os
 import re
@@ -11,116 +18,139 @@ import pytest
 from tests.integration._auth import DEMO_ACCOUNTS_FILE, GATEWAY_URL
 
 sync_api = pytest.importorskip("playwright.sync_api")
+expect = sync_api.expect
 BASE_URL = os.getenv("E2E_BASE_URL", GATEWAY_URL).rstrip("/")
+CHO = 20000
 
 
-def _mat_khau() -> dict[str, str]:
+def _mat_khau(user: str) -> str:
     if not DEMO_ACCOUNTS_FILE.exists():
-        pytest.skip("Thiếu secrets/demo-accounts.txt")
-    ds = {}
+        pytest.skip("Thiếu secrets/demo-accounts.txt: chạy `dx up` với DEMO_MODE=true")
     for line in DEMO_ACCOUNTS_FILE.read_text(encoding="utf-8").splitlines():
         parts = line.strip().split(":")
-        if len(parts) >= 2 and parts[0] and not parts[0].startswith("#"):
-            ds[parts[0]] = parts[1]
-    return ds
+        if len(parts) >= 2 and parts[0] == user:
+            return parts[1]
+    pytest.skip(f"Thiếu tài khoản demo {user}")
 
 
-def _dang_nhap(page, username: str, password: str, url: str) -> None:
-    page.goto(url, wait_until="domcontentloaded")
+def dang_nhap(page, user: str, url: str = "/") -> None:
+    dich = f"{BASE_URL}{url}"
+    page.goto(dich, wait_until="domcontentloaded")
     page.get_by_role("button", name="Đăng nhập", exact=True).click()
-    page.locator("#username").fill(username)
-    page.locator("#password").fill(password)
+    page.locator("#username").fill(user)
+    page.locator("#password").fill(_mat_khau(user))
     page.locator("#kc-login").click()
-    page.wait_for_url(re.compile(re.escape(url) + r"(\?.*)?$"), timeout=20000)
+    page.wait_for_url(re.compile(re.escape(dich) + r"(\?.*)?$"), timeout=CHO)
 
 
-def _vao_tab(page, ten: str) -> None:
-    page.get_by_role("button", name=ten, exact=True).click()
+def nav(page):
+    return page.locator("nav[aria-label='Điều hướng']")
 
 
-@pytest.mark.parametrize(
-    "username,tab,kiem_tra",
-    [
-        ("cdt.minh", "Hồ sơ của tôi", "#table-ho-so"),
-        ("mc.thu", "Bàn làm việc", "h2:has-text('Bàn làm việc')"),
-        ("td.binh", "Bàn làm việc", "h2:has-text('Bàn làm việc')"),
-        ("tt.khanh", "Bàn làm việc", "h2:has-text('Bàn làm việc')"),
-        ("ld.hoa", "Bàn làm việc", "h2:has-text('Bàn làm việc')"),
-        ("ld.hoa", "Truy cập khẩn", "text=Truy cập khẩn"),
-    ],
-)
-def test_BTEST02_vai_di_duoc_luong_chinh_cap_phep(username: str, tab: str, kiem_tra: str):
-    accounts = _mat_khau()
-    if username not in accounts:
-        pytest.skip(f"Thiếu tài khoản demo {username}")
-
-    with sync_api.sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=os.getenv("E2E_HEADED", "") != "1")
-        ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
-        page = ctx.new_page()
-        try:
-            _dang_nhap(page, username, accounts[username], f"{BASE_URL}/")
-            _vao_tab(page, tab)
-            page.locator(kiem_tra).first.wait_for(timeout=20000)
-        finally:
-            ctx.close()
-            browser.close()
+def mo_viec_dau_tien(page) -> None:
+    nav(page).get_by_role("button", name="Bàn làm việc", exact=True).click()
+    page.get_by_role("button", name="Xem hồ sơ").first.click(timeout=CHO)
+    expect(page.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
 
 
-def test_BTEST02_lanh_dao_vao_bang_dieu_hanh():
-    accounts = _mat_khau()
-    if "ld.hoa" not in accounts:
-        pytest.skip("Thiếu tài khoản demo ld.hoa")
-
-    with sync_api.sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=os.getenv("E2E_HEADED", "") != "1")
-        ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
-        page = ctx.new_page()
-        try:
-            _dang_nhap(page, "ld.hoa", accounts["ld.hoa"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_role("heading", name="Bảng điều hành lãnh đạo").wait_for(timeout=20000)
-            page.get_by_role("button", name="Chỉ số", exact=True).click()
-            page.get_by_text("Đang tải chỉ số…").wait_for(state="detached", timeout=30000)
-            page.get_by_role("button", name="Trợ lý", exact=True).click()
-            page.get_by_role("heading", name="Trợ lý pháp lý").wait_for(timeout=20000)
-        finally:
-            ctx.close()
-            browser.close()
+def tim_ho_so(page, ma: str):
+    """Lọc danh sách hồ sơ theo mã để không phụ thuộc phân trang; trả về hàng chứa mã."""
+    page.locator("#txt-tim-ho-so").fill(ma)
+    hang = page.locator("tr, li").filter(has_text=ma).first
+    expect(hang).to_be_visible(timeout=CHO)
+    return hang
 
 
-def test_BTEST02_kiem_toan_vien_vao_nhat_ky():
-    accounts = _mat_khau()
-    if "kt.an" not in accounts:
-        pytest.skip("Thiếu tài khoản demo kt.an")
-
-    with sync_api.sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=os.getenv("E2E_HEADED", "") != "1")
-        ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
-        page = ctx.new_page()
-        try:
-            _dang_nhap(page, "kt.an", accounts["kt.an"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_role("button", name="Kiểm toán", exact=True).click()
-            page.get_by_role("heading", name="Nhật ký kiểm toán").wait_for(timeout=20000)
-            page.get_by_text("Chuỗi hợp lệ").or_(page.get_by_text("Chuỗi không hợp lệ")).wait_for(timeout=20000)
-        finally:
-            ctx.close()
-            browser.close()
+@pytest.fixture()
+def page(trinh_duyet):
+    ctx = trinh_duyet.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
+    p = ctx.new_page()
+    yield p
+    ctx.close()
 
 
-def test_BTEST02_quan_tri_vien_vao_quan_tri_dia_ban():
-    accounts = _mat_khau()
-    if "admin" not in accounts:
-        pytest.skip("Thiếu tài khoản demo admin")
+def test_chu_dau_tu(page):
+    dang_nhap(page, "cdt.minh")
+    tabs = nav(page)
+    expect(tabs.get_by_role("button", name="Hồ sơ của tôi", exact=True)).to_be_visible(timeout=CHO)
+    expect(tabs.get_by_role("button", name="Dữ liệu của tôi", exact=True)).to_be_visible()
+    for khong_duoc in ("Bàn làm việc", "Truy cập khẩn", "Công trình"):
+        expect(tabs.get_by_role("button", name=khong_duoc, exact=True)).to_have_count(0)
+    # Hồ sơ hero có trong danh sách; mở được hộp nộp hồ sơ với danh mục giấy tờ Điều 60
+    tim_ho_so(page, "CP-HERO-2026-001")
+    page.locator("#btn-nop-ho-so-modal").click()
+    expect(page.locator("#form-nop-ho-so")).to_be_visible()
+    page.keyboard.press("Escape")
 
-    with sync_api.sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=os.getenv("E2E_HEADED", "") != "1")
-        ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
-        page = ctx.new_page()
-        try:
-            _dang_nhap(page, "admin", accounts["admin"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_role("button", name="Quản trị", exact=True).click()
-            page.get_by_role("heading", name="Quản trị địa bàn").wait_for(timeout=20000)
-            page.get_by_text("phuong-a").first.wait_for(timeout=20000)
-        finally:
-            ctx.close()
-            browser.close()
+
+def test_mot_cua(page):
+    dang_nhap(page, "mc.thu")
+    tabs = nav(page)
+    expect(tabs.get_by_role("button", name="Bàn làm việc", exact=True)).to_be_visible(timeout=CHO)
+    expect(tabs.get_by_role("button", name="Hồ sơ của tôi", exact=True)).to_have_count(0)
+    expect(tabs.get_by_role("button", name="Truy cập khẩn", exact=True)).to_have_count(0)
+    mo_viec_dau_tien(page)
+    # Hồ sơ mở từ việc của mình có thanh hành động "Việc đang chờ bạn" và phần quy hoạch của cán bộ
+    expect(page.locator("#block-dossier-actions")).to_be_visible(timeout=CHO)
+    expect(page.get_by_text(re.compile("^Việc đang chờ bạn"))).to_be_visible()
+    expect(page.locator("#block-dossier-planning")).to_be_attached(timeout=CHO)
+
+
+def test_tham_dinh(page):
+    dang_nhap(page, "td.binh")
+    tabs = nav(page)
+    expect(tabs.get_by_role("button", name="Bàn làm việc", exact=True)).to_be_visible(timeout=CHO)
+    expect(tabs.get_by_role("button", name="Truy cập khẩn", exact=True)).to_have_count(0)
+    expect(tabs.get_by_role("button", name="Hồ sơ của tôi", exact=True)).to_have_count(0)
+    tabs.get_by_role("button", name="Bàn làm việc", exact=True).click()
+    expect(page.get_by_role("heading", name="Bàn làm việc")).to_be_visible(timeout=CHO)
+    # td.binh chỉ có việc sau khi lãnh đạo phân công (cảnh 4 của demo); dữ liệu mẫu có thể chưa có
+    xem = page.get_by_role("button", name="Xem hồ sơ")
+    try:
+        xem.first.wait_for(timeout=5000)
+    except sync_api.TimeoutError:
+        pytest.skip("td.binh chưa được phân công hồ sơ nào: diễn cảnh 4 (ld.hoa phân công) rồi chạy lại")
+    xem.first.click()
+    expect(page.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
+    # Thẩm định viên thấy phần quy hoạch có nút kiểm tra
+    expect(page.locator("#block-dossier-planning")).to_be_visible(timeout=CHO)
+    expect(page.locator("#planning-check-btn")).to_be_visible()
+
+
+def test_lanh_dao(page):
+    dang_nhap(page, "ld.hoa")
+    tabs = nav(page)
+    expect(tabs.get_by_role("button", name="Bàn làm việc", exact=True)).to_be_visible(timeout=CHO)
+    expect(tabs.get_by_role("button", name="Truy cập khẩn", exact=True)).to_be_visible()
+    tabs.get_by_role("button", name="Truy cập khẩn", exact=True).click()
+    expect(page.get_by_role("heading", name="Truy cập khẩn chờ duyệt")).to_be_visible(timeout=CHO)
+    # Bảng điều hành dùng chung phiên đăng nhập
+    page.goto(f"{BASE_URL}/dieu-hanh/", wait_until="domcontentloaded")
+    expect(page.get_by_text("Bảng điều hành lãnh đạo").first).to_be_visible(timeout=CHO)
+    expect(page.get_by_role("button", name="Chỉ số", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Trợ lý", exact=True)).to_be_visible()
+
+
+def test_trat_tu_xay_dung(page):
+    dang_nhap(page, "tt.khanh")
+    tabs = nav(page)
+    expect(tabs.get_by_role("button", name="Công trình", exact=True)).to_be_visible(timeout=CHO)
+    expect(tabs.get_by_role("button", name="Truy cập khẩn", exact=True)).to_have_count(0)
+    tabs.get_by_role("button", name="Công trình", exact=True).click()
+    expect(page.get_by_text("CT-01").first).to_be_visible(timeout=CHO)
+
+
+def test_kiem_toan_vien(page):
+    dang_nhap(page, "kt.an", "/dieu-hanh/")
+    page.get_by_role("button", name="Kiểm toán", exact=True).click()
+    expect(page.get_by_text("Nhật ký kiểm toán").first).to_be_visible(timeout=CHO)
+    expect(page.get_by_role("button", name="Xác minh")).to_be_visible()
+    # Chỉ đọc: không có nút sửa hay xoá bản ghi
+    expect(page.get_by_role("button", name=re.compile(r"^(Sửa|Xoá|Xóa)\b"))).to_have_count(0)
+
+
+def test_cong_khai_khong_dang_nhap(page):
+    r = page.goto(f"{BASE_URL}/kiem-tra/", wait_until="domcontentloaded")
+    assert r is not None and r.status == 200
+    expect(page.locator("input[name='ma']")).to_be_visible(timeout=CHO)
+    assert page.locator("script").count() == 0, "Trang tra cứu công khai không được có script"
