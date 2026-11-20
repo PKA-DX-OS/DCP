@@ -146,7 +146,7 @@ def test_ban_lam_viec_va_chi_tiet_ho_so(page):
     page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     dlg = page.locator("[role='dialog']").first
     expect(dlg).to_be_visible(timeout=CHO)
-    che = [dlg.locator("dd"), dlg.locator("li"), dlg.locator("td"), dlg.locator("h3"), dlg.locator("svg")]
+    che = [dlg.locator("dd"), dlg.locator("li"), dlg.locator("td"), dlg.locator("#detail-ma-ho-so"), dlg.locator("svg")]
     so_voi_nen(page, "chi-tiet-ho-so", che)
     # Nhật ký xem hồ sơ dài thêm sau mỗi lần chạy nên chỉ chụp đúng phần cần so
     so_voi_nen(page, "quy-hoach", che + [page.locator(".leaflet-container")], page.locator("#block-dossier-planning"))

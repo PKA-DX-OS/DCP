@@ -276,7 +276,7 @@ onMounted(taiTatCa);
   <div id="block-design-review" class="mt-5">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h4 class="m-0 text-[14px] font-semibold">Thẩm định thiết kế đa bộ môn</h4>
+        <h3 class="m-0 text-[14px] font-semibold">Thẩm định thiết kế đa bộ môn</h3>
         <p class="goi-y m-0 mt-1">Bản vẽ theo bộ môn, phiên bản và nhận xét của thẩm định viên.</p>
       </div>
       <div class="flex flex-wrap gap-2">

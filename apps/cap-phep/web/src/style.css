@@ -318,6 +318,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .hop-dau {
     @apply flex items-start justify-between gap-4 px-8 pt-7 pb-3;
   }
+  .hop-dau h2,
   .hop-dau h3 {
     @apply text-[24px] font-semibold m-0;
     line-height: 1.3;

@@ -221,7 +221,7 @@ onMounted(taiDuLieu);
 <template>
   <section id="block-dossier-planning" class="mt-5" aria-labelledby="tieu-de-quy-hoach">
     <div class="flex flex-wrap items-baseline justify-between gap-3 mb-2">
-      <h4 id="tieu-de-quy-hoach" class="text-[14px] font-semibold m-0">Quy hoạch và chỉ tiêu xây dựng</h4>
+      <h3 id="tieu-de-quy-hoach" class="text-[14px] font-semibold m-0">Quy hoạch và chỉ tiêu xây dựng</h3>
       <span class="goi-y">Dữ liệu quy hoạch tổng hợp phục vụ demo</span>
     </div>
 
@@ -252,7 +252,7 @@ onMounted(taiDuLieu);
       </div>
 
       <div v-if="laCanBo" class="the p-3 mb-3">
-        <h5 class="text-[13px] font-semibold mt-0 mb-2">Thông số đề xuất</h5>
+        <h4 class="text-[13px] font-semibold mt-0 mb-2">Thông số đề xuất</h4>
         <div class="grid gap-2 sm:grid-cols-3">
           <label class="block"><span class="nhan">Số tầng</span><input id="planning-floors" v-model.number="proposal.so_tang" type="number" min="1" class="o w-full" /></label>
           <label class="block"><span class="nhan">Chiều cao (m)</span><input id="planning-height" v-model.number="proposal.chieu_cao_m" type="number" min="0" step="0.1" class="o w-full" /></label>
@@ -331,7 +331,7 @@ onMounted(taiDuLieu);
       </div>
 
       <div v-if="documents.length" class="mt-3">
-        <h5 class="text-[13px] font-semibold m-0 mb-1">Văn bản quy hoạch</h5>
+        <h4 class="text-[13px] font-semibold m-0 mb-1">Văn bản quy hoạch</h4>
         <ul class="list-none m-0 p-0 text-[13px]">
           <li v-for="d in documents" :key="d.id" class="py-1 border-b border-vien-nhat">
             <a v-if="d.file_url" :href="d.file_url" target="_blank" rel="noopener" class="btn-lien-ket">{{ d.ma_van_ban }} — {{ d.ten }}</a>
@@ -342,7 +342,7 @@ onMounted(taiDuLieu);
       </div>
 
       <div v-if="history.length > 1" class="mt-3">
-        <h5 class="text-[13px] font-semibold m-0 mb-1">Lịch sử kiểm tra</h5>
+        <h4 class="text-[13px] font-semibold m-0 mb-1">Lịch sử kiểm tra</h4>
         <ul class="list-none m-0 p-0 text-[13px]">
           <li v-for="h in history" :key="h.id" class="flex justify-between gap-2 py-1 border-b border-vien-nhat">
             <span>{{ new Date(h.created_at).toLocaleString("vi-VN") }}</span>

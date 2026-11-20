@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   <div id="modal-break-glass" class="nen-hop" @click.self="$emit('close')">
     <div ref="hop" tabindex="-1" class="hop max-w-[520px]" role="dialog" aria-modal="true" aria-labelledby="tieu-de-khan">
       <div class="hop-dau">
-        <h3 id="tieu-de-khan">Xin truy cập khẩn hồ sơ {{ maHoSo }}</h3>
+        <h2 id="tieu-de-khan">Xin truy cập khẩn hồ sơ {{ maHoSo }}</h2>
         <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>
       </div>
 

@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     <div ref="hop" tabindex="-1" class="hop max-w-[600px]" role="dialog" aria-modal="true" aria-labelledby="tieu-de-bo-sung">
       <div class="hop-dau">
         <div>
-          <h3 id="tieu-de-bo-sung">Bổ sung hồ sơ cấp phép</h3>
+          <h2 id="tieu-de-bo-sung">Bổ sung hồ sơ cấp phép</h2>
           <p class="ma m-0 mt-1 text-[13px]">{{ dossier.ma_ho_so }}</p>
         </div>
         <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>

@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   <div id="modal-403-forbidden" class="nen-hop" @click.self="$emit('close')">
     <div ref="hop" tabindex="-1" class="hop max-w-[480px]" role="alertdialog" aria-modal="true" aria-labelledby="tieu-de-403" aria-describedby="mo-ta-403">
       <div class="hop-dau">
-        <h3 id="tieu-de-403">Bạn chưa có quyền mở hồ sơ này</h3>
+        <h2 id="tieu-de-403">Bạn chưa có quyền mở hồ sơ này</h2>
         <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>
       </div>
       <div id="mo-ta-403" class="hop-than">

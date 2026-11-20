@@ -98,7 +98,7 @@ function gui() {
     </div>
 
     <form v-if="canComment" class="rounded-ds-sm border border-ds-border bg-ds-surface-2/50 p-3" @submit.prevent="gui">
-      <h5 class="m-0 mb-2 text-ds-sm font-semibold text-ds-text">Thêm nhận xét</h5>
+      <h4 class="m-0 mb-2 text-ds-sm font-semibold text-ds-text">Thêm nhận xét</h4>
       <div class="grid gap-2 sm:grid-cols-2">
         <Select v-model="banVeId" label="Bản vẽ" :options="dsBanVe" placeholder="Chọn bản vẽ" required />
         <Select v-model="mucDo" label="Mức độ" :options="mucDoNhap" required />
@@ -113,7 +113,7 @@ function gui() {
     <EmptyState v-else-if="!daLoc.length" title="Chưa có nhận xét" description="Nhận xét của thẩm định viên sẽ hiện ở đây." />
     <template v-else>
       <section v-for="[boMon, ds] in theoBoMon" :key="boMon" class="flex flex-col gap-2">
-        <h5 class="m-0 text-ds-sm font-semibold text-ds-text">{{ boMon }}</h5>
+        <h4 class="m-0 text-ds-sm font-semibold text-ds-text">{{ boMon }}</h4>
         <article v-for="nx in ds" :key="nx.id" class="rounded-ds-sm border border-ds-border p-3">
           <div class="flex flex-wrap items-center gap-2">
             <Badge :tone="toneMucDo(nx.muc_do)" size="sm">{{ nhanMucDo(nx.muc_do) }}</Badge>
