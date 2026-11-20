@@ -65,7 +65,7 @@ function kichThuoc(value?: number | null): string {
         </div>
 
         <div v-if="n.ban_ve.length" class="mt-3 overflow-x-auto" tabindex="0" role="region" :aria-labelledby="`bo-mon-${n.bo_mon}`">
-          <table class="w-full min-w-[640px] border-collapse text-ds-sm">
+          <table class="w-full min-w-[540px] border-collapse text-ds-sm">
             <thead>
               <tr class="border-b border-ds-border text-left text-ds-xs text-ds-muted">
                 <th class="py-2 pr-3 font-semibold">Tên</th>

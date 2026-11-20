@@ -142,6 +142,10 @@ html, body { background: var(--nen); color: var(--chu); }
 .ds-thong-tin { @apply m-0 grid gap-x-4 gap-y-2; grid-template-columns: 150px 1fr; }
 .ds-thong-tin dt { color: var(--phu); }
 .ds-thong-tin dd { @apply m-0 min-w-0 break-words; }
+/* Cột hẹp (thanh bên): nhãn nằm trên giá trị để giá trị không bị bẻ từng chữ */
+.ds-thong-tin.ds-thong-tin-doc { grid-template-columns: 1fr; row-gap: 0; }
+.ds-thong-tin-doc dt { @apply text-[12px]; }
+.ds-thong-tin-doc dd { @apply mb-2; }
 @media (max-width: 560px) {
   .ds-thong-tin { grid-template-columns: 1fr; }
 }

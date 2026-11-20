@@ -9,6 +9,15 @@ import { notify } from "../../composables/useToast";
 import { Badge, Button, Skeleton } from "../../design-system";
 import MapView from "../../components/MapView.vue";
 
+const LOAI_DAT: Record<string, string> = {
+  dat_o: "Đất ở",
+  dat_nong_nghiep: "Đất nông nghiệp",
+  dat_thuong_mai: "Đất thương mại, dịch vụ",
+};
+function tenLoaiDat(ma?: string): string {
+  return (ma && LOAI_DAT[ma]) || ma || "Chưa có";
+}
+
 const props = defineProps<{
   dossier: any;
   token: string;
@@ -232,10 +241,10 @@ onMounted(taiDuLieu);
           <select id="planning-parcel" v-model="selectedId" class="o w-full">
             <option v-for="p in parcels" :key="p.id" :value="p.id">{{ p.ma_thua_dat }} — {{ p.so_thua }}, {{ p.to_ban_do }}</option>
           </select>
-          <dl v-if="selectedParcel" class="ds-thong-tin mt-2">
+          <dl v-if="selectedParcel" class="ds-thong-tin ds-thong-tin-doc mt-2">
             <dt>Địa chỉ</dt><dd>{{ selectedParcel.dia_chi }}</dd>
             <dt>Diện tích</dt><dd>{{ selectedParcel.dien_tich_m2 }} m²</dd>
-            <dt>Loại đất</dt><dd>{{ selectedParcel.loai_dat }}</dd>
+            <dt>Loại đất</dt><dd>{{ tenLoaiDat(selectedParcel.loai_dat) }}</dd>
             <dt>Mã địa điểm</dt><dd>{{ selectedParcel.ma_dinh_danh_dia_diem || "Chưa có" }}</dd>
           </dl>
           <p v-if="!parcels.length" class="text-phu text-[13px] mt-2 mb-0">Địa bàn chưa có dữ liệu thửa đất quy hoạch.</p>
@@ -254,9 +263,7 @@ onMounted(taiDuLieu);
           <label class="block"><span class="nhan">Khoảng lùi sau (m)</span><input id="planning-setback-back" v-model.number="proposal.khoang_lui_sau_m" type="number" min="0" step="0.1" class="o w-full" /></label>
           <label class="block"><span class="nhan">Loại đất</span>
             <select v-model="proposal.loai_dat" class="o w-full">
-              <option value="dat_o">Đất ở</option>
-              <option value="dat_nong_nghiep">Đất nông nghiệp</option>
-              <option value="dat_thuong_mai">Đất thương mại, dịch vụ</option>
+              <option v-for="(ten, ma) in LOAI_DAT" :key="ma" :value="ma">{{ ten }}</option>
             </select>
           </label>
         </div>
