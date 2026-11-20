@@ -60,3 +60,24 @@ def test_gia_dinh_duoc_ghi_ro():
     assert gd[1]["gia_tri"] == "chưa đo"
     for g in gd:
         assert "Giả định" in g["cach_gia_dinh"] or "Không có số liệu" in g["cach_gia_dinh"]
+
+
+def test_thieu_bang_thi_null_va_ghi_ten_bang():
+    kq = im.tinh({"tong_ho_so": 2, "tep_quet_virus": 3, "van_ban_ky_so": 1, "_thieu_bang": ["app_construction.moc_nghiem_thu"]})
+    d = kq["do_duoc"]
+    assert d["chi_tiet_kiem_tra"]["moc_nghiem_thu"] is None
+    assert d["so_kiem_tra_tu_dong"] == 4
+    assert d["ho_so_phat_hien_loi_quy_hoach_som"] is None
+    assert kq["thieu_bang"] == ["app_construction.moc_nghiem_thu"]
+    assert im.tinh({})["do_duoc"]["so_kiem_tra_tu_dong"] is None
+
+
+def test_cau_sql_bo_chi_so_thieu_bang():
+    co = {t: True for t in im.BANG_TUY_CHON}
+    day_du = im.sql_chi_so(co)
+    assert "app_construction.ket_qua_kiem_tra_quy_hoach" in day_du and "'_thieu_bang', '[]'::json" in day_du
+    co["app_construction.ket_qua_kiem_tra_quy_hoach"] = False
+    thieu = im.sql_chi_so(co)
+    assert "FROM app_construction.ket_qua_kiem_tra_quy_hoach" not in thieu
+    assert "'kiem_tra_quy_hoach', NULL" in thieu
+    assert "json_build_array('app_construction.ket_qua_kiem_tra_quy_hoach')" in thieu

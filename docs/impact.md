@@ -15,6 +15,8 @@ python scripts/impact_metrics.py --tenant phuong-b
 python scripts/impact_metrics.py --json > logs/impact.json   # để dán vào slide
 ```
 
+Script chỉ đọc CSDL. Nếu stack chưa có bảng của track A hoặc 5.2 (chưa `dx migrate`), chỉ số tương ứng in "chưa có dữ liệu" và cuối báo cáo liệt kê các bảng còn thiếu; phần còn lại vẫn đo bình thường.
+
 Nên chạy **sau khi đi hết kịch bản demo một lần**, để có ít nhất một giấy phép đã ký và một lần kiểm tra quy hoạch không đạt. Dữ liệu demo là dữ liệu tổng hợp, nên số liệu mô tả hệ thống trên bộ dữ liệu đó, không phải số đo tại một phường thật. Trên slide ghi kèm dòng "Đo trên dữ liệu demo ngày …".
 
 ## Chỉ số đo từ hệ thống
