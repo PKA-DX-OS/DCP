@@ -13,7 +13,8 @@ Dự án **DCP** áp dụng mô hình bảo mật nhiều lớp (defense-in-dept
 
 | Phiên bản | Được hỗ trợ cập nhật bảo mật |
 | :--- | :--- |
-| `1.0.x` | :white_check_mark: |
+| `1.1.x` | :white_check_mark: |
+| `1.0.x` | :x: |
 | `< 1.0.0` | :x: |
 
 ---

@@ -56,7 +56,7 @@ jobs:
       - name: Sinh và kiểm tra SBOM
         run: |
           python scripts/sbom.py
-          python -c "import json; json.load(open('sbom/dxos-1.0.cdx.json'))"
+          python -c "import json; json.load(open('sbom/dxos-1.1.cdx.json'))"
 
   web:
     name: Build hai ứng dụng web

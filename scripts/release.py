@@ -43,7 +43,7 @@ def sha256_file(path: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", default="1.0")
+    parser.add_argument("--version", default="1.1")
     args = parser.parse_args()
     version = args.version.strip().lstrip("v")
     if not version:

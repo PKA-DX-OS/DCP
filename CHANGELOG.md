@@ -12,17 +12,37 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 
 ## [Chưa phát hành]
 
+---
+
+## [1.1] - 2026-11-20
+
+### Đã thêm (Added)
+- **Construction Core (Track A):** kiểm tra quy hoạch theo thửa đất và vùng quy hoạch (tầng cao, chiều cao, mật độ, hệ số sử dụng đất, khoảng lùi), quy trình nghiệm thu móng/kết cấu, phần pháp lý của hồ sơ (thẩm quyền, phí và biên lai, lưu trữ, chia sẻ dữ liệu), thư viện văn bản pháp lý.
+- **Thẩm định thiết kế (B-REVIEW-01..08):** phiên bản hồ sơ thiết kế, bản vẽ theo bộ môn, ý kiến thẩm định và giao diện đối chiếu.
+- **Bàn làm việc ba cột** cho cán bộ (hàng đợi việc, chi tiết hồ sơ, thao tác xử lý); nộp hồ sơ từng bước trên điện thoại; bản đồ Leaflet.
+- **Quản trị địa bàn (B-PLAT-01):** quản lý phường và người dùng theo địa bàn trong bảng điều hành; xử lý yêu cầu dữ liệu cá nhân (DSAR) cho người duyệt.
+- **Bảng điều hành:** đủ 11 chỉ số (thêm không đạt quy hoạch, đang nghiệm thu, tỷ lệ cấp phép đúng hạn), xuất Excel/PDF, hỏi đáp quy định, nhật ký kiểm toán.
+- **Design system kính** dùng chung, feature registry, app contract 5.2; theme Keycloak DX-OS có nhãn tiếng Việt.
+- **Kiểm thử:** Vitest cho component và composable (hai ứng dụng web), Playwright theo 7 vai, hồi quy hình ảnh 9 màn, axe-core và phép thử khói trên Chromium/Firefox/WebKit, đo hiệu năng; kết quả ở `docs/QA_RESULTS_2026-11-20.md`.
+- **Tài liệu demo (B-DEMO-01..06):** kịch bản 9 cảnh, sơ đồ kiến trúc một trang, chỉ số tác động (`scripts/impact_metrics.py`), hướng dẫn demo, slide, phụ đề video; dữ liệu hồ sơ hero (`scripts/seed_hero.py`).
+
+### Đã thay đổi (Changed)
+- Giao diện Cấp phép, Bảng điều hành và trang tra cứu chuyển sang phong cách kính (Glassmorphism), có giao diện tối và sáng; icon nét thay emoji; khung tải thay dòng chữ "Đang tải".
+- Bảng điều hành chỉ mở cho lãnh đạo, quản trị và kiểm toán viên; trợ lý chỉ trả lời khi tìm thấy đoạn tài liệu liên quan.
+- Bàn làm việc không tự mở hồ sơ khi vào trang (mỗi lần mở được ghi nhật ký truy cập).
+- Phần pháp lý lọc biên lai, lưu trữ, nhật ký chia sẻ theo hồ sơ ở máy chủ (`?ho_so_id=`); các lần lấy danh sách việc trùng nhau khi mở hồ sơ được gộp làm một.
+- `dx up` ghép lại route APISIX từ `core/apisix/routes/` và đồng bộ theme/ngôn ngữ của realm Keycloak đang chạy.
+
 ### Bảo mật (Security)
 - **U-01:** bỏ tải bản gốc công khai `/kiem-tra/{mã}/download`; bản gốc tải qua `GET /api/v1/docs/{id}/download` (bắt buộc JWT, kiểm quyền theo hồ sơ hoặc người đã ký, có audit). Mã tra cứu dài 128 bit (`DOC-` + 22 ký tự).
 - **U-02:** trang `/kiem-tra` escape mọi giá trị, CSP không cho chạy script; biểu mẫu đối soát PDF gửi thẳng về máy chủ, tệp tối đa 25 MB.
 - **U-03:** dịch vụ `files` tự quyết định MIME theo phần mở rộng, chỉ PDF/PNG/JPEG mở inline, còn lại tải về kèm `nosniff`.
 - **U-04..U-07:** mô phỏng cảm biến kiểm địa bàn và quyền, người ký lấy từ `signer_sub`, bổ sung hồ sơ chỉ khi có nhiệm vụ chờ bổ sung, nhật ký hồ sơ không lộ người xem cho công dân.
 
-### Đã thay đổi (Changed)
-- Giao diện Cấp phép, Bảng điều hành và trang tra cứu chuyển sang phong cách kính (Glassmorphism), có giao diện tối và sáng, hiệu ứng khi di chuột và khi chuyển trang; danh mục giấy tờ, đánh giá từng tệp và 8 chỉ số dùng chung phong cách này.
-- Bảng điều hành chỉ mở cho lãnh đạo, quản trị và kiểm toán viên; trợ lý chỉ trả lời khi tìm thấy đoạn tài liệu liên quan.
-
----
+### Đã sửa (Fixed)
+- Route APISIX planning/acceptance/exports thiếu trên máy đã `dx init` trước (cảnh báo hồ sơ, quy hoạch, nghiệm thu trả 404).
+- Trang đăng nhập Keycloak: khung gọn giữa màn hình, tiêu đề đọc được; realm dựng trước nhận theme DX-OS.
+- Khả năng tiếp cận: vùng cuộn nhận focus bàn phím, tương phản trang tra cứu, nhãn thanh tiến độ và ô chọn tệp, cấp tiêu đề liền mạch; ô chọn tệp có chữ tiếng Việt.
 
 ## [1.0] - 2026-11-19
 
