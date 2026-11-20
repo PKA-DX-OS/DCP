@@ -158,7 +158,10 @@ onMounted(tai);
       </p>
     </div>
 
-    <p v-if="loading" class="chu-phu">Đang tải nhật ký…</p>
+    <div v-if="loading" class="kinh animate-pulse space-y-3 p-4 shadow" role="status" aria-busy="true">
+      <span class="sr-only">Đang tải nhật ký</span>
+      <div v-for="i in 6" :key="i" class="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" aria-hidden="true"></div>
+    </div>
     <p v-else-if="error" class="text-red-700">{{ error }}</p>
     <div v-else class="overflow-x-auto rounded-lg kinh shadow">
       <table class="w-full border-collapse text-sm">

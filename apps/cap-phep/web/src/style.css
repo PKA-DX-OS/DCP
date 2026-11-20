@@ -16,8 +16,15 @@
   --nhan-nen: #e2e8f0;
   --nhan-chu: #0f172a;
   --canh-bao: #fca5a5;
+  /* Bản đồ nền trơn và thửa đất */
+  --ban-do-nen: #16202f;
+  --ban-do-thua: #93c5fd;
+  --tien-do-nen: rgba(226, 232, 240, 0.14);
 }
 :root[data-theme="light"] {
+  --ban-do-nen: #eef2f7;
+  --ban-do-thua: #0f2a43;
+  --tien-do-nen: rgba(15, 23, 42, 0.1);
   --nen: #f8fafc;
   --chu: #0f172a;
   --phu: #475569;
@@ -142,6 +149,10 @@ html, body { background: var(--nen); color: var(--chu); }
 .ds-thong-tin { @apply m-0 grid gap-x-4 gap-y-2; grid-template-columns: 150px 1fr; }
 .ds-thong-tin dt { color: var(--phu); }
 .ds-thong-tin dd { @apply m-0 min-w-0 break-words; }
+/* Cột hẹp (thanh bên): nhãn nằm trên giá trị để giá trị không bị bẻ từng chữ */
+.ds-thong-tin.ds-thong-tin-doc { grid-template-columns: 1fr; row-gap: 0; }
+.ds-thong-tin-doc dt { @apply text-[12px]; }
+.ds-thong-tin-doc dd { @apply mb-2; }
 @media (max-width: 560px) {
   .ds-thong-tin { grid-template-columns: 1fr; }
 }

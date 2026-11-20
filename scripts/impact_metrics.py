@@ -26,7 +26,7 @@ import shutil
 import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -39,40 +39,61 @@ THOI_HAN_LUAT_NGAY_LAM_VIEC = 7
 # Thành phần bắt buộc theo Điều 60 (apps/cap-phep/app.yaml, documents bat_buoc)
 SO_THANH_PHAN_BAT_BUOC = 6
 
-SQL = r"""
-WITH hs AS (
-    SELECT * FROM app_cap_phep.ho_so WHERE tenant = :'tenant'
-),
-cap AS (
-    SELECT h.id, h.created_at, h.han_tong_at, g.ngay_cap
-    FROM hs h JOIN app_cap_phep.giay_phep g ON g.ho_so_id = h.id
-),
-dong AS (
-    SELECT id, qua_han FROM hs WHERE trang_thai IN ('DA_CAP', 'TU_CHOI')
-)
-SELECT json_build_object(
-    'tong_ho_so', (SELECT count(*) FROM hs),
-    'da_dong', (SELECT count(*) FROM dong),
-    'dong_dung_han', (SELECT count(*) FROM dong WHERE NOT qua_han),
-    'cap_phep', (SELECT coalesce(json_agg(json_build_object(
-        'nop', created_at, 'han', han_tong_at, 'cap', ngay_cap)), '[]'::json) FROM cap),
-    'kiem_tra_quy_hoach', (SELECT count(*) FROM app_construction.ket_qua_kiem_tra_quy_hoach WHERE tenant = :'tenant'),
-    'quy_hoach_khong_dat', (SELECT count(*) FROM app_construction.ket_qua_kiem_tra_quy_hoach WHERE tenant = :'tenant' AND NOT pass),
-    'ho_so_quy_hoach_khong_dat', (SELECT count(DISTINCT ho_so_id) FROM app_construction.ket_qua_kiem_tra_quy_hoach
-                                  WHERE tenant = :'tenant' AND NOT pass AND ho_so_id IS NOT NULL),
-    'tep_quet_virus', (SELECT count(*) FROM core.files WHERE tenant = :'tenant' AND status IN ('clean', 'infected')),
-    'tep_nhiem_virus', (SELECT count(*) FROM core.files WHERE tenant = :'tenant' AND status = 'infected'),
-    'ban_ve_da_danh_gia', (SELECT count(*) FROM app_cap_phep.ban_ve WHERE tenant = :'tenant' AND trang_thai IN ('dat', 'khong_dat')),
-    'van_ban_ky_so', (SELECT count(*) FROM core.signed_docs WHERE tenant = :'tenant'),
-    'moc_nghiem_thu', (SELECT count(*) FROM app_construction.moc_nghiem_thu WHERE tenant = :'tenant' AND ket_qua IN ('dat', 'khong_dat')),
-    'nghiem_thu_khong_dat', (SELECT count(*) FROM app_construction.moc_nghiem_thu WHERE tenant = :'tenant' AND ket_qua = 'khong_dat'),
-    'ho_so_tung_bo_sung', (SELECT count(DISTINCT l.ho_so_id) FROM app_cap_phep.ho_so_lich_su l
-                           JOIN hs ON hs.id = l.ho_so_id WHERE l.snapshot->>'trang_thai' = 'CAN_BO_SUNG'),
-    'ho_so_co_thiet_ke', (SELECT count(DISTINCT ho_so_id) FROM app_cap_phep.phien_ban_thiet_ke WHERE tenant = :'tenant'),
-    'so_phien_ban_tb', (SELECT round(avg(n)::numeric, 2) FROM (
-        SELECT max(so_phien_ban) AS n FROM app_cap_phep.phien_ban_thiet_ke WHERE tenant = :'tenant' GROUP BY ho_so_id) x)
-);
-"""
+# Bảng của track A và 5.2 có thể chưa có trên stack chưa migrate: chỉ số nào thiếu bảng thì trả null
+# và ghi tên bảng thiếu, không làm hỏng cả báo cáo.
+CHI_SO: List[Tuple[str, Tuple[str, ...], str]] = [
+    ("kiem_tra_quy_hoach", ("app_construction.ket_qua_kiem_tra_quy_hoach",),
+     "(SELECT count(*) FROM app_construction.ket_qua_kiem_tra_quy_hoach WHERE tenant = :'tenant')"),
+    ("quy_hoach_khong_dat", ("app_construction.ket_qua_kiem_tra_quy_hoach",),
+     "(SELECT count(*) FROM app_construction.ket_qua_kiem_tra_quy_hoach WHERE tenant = :'tenant' AND NOT pass)"),
+    ("ho_so_quy_hoach_khong_dat", ("app_construction.ket_qua_kiem_tra_quy_hoach",),
+     "(SELECT count(DISTINCT ho_so_id) FROM app_construction.ket_qua_kiem_tra_quy_hoach "
+     "WHERE tenant = :'tenant' AND NOT pass AND ho_so_id IS NOT NULL)"),
+    ("tep_quet_virus", ("core.files",),
+     "(SELECT count(*) FROM core.files WHERE tenant = :'tenant' AND status IN ('clean', 'infected'))"),
+    ("tep_nhiem_virus", ("core.files",),
+     "(SELECT count(*) FROM core.files WHERE tenant = :'tenant' AND status = 'infected')"),
+    ("ban_ve_da_danh_gia", ("app_cap_phep.ban_ve",),
+     "(SELECT count(*) FROM app_cap_phep.ban_ve WHERE tenant = :'tenant' AND trang_thai IN ('dat', 'khong_dat'))"),
+    ("van_ban_ky_so", ("core.signed_docs",), "(SELECT count(*) FROM core.signed_docs WHERE tenant = :'tenant')"),
+    ("moc_nghiem_thu", ("app_construction.moc_nghiem_thu",),
+     "(SELECT count(*) FROM app_construction.moc_nghiem_thu WHERE tenant = :'tenant' AND ket_qua IN ('dat', 'khong_dat'))"),
+    ("nghiem_thu_khong_dat", ("app_construction.moc_nghiem_thu",),
+     "(SELECT count(*) FROM app_construction.moc_nghiem_thu WHERE tenant = :'tenant' AND ket_qua = 'khong_dat')"),
+    ("ho_so_tung_bo_sung", ("app_cap_phep.ho_so_lich_su",),
+     "(SELECT count(DISTINCT l.ho_so_id) FROM app_cap_phep.ho_so_lich_su l JOIN hs ON hs.id = l.ho_so_id "
+     "WHERE l.snapshot->>'trang_thai' = 'CAN_BO_SUNG')"),
+    ("ho_so_co_thiet_ke", ("app_cap_phep.phien_ban_thiet_ke",),
+     "(SELECT count(DISTINCT ho_so_id) FROM app_cap_phep.phien_ban_thiet_ke WHERE tenant = :'tenant')"),
+    ("so_phien_ban_tb", ("app_cap_phep.phien_ban_thiet_ke",),
+     "(SELECT round(avg(n)::numeric, 2) FROM (SELECT max(so_phien_ban) AS n FROM app_cap_phep.phien_ban_thiet_ke "
+     "WHERE tenant = :'tenant' GROUP BY ho_so_id) x)"),
+]
+BANG_TUY_CHON = sorted({t for _, ts, _ in CHI_SO for t in ts})
+
+SQL_BANG = "SELECT json_object_agg(t, to_regclass(t) IS NOT NULL) FROM unnest(ARRAY[{ds}]) AS t;"
+
+
+def sql_chi_so(co_bang: Dict[str, bool]) -> str:
+    """Câu truy vấn chỉ gồm các chỉ số có đủ bảng; chỉ số thiếu bảng trả null."""
+    phan = [
+        "'tong_ho_so', (SELECT count(*) FROM hs)",
+        "'da_dong', (SELECT count(*) FROM dong)",
+        "'dong_dung_han', (SELECT count(*) FROM dong WHERE NOT qua_han)",
+        "'cap_phep', (SELECT coalesce(json_agg(json_build_object('nop', created_at, 'han', han_tong_at, "
+        "'cap', ngay_cap)), '[]'::json) FROM cap)",
+    ]
+    for khoa, bang, bieu_thuc in CHI_SO:
+        phan.append(f"'{khoa}', " + (bieu_thuc if all(co_bang.get(t) for t in bang) else "NULL"))
+    thieu = [t for t in BANG_TUY_CHON if not co_bang.get(t)]
+    phan.append("'_thieu_bang', " + ("json_build_array(" + ", ".join(f"'{t}'" for t in thieu) + ")" if thieu else "'[]'::json"))
+    return (
+        "WITH hs AS (SELECT * FROM app_cap_phep.ho_so WHERE tenant = :'tenant'),\n"
+        "cap AS (SELECT h.id, h.created_at, h.han_tong_at, g.ngay_cap FROM hs h "
+        "JOIN app_cap_phep.giay_phep g ON g.ho_so_id = h.id),\n"
+        "dong AS (SELECT id, qua_han FROM hs WHERE trang_thai IN ('DA_CAP', 'TU_CHOI'))\n"
+        "SELECT json_build_object(\n    " + ",\n    ".join(phan) + "\n);\n"
+    )
 
 
 GIO_VN = timezone(timedelta(hours=7))
@@ -105,8 +126,14 @@ def tinh(raw: Dict[str, Any]) -> Dict[str, Any]:
     def pct(a: int, b: int) -> Optional[float]:
         return round(100.0 * a / b, 1) if b else None
 
-    kiem_tra_tu_dong = sum(int(raw.get(k) or 0) for k in (
-        "kiem_tra_quy_hoach", "tep_quet_virus", "ban_ve_da_danh_gia", "van_ban_ky_so", "moc_nghiem_thu"))
+    def so(k: str) -> Optional[int]:
+        v = raw.get(k)
+        return None if v is None else int(v)
+
+    loai_kiem_tra = {"quy_hoach": "kiem_tra_quy_hoach", "quet_virus_tep": "tep_quet_virus",
+                     "danh_gia_ban_ve": "ban_ve_da_danh_gia", "ky_so": "van_ban_ky_so", "moc_nghiem_thu": "moc_nghiem_thu"}
+    chi_tiet = {ten: so(k) for ten, k in loai_kiem_tra.items()}
+    co_so = [v for v in chi_tiet.values() if v is not None]
     return {
         "do_duoc": {
             "tong_ho_so": int(raw.get("tong_ho_so") or 0),
@@ -117,22 +144,17 @@ def tinh(raw: Dict[str, Any]) -> Dict[str, Any]:
             "ty_le_ky_dung_han_pct": pct(len(dung_han_ky), len(cap)),
             "ty_le_dong_dung_han_pct": pct(int(raw.get("dong_dung_han") or 0), da_dong),
             "ho_so_da_dong": da_dong,
-            "so_kiem_tra_tu_dong": kiem_tra_tu_dong,
-            "chi_tiet_kiem_tra": {
-                "quy_hoach": int(raw.get("kiem_tra_quy_hoach") or 0),
-                "quet_virus_tep": int(raw.get("tep_quet_virus") or 0),
-                "danh_gia_ban_ve": int(raw.get("ban_ve_da_danh_gia") or 0),
-                "ky_so": int(raw.get("van_ban_ky_so") or 0),
-                "moc_nghiem_thu": int(raw.get("moc_nghiem_thu") or 0),
-            },
-            "ho_so_phat_hien_loi_quy_hoach_som": int(raw.get("ho_so_quy_hoach_khong_dat") or 0),
-            "lan_kiem_tra_quy_hoach_khong_dat": int(raw.get("quy_hoach_khong_dat") or 0),
-            "ho_so_phai_bo_sung": int(raw.get("ho_so_tung_bo_sung") or 0),
-            "tep_bi_chan_vi_virus": int(raw.get("tep_nhiem_virus") or 0),
-            "moc_nghiem_thu_khong_dat": int(raw.get("nghiem_thu_khong_dat") or 0),
-            "ho_so_co_thiet_ke": int(raw.get("ho_so_co_thiet_ke") or 0),
+            "so_kiem_tra_tu_dong": sum(co_so) if co_so else None,
+            "chi_tiet_kiem_tra": chi_tiet,
+            "ho_so_phat_hien_loi_quy_hoach_som": so("ho_so_quy_hoach_khong_dat"),
+            "lan_kiem_tra_quy_hoach_khong_dat": so("quy_hoach_khong_dat"),
+            "ho_so_phai_bo_sung": so("ho_so_tung_bo_sung"),
+            "tep_bi_chan_vi_virus": so("tep_nhiem_virus"),
+            "moc_nghiem_thu_khong_dat": so("nghiem_thu_khong_dat"),
+            "ho_so_co_thiet_ke": so("ho_so_co_thiet_ke"),
             "so_vong_thiet_ke_tb": float(raw["so_phien_ban_tb"]) if raw.get("so_phien_ban_tb") is not None else None,
         },
+        "thieu_bang": list(raw.get("_thieu_bang") or []),
         "gia_dinh": [
             {
                 "chi_so": "Giấy tờ giảm",
@@ -156,15 +178,21 @@ def tinh(raw: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def chay_sql(tenant: str, cmd_goc: List[str]) -> Dict[str, Any]:
+def _psql(sql: str, tenant: str, cmd_goc: List[str]) -> Any:
     cmd = cmd_goc + ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-v", f"tenant={tenant}", "-f", "-"]
-    res = subprocess.run(cmd, input=SQL, capture_output=True, text=True, encoding="utf-8")
+    res = subprocess.run(cmd, input=sql, capture_output=True, text=True, encoding="utf-8")
     if res.returncode != 0:
         raise SystemExit(f"Lỗi truy vấn: {(res.stderr or res.stdout).strip()}")
     dong = [x for x in res.stdout.splitlines() if x.strip().startswith("{")]
     if not dong:
         raise SystemExit("Không đọc được kết quả từ PostgreSQL.")
     return json.loads(dong[-1])
+
+
+def chay_sql(tenant: str, cmd_goc: List[str]) -> Dict[str, Any]:
+    """Hai bước: xem bảng nào đã có, rồi chỉ truy vấn các chỉ số đủ bảng (chỉ đọc)."""
+    co_bang = _psql(SQL_BANG.format(ds=", ".join(f"'{t}'" for t in BANG_TUY_CHON)), tenant, cmd_goc)
+    return _psql(sql_chi_so(co_bang), tenant, cmd_goc)
 
 
 def _fmt(v: Any, don_vi: str = "") -> str:
@@ -185,15 +213,22 @@ def in_bang(tenant: str, kq: Dict[str, Any]) -> None:
           f"{_fmt(d['thoi_gian_xu_ly_max_ngay_lam_viec'])} ngày làm việc (luật: {d['thoi_han_luat_ngay_lam_viec']})")
     print(f"  Ký đúng hạn ......................... {_fmt(d['ty_le_ky_dung_han_pct'], '%')}")
     print(f"  Hồ sơ đã đóng đúng hạn .............. {_fmt(d['ty_le_dong_dung_han_pct'], '%')} trên {d['ho_so_da_dong']} hồ sơ")
-    print(f"  Kiểm tra tự động .................... {d['so_kiem_tra_tu_dong']} lần "
-          f"(quy hoạch {ct['quy_hoach']}, quét virus {ct['quet_virus_tep']}, bản vẽ {ct['danh_gia_ban_ve']}, "
-          f"ký số {ct['ky_so']}, nghiệm thu {ct['moc_nghiem_thu']})")
-    print(f"  Hồ sơ phát hiện sai quy hoạch sớm ... {d['ho_so_phat_hien_loi_quy_hoach_som']} "
-          f"({d['lan_kiem_tra_quy_hoach_khong_dat']} lần kiểm tra không đạt)")
-    print(f"  Hồ sơ phải bổ sung .................. {d['ho_so_phai_bo_sung']}")
-    print(f"  Tệp bị chặn vì virus ................ {d['tep_bi_chan_vi_virus']}")
-    print(f"  Mốc nghiệm thu không đạt ............ {d['moc_nghiem_thu_khong_dat']}")
-    print(f"  Số vòng thiết kế trung bình ......... {_fmt(d['so_vong_thiet_ke_tb'])} trên {d['ho_so_co_thiet_ke']} hồ sơ")
+    print(f"  Kiểm tra tự động .................... {_fmt(d['so_kiem_tra_tu_dong'], ' lần')} "
+          f"(quy hoạch {_fmt(ct['quy_hoach'])}, quét virus {_fmt(ct['quet_virus_tep'])}, bản vẽ {_fmt(ct['danh_gia_ban_ve'])}, "
+          f"ký số {_fmt(ct['ky_so'])}, nghiệm thu {_fmt(ct['moc_nghiem_thu'])})")
+    sai_qh = d["ho_so_phat_hien_loi_quy_hoach_som"]
+    print(f"  Hồ sơ phát hiện sai quy hoạch sớm ... {_fmt(sai_qh)}"
+          + ("" if sai_qh is None else f" ({d['lan_kiem_tra_quy_hoach_khong_dat']} lần kiểm tra không đạt)"))
+    print(f"  Hồ sơ phải bổ sung .................. {_fmt(d['ho_so_phai_bo_sung'])}")
+    print(f"  Tệp bị chặn vì virus ................ {_fmt(d['tep_bi_chan_vi_virus'])}")
+    print(f"  Mốc nghiệm thu không đạt ............ {_fmt(d['moc_nghiem_thu_khong_dat'])}")
+    vong = d["so_vong_thiet_ke_tb"]
+    print(f"  Số vòng thiết kế trung bình ......... {_fmt(vong)}" + ("" if vong is None else f" trên {d['ho_so_co_thiet_ke']} hồ sơ"))
+    if kq.get("thieu_bang"):
+        print()
+        print("THIẾU BẢNG (stack chưa có migration của track A / 5.2, chạy `dx migrate` rồi đo lại):")
+        for t in kq["thieu_bang"]:
+            print(f"  - {t}")
     print()
     print("GIẢ ĐỊNH (không phải số đo)")
     for g in kq["gia_dinh"]:

@@ -31,7 +31,7 @@ const keyOf = (row: T, i: number) => (row[props.rowKey] ?? i) as string | number
 </script>
 
 <template>
-  <div class="ds-glass overflow-x-auto">
+  <div class="ds-glass overflow-x-auto" tabindex="0" role="region" :aria-label="caption || 'Bảng dữ liệu'">
     <table class="w-full border-collapse text-ds-base">
       <caption v-if="caption" class="sr-only">{{ caption }}</caption>
       <thead>
