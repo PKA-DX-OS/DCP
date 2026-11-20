@@ -90,7 +90,7 @@ def so_voi_nen(page, ten: str, che: list, vung=None) -> None:
     if os.getenv("UPDATE_BASELINE") == "1" or not nen.exists():
         BASELINE.mkdir(parents=True, exist_ok=True)
         nen.write_bytes(anh.read_bytes())
-        warnings.warn(f"Đã tạo ảnh nền {nen.relative_to(ROOT)}; kiểm bằng mắt rồi commit ảnh này")
+        warnings.warn(f"Đã tạo ảnh nền {nen.relative_to(ROOT)}; kiểm bằng mắt rồi commit ảnh này", stacklevel=2)
         return
     with Image.open(nen) as a, Image.open(anh) as b:
         tl = ty_le_khac(a, b)
