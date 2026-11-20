@@ -1,10 +1,14 @@
 // SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import {
   NHAN_CHI_SO,
+  THU_TU_CHI_SO,
+  donViHienThi,
   nhanChiSo,
+  sapXepChiSo,
   formatSo,
   formatPhanTram,
   formatNgay,
@@ -12,14 +16,27 @@ import {
   formatThoiDiem,
 } from "../src/utils/metrics.js";
 
-test("có đúng 8 chỉ số với nhãn tiếng Việt", () => {
-  expect(Object.keys(NHAN_CHI_SO).length).toBe(8);
+test("mọi chỉ số khai báo trong app.yaml đều có nhãn tiếng Việt", () => {
+  const yaml = readFileSync(new URL("../../../cap-phep/app.yaml", import.meta.url), "utf-8");
+  const phan = yaml.slice(yaml.indexOf("\nmetrics:"));
+  const ma = [...phan.matchAll(/^  - code: (\w+)$/gm)].map((x) => x[1]);
+  expect(ma.length).toBeGreaterThanOrEqual(11);
+  for (const m of ma) expect(NHAN_CHI_SO[m], m).toBeTruthy();
   expect(nhanChiSo("ho_so_moi")).toBe("Hồ sơ mới trong kỳ");
   expect(nhanChiSo("vi_pham")).toBe("Vụ vi phạm đã kết luận");
 });
 
-test("mã chỉ số lạ trả về chính mã", () => {
+test("mã chỉ số lạ dùng tên từ API, không có thì trả về chính mã", () => {
+  expect(nhanChiSo("khong_co", "Tên từ API")).toBe("Tên từ API");
   expect(nhanChiSo("khong_co")).toBe("khong_co");
+});
+
+test("thẻ chỉ số xếp theo thứ tự điều hành, mã lạ xếp cuối", () => {
+  const api = [{ code: "ty_le_dung_han" }, { code: "la" }, { code: "vi_pham" }, { code: "ho_so_moi" }];
+  expect(sapXepChiSo(api).map((m) => m.code)).toEqual(["ho_so_moi", "vi_pham", "ty_le_dung_han", "la"]);
+  expect(THU_TU_CHI_SO.slice(0, 2)).toEqual(["ho_so_moi", "ho_so_dang_xu_ly"]);
+  expect(donViHienThi("phần trăm")).toBe("%");
+  expect(donViHienThi("hồ sơ")).toBe("hồ sơ");
 });
 
 test("formatSo dùng dấu phân cách hàng nghìn và xử lý thiếu giá trị", () => {

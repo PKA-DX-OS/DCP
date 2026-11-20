@@ -5,7 +5,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles } from "./auth";
 import { ApiError, apiDownload, apiGet, apiPost, luuBlob } from "./api";
-import { formatThoiDiem, nhanChiSo } from "./utils/metrics";
+import { donViHienThi, formatThoiDiem, nhanChiSo, sapXepChiSo } from "./utils/metrics";
 import { renderMarkdown, tenNguon } from "./utils/markdown";
 import { useTheme } from "./composables/useTheme";
 import KpiCard from "./components/KpiCard.vue";
@@ -150,6 +150,9 @@ const KPI_TONE: Record<string, "brand" | "success" | "warning" | "danger" | "inf
   phieu_kiem_tra: "success",
   canh_bao_cong_truong: "warning",
   vi_pham: "danger",
+  ho_so_fail_quy_hoach: "danger",
+  ho_so_dang_nghiem_thu: "info",
+  ty_le_dung_han: "success",
 };
 const TRANG_THAI: Record<string, string> = {
   MOI_TAO: "Mới tạo",
@@ -191,11 +194,12 @@ function xuHuong(series: number[]): number | null {
   return ((nay - truoc) / truoc) * 100;
 }
 const kpiCards = computed(() =>
-  (data.value?.metrics ?? []).slice(0, 8).map((m) => {
+  sapXepChiSo(data.value?.metrics ?? []).map((m: any) => {
     const series = seriesCho(m.code);
     return {
       ...m,
-      label: nhanChiSo(m.code),
+      label: nhanChiSo(m.code, m.name),
+      unit: donViHienThi(m.unit),
       icon: m.code,
       tone: KPI_TONE[m.code] || "brand",
       series,

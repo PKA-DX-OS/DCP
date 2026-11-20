@@ -24,6 +24,12 @@ const NET: Record<string, string[]> = {
   // tháp tín hiệu cảm biến
   canh_bao_cong_truong: ["M12 12v9", "M9 21h6", "M8.5 8.5a5 5 0 0 1 7 0", "M6 6a8.5 8.5 0 0 1 12 0", "M12 12h.01"],
   // cán cân
+  // ghim bản đồ có gạch chéo: không đạt quy hoạch
+  ho_so_fail_quy_hoach: ["M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z", "M10 8l4 4", "M14 8l-4 4"],
+  // khối công trình có móng
+  ho_so_dang_nghiem_thu: ["M4 21h16", "M6 21V9l6-4 6 4v12", "M10 21v-5h4v5", "M9 11h6"],
+  // vòng tròn có dấu tích
+  ty_le_dung_han: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M8 12l3 3 5-6"],
   vi_pham: ["M12 4v16", "M8 20h8", "M5 7h14", "M5 7l-3 6a3 3 0 0 0 6 0z", "M19 7l-3 6a3 3 0 0 0 6 0z"],
 };
 
