@@ -13,6 +13,7 @@ Ghép APISIX route fragments thành core/apisix/apisix.yaml (P0-05).
 Dùng:
     py -3 scripts/build_apisix.py --check
     py -3 scripts/build_apisix.py --csp "http://localhost:8080 http://localhost:8081"
+    py -3 scripts/build_apisix.py --from-env   # dx up gọi để route fragment mới luôn có hiệu lực
 """
 
 import argparse
@@ -66,6 +67,30 @@ def merge_routes(template: dict[str, Any], fragments: list[dict[str, Any]]) -> d
     return template
 
 
+def doc_env(path: Path) -> dict[str, str]:
+    """Đọc .env dạng KHOA=gia_tri (bỏ dòng trống và chú thích)."""
+    env: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip()
+    return env
+
+
+def csp_tu_env(env_map: dict[str, str]) -> str:
+    """Danh sách origin cho connect-src theo PUBLIC_BASE_URL và KEYCLOAK_PUBLIC_URL (N-08)."""
+    raw_pub = env_map.get("PUBLIC_BASE_URL", "http://localhost:8080")
+    origins = [u.strip().rstrip("/") for u in raw_pub.split(",") if u.strip()]
+    kc_url = env_map.get("KEYCLOAK_PUBLIC_URL", "http://localhost:8081").rstrip("/")
+    kc_legacy = env_map.get("KEYCLOAK_URL", "").rstrip("/")
+    for u in [kc_url, kc_legacy, "http://localhost:8080/auth"]:
+        if u and u not in origins:
+            origins.append(u)
+    return " ".join(origins)
+
+
 def build(csp: Optional[str] = None) -> dict[str, Any]:
     text = TEMPLATE.read_text(encoding="utf-8")
     if csp:
@@ -79,11 +104,15 @@ def build(csp: Optional[str] = None) -> dict[str, Any]:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Ghép APISIX route fragments")
     parser.add_argument("--csp", help="Danh sách origin cho connect-src")
+    parser.add_argument("--from-env", action="store_true", help="Lấy origin cho CSP từ .env (dùng khi dx up)")
     parser.add_argument("--check", action="store_true", help="Chỉ kiểm tra parse, không ghi tệp")
     parser.add_argument("--output", default=str(OUTPUT))
     args = parser.parse_args(argv)
 
-    data = build(args.csp)
+    csp = args.csp
+    if args.from_env and not csp:
+        csp = csp_tu_env(doc_env(ROOT / ".env"))
+    data = build(csp)
     if args.check:
         ids = [r.get("id") for r in data.get("routes", [])]
         if len(ids) != len(set(ids)):

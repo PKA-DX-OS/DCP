@@ -110,6 +110,8 @@ cmd_up() {
   is_demo && echo "[CẢNH BÁO] DEMO_MODE=true: chỉ dùng thử nghiệm, không dùng cho môi trường thật."
   echo "--> Build image..."
   run "${COMPOSE[@]}" --profile core --profile tools build
+  echo "--> Ghép route APISIX từ core/apisix/routes..."
+  run "${TOOLS[@]}" scripts/build_apisix.py --from-env
   echo "--> Chạy profile core..."
   run "${COMPOSE[@]}" --profile core up -d --wait
   echo "--> Đồng bộ JWKS Keycloak sang PostgREST..."

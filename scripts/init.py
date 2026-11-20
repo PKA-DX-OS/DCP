@@ -292,18 +292,9 @@ def main():
     apisix_template = root / "core" / "apisix" / "apisix.template.yaml"
     apisix_yaml = root / "core" / "apisix" / "apisix.yaml"
     if apisix_template.exists():
-        import re
-        raw_pub = env_map.get("PUBLIC_BASE_URL", "http://localhost:8080")
-        pub_urls = [u.strip().rstrip("/") for u in raw_pub.split(",") if u.strip()]
-        kc_url = env_map.get("KEYCLOAK_PUBLIC_URL", "http://localhost:8081").rstrip("/")
-        kc_legacy = env_map.get("KEYCLOAK_URL", "").rstrip("/")
-        origins = list(pub_urls)
-        for u in [kc_url, kc_legacy, "http://localhost:8080/auth"]:
-            if u and u not in origins:
-                origins.append(u)
-        allowed_origins = " ".join(origins)
-        # P0-05: ghép route fragment (core/apisix/routes/*.yaml) vào template.
         import build_apisix
+        allowed_origins = build_apisix.csp_tu_env(env_map)
+        # P0-05: ghép route fragment (core/apisix/routes/*.yaml) vào template.
         import yaml as _yaml
         data = build_apisix.build(allowed_origins)
         apisix_yaml.write_text(

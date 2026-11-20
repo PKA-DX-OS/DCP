@@ -118,6 +118,8 @@ function Invoke-Up {
     if (Test-Demo) { Write-Host "[CANH BAO] DEMO_MODE=true: chi dung thu nghiem, khong dung cho moi truong that." -ForegroundColor Yellow }
     Write-Host "--> Build image..."
     Invoke-Step "docker" @("compose", "--profile", "core", "--profile", "tools", "build")
+    Write-Host "--> Ghep route APISIX tu core/apisix/routes..."
+    Invoke-Tools @("scripts/build_apisix.py", "--from-env")
     Write-Host "--> Chay profile core..."
     Invoke-Step "docker" @("compose", "--profile", "core", "up", "-d", "--wait")
     Write-Host "--> Dong bo JWKS Keycloak sang PostgREST..."
