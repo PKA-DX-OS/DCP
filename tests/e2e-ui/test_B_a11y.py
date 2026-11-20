@@ -44,6 +44,20 @@ def _dang_nhap(page, username: str, password: str, url: str) -> None:
     page.locator("#password").fill(password)
     page.locator("#kc-login").click()
     page.wait_for_url(re.compile(re.escape(url) + r"(\?.*)?$"), timeout=20000)
+    # URL khớp ngay khi Keycloak chuyển về (?code=...), trước khi ứng dụng đổi mã lấy token
+    page.get_by_role("button", name="Đăng xuất").wait_for(timeout=20000)
+
+
+def _cho(page, selector: str, ten: str) -> None:
+    """Chờ phần tử; nếu không thấy thì lưu ảnh và chữ trên trang vào E2E_OUT_DIR để biết vì sao."""
+    try:
+        page.locator(selector).wait_for(timeout=20000)
+    except Exception:
+        thu_muc = Path(os.getenv("E2E_OUT_DIR", ROOT / "tests" / "e2e-ui" / "_out")) / "a11y"
+        thu_muc.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(thu_muc / f"{ten}.png"), full_page=True)
+        (thu_muc / f"{ten}.txt").write_text(f"URL: {page.url}\n\n{page.inner_text('body')}", encoding="utf-8")
+        raise
 
 
 def test_a11y_login_danh_sach_dashboard():
@@ -65,8 +79,8 @@ def test_a11y_login_danh_sach_dashboard():
             page.get_by_role("button", name=re.compile("nền", re.I)).click()
 
             _dang_nhap(page, "cdt.minh", accounts["cdt.minh"], f"{BASE_URL}/")
-            page.get_by_role("button", name="Hồ sơ của tôi", exact=True).click()
-            page.locator("#table-ho-so").wait_for(timeout=20000)
+            page.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Hồ sơ của tôi", exact=True).click()
+            _cho(page, "#table-ho-so", "danh-sach-ho-so")
             assert _axe(page) == []
 
             page.locator("#btn-detail-CP-HERO-2026-001").wait_for(timeout=20000)
