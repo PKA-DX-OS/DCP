@@ -72,17 +72,20 @@ def ty_le_khac(a, b) -> float:
 
 
 def so_voi_nen(page, ten: str, che: list, vung=None) -> None:
-    """Chụp cả trang, hoặc chỉ một vùng (locator) khi phần xung quanh đổi theo dữ liệu, rồi so với ảnh nền.
+    """Chụp khung nhìn rồi so với ảnh nền. Có `vung` thì cuộn vùng đó lên đầu khung cuộn trước khi chụp,
+    để phần phía trên (đổi theo dữ liệu) không làm lệch ảnh.
 
     Chưa có ảnh nền thì tạo và cảnh báo, không dừng test, để một lần chạy tạo đủ ảnh nền của mọi màn.
     """
     OUT.mkdir(parents=True, exist_ok=True)
     page.wait_for_load_state("networkidle")
+    if vung is not None:
+        vung.evaluate("(e) => e.scrollIntoView({block: 'start', behavior: 'instant'})")
     # Chờ khung tải biến mất và bố cục đứng yên để vùng che khớp vị trí khi chụp
     page.wait_for_function("() => !document.querySelector('[aria-busy=\"true\"]')", timeout=CHO)
     page.wait_for_timeout(300)
     anh = OUT / f"{ten}.png"
-    (vung or page).screenshot(path=str(anh), animations="disabled", caret="hide", mask=che, mask_color="#7f7f7f")
+    page.screenshot(path=str(anh), animations="disabled", caret="hide", mask=che, mask_color="#7f7f7f")
     nen = BASELINE / f"{ten}.png"
     if os.getenv("UPDATE_BASELINE") == "1" or not nen.exists():
         BASELINE.mkdir(parents=True, exist_ok=True)
