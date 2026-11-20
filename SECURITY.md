@@ -23,7 +23,7 @@ Dự án **DCP** áp dụng mô hình bảo mật nhiều lớp (defense-in-dept
 Nếu bạn phát hiện bất kỳ vấn đề hoặc lỗ hổng bảo mật nào trong mã nguồn hoặc kiến trúc của DCP, vui lòng **không công khai** trên các kênh mở hoặc Issue tracker của GitHub.
 
 Quy trình báo cáo có trách nhiệm:
-1. Gửi email thông báo chi tiết đến hòm thư: `security@dcp.example.org` (mẫu).
+1. Gửi email thông báo chi tiết.
 2. Nội dung bao gồm:
    - Mô tả chi tiết lỗ hổng và phạm vi ảnh hưởng.
    - Các bước tái hiện (proof-of-concept).
