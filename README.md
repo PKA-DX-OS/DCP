@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC-BY-4.0
 > Dự án phục vụ cuộc thi Olympic Tin học Sinh viên Việt Nam 2026 — Khối Phần mềm Nguồn mở (OLP PMNM 2026).
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Status: bootstrap](https://img.shields.io/badge/status-bootstrap-orange.svg)](#2-trạng-thái)
+[![Release: v1.1](https://img.shields.io/badge/release-v1.1-green.svg)](https://github.com/PKA-DX-OS/DCP/releases/tag/v1.1)
 
 ---
 
@@ -29,21 +29,21 @@ DCP là một **nền tảng dịch vụ lõi (Tầng 1)** chạy headless, khô
 
 - Cổng công dân: nộp hồ sơ, checklist giấy tờ, theo dõi tiến độ, tải giấy phép.
 - Workspace cán bộ: tiếp nhận, phân công, thẩm định, duyệt, ký, hậu kiểm.
-- Dashboard lãnh đạo: 8 chỉ số, truy vết nguồn dữ liệu.
+- Dashboard lãnh đạo: 11 chỉ số, truy vết nguồn dữ liệu, xuất Excel/PDF.
 - Trợ lý AI: hỏi đáp quy định có trích dẫn.
 
 ---
 
 ## 2. Trạng thái
 
-> **Bootstrap.** Repo đang ở giai đoạn khởi tạo: mới có bộ khung pháp lý, tài liệu cộng đồng và cấu hình phát triển. Mã nguồn Tầng 1 và Tầng 2 sẽ được bổ sung theo kế hoạch commit.
+> **Phiên bản hiện tại: [v1.1](https://github.com/PKA-DX-OS/DCP/releases/tag/v1.1)** (2026-11-20). Danh sách thay đổi xem [CHANGELOG.md](CHANGELOG.md).
 
 - [x] LICENSE AGPL-3.0-or-later
 - [x] README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY
 - [x] REUSE.toml, LICENSES/
-- [ ] Tầng 1 — dịch vụ lõi
-- [ ] Tầng 2 — ứng dụng C3
-- [ ] Bộ test, demo, SBOM
+- [x] Tầng 1 — dịch vụ lõi
+- [x] Tầng 2 — ứng dụng C3 (`cap-phep`, `bang-dieu-hanh`)
+- [x] Bộ test, demo, SBOM ([QA_RESULTS_2026-11-20.md](docs/QA_RESULTS_2026-11-20.md), [demo-guide.md](docs/demo-guide.md), `sbom/`)
 
 ---
 
@@ -70,7 +70,7 @@ Tầng 1: Nền tảng dịch vụ lõi (headless)
 
 ---
 
-## 4. Cấu trúc repo dự kiến
+## 4. Cấu trúc repo
 
 ```
 core/           # cấu hình Tầng 1: PostgreSQL, Keycloak, APISIX, NATS, OpenBao...
@@ -79,21 +79,31 @@ apps/           # ứng dụng Tầng 2: cap-phep, bang-dieu-hanh
 tools/          # giả lập cảm biến, tiện ích
 scripts/        # init, backup, restore, doctor, SBOM...
 docs/           # kiến trúc, vận hành, bảo mật, demo
-tests/          # unit, integration, e2e
+tests/          # unit, integration, e2e, e2e-ui
+contracts/      # hợp đồng API (OpenAPI) của các phân hệ
+sbom/           # SBOM CycloneDX theo phiên bản
 ```
 
 ---
 
 ## 5. Cài đặt nhanh
 
-> Sẽ được cập nhật khi Tầng 1 hoàn tất. Dự kiến yêu cầu Docker Engine 26+ và Docker Compose v2.29+.
+Yêu cầu Docker Engine 26+ và Docker Compose v2.29+, máy từ 12 GB RAM và còn trống 20 GB đĩa.
 
 ```bash
 git clone https://github.com/PKA-DX-OS/DCP.git
 cd DCP
-# ./dx.sh init --demo
-# ./dx.sh up
+./dx.sh init --demo      # Windows: .\dx.ps1 init --demo
+./dx.sh up               # Windows: .\dx.ps1 up
 ```
+
+| Địa chỉ | Nội dung |
+| :--- | :--- |
+| `http://localhost:8080/` | cổng chủ đầu tư và bàn làm việc cán bộ |
+| `http://localhost:8080/dieu-hanh/` | bảng điều hành |
+| `http://localhost:8080/kiem-tra/<mã>` | tra cứu văn bản đã ký |
+
+Tài khoản demo và mật khẩu được sinh ngẫu nhiên vào `secrets/demo-accounts.txt`. Hướng dẫn đầy đủ (nâng cấp, LAN, gỡ cài đặt, kiểm thử) xem [docs/install.md](docs/install.md); vận hành xem [docs/ops.md](docs/ops.md).
 
 ---
 
