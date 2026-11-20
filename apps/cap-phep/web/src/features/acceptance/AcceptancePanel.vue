@@ -3,7 +3,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { createMilestone, fetchAcceptance, submitAcceptanceRecord, submitAsBuilt } from "../../api/acceptance";
+import { createMilestone, fetchAcceptance, fetchAcceptanceHistory, submitAcceptanceRecord, submitAsBuilt } from "../../api/acceptance";
 import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { uploadFile } from "../../api/files";
 import { notify } from "../../composables/useToast";
@@ -22,6 +22,7 @@ const MILESTONES = [
 ];
 
 const duLieu = ref<any>(null);
+const lichSu = ref<any[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const dangTaoQuyTrinh = ref(false);
@@ -87,6 +88,7 @@ async function tai() {
   error.value = "";
   try {
     duLieu.value = await fetchAcceptance(props.token, props.dossier.id);
+    lichSu.value = await fetchAcceptanceHistory(props.token, props.dossier.id).catch(() => []);
     const tiep = duLieu.value.moc_tiep_theo || "mong";
     form.loai_moc = tiep;
     selectedMoc.value = mocMoiNhat(tiep) || null;
@@ -314,6 +316,24 @@ onMounted(tai);
           </li>
         </ul>
         <p v-else class="text-phu text-[13px] mt-2 mb-0">Chưa có bản vẽ hoàn công.</p>
+      </div>
+
+      <div v-if="lichSu.length" class="mt-3">
+        <h5 class="text-[13px] font-semibold m-0 mb-1">Lịch sử nghiệm thu</h5>
+        <div class="the overflow-hidden">
+          <table class="bang w-full text-[12.5px]">
+            <thead><tr><th>Loại</th><th>Sự kiện</th><th>Trạng thái</th><th>Nội dung</th><th>Thời điểm</th></tr></thead>
+            <tbody>
+              <tr v-for="h in lichSu" :key="`${h.loai}-${h.id}`">
+                <td class="whitespace-nowrap">{{ h.loai === "bien_ban" ? "Biên bản" : h.loai === "ban_ve" ? "Bản vẽ" : "Mốc" }}</td>
+                <td class="whitespace-nowrap">{{ h.su_kien }}</td>
+                <td class="whitespace-nowrap"><span class="tt tt-lam">{{ h.trang_thai }}</span></td>
+                <td class="max-w-[260px]">{{ h.noi_dung || "—" }}</td>
+                <td class="whitespace-nowrap text-phu">{{ new Date(h.created_at).toLocaleString("vi-VN") }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div v-if="duLieu?.milestones?.length" class="mt-3">

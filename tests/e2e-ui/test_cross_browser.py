@@ -150,8 +150,8 @@ def test_khoi_dang_nhap_va_ban_lam_viec(ctx, trinh_duyet):
     p = ctx.new_page()
     _dang_nhap(p, "mc.thu")
     p.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    expect(p.get_by_role("button", name="Xem hồ sơ").first).to_be_visible(timeout=CHO)
-    p.get_by_role("button", name="Xem hồ sơ").first.click()
+    expect(p.get_by_role("button", name="Mở hồ sơ đầy đủ").first).to_be_visible(timeout=CHO)
+    p.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     expect(p.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
     KET_QUA["khoi"]["đăng nhập, bàn làm việc, chi tiết hồ sơ"] = "đạt"
 
@@ -180,9 +180,9 @@ def test_axe_ban_lam_viec_va_chi_tiet(ctx):
     p = ctx.new_page()
     _dang_nhap(p, "mc.thu")
     p.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    p.get_by_role("button", name="Xem hồ sơ").first.wait_for(timeout=CHO)
+    p.get_by_role("button", name="Mở hồ sơ đầy đủ").first.wait_for(timeout=CHO)
     loi = _axe(p, "bàn làm việc")
-    p.get_by_role("button", name="Xem hồ sơ").first.click()
+    p.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     p.locator("[role='dialog']").first.wait_for(timeout=CHO)
     loi += _axe(p, "chi tiết hồ sơ (cán bộ)")
     assert loi == [], _mo_ta(loi)

@@ -109,12 +109,34 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 <span :class="['tt', docTone(d)]">{{ docStatusLabel(d) }}</span>
               </div>
               <p v-if="d.trang_thai_kiem_tra === 'khong_dat' && d.ly_do" class="text-son text-[13px] mt-1 mb-0">Lý do: {{ d.ly_do }}</p>
+              <div v-if="laCanBo && userToken" class="mt-2 flex flex-wrap items-center gap-2">
+                <span class="goi-y">Đánh giá giấy tờ:</span>
+                <button type="button" class="btn btn-sm" :disabled="dangLuuTep === d.id" @click="danhGiaTep(d, 'dat')">Đạt</button>
+                <button type="button" class="btn btn-sm text-vang" :disabled="dangLuuTep === d.id" @click="moDanhGiaTep(d)">Không đạt</button>
+              </div>
+              <form v-if="dangDanhGia === d.id" class="mt-2 flex flex-wrap gap-2" @submit.prevent="danhGiaTep(d, 'khong_dat')">
+                <label class="min-w-[220px] flex-1">
+                  <span class="sr-only">Lý do không đạt</span>
+                  <input v-model="lyDoTep" class="o w-full" required placeholder="Lý do không đạt, ví dụ: bản vẽ thiếu chữ ký" />
+                </label>
+                <button type="submit" class="btn btn-sm" :disabled="dangLuuTep === d.id || !lyDoTep.trim()">
+                  {{ dangLuuTep === d.id ? "Đang lưu…" : "Lưu" }}
+                </button>
+                <button type="button" class="btn btn-sm" @click="dangDanhGia = ''">Hủy</button>
+              </form>
             </li>
           </ul>
         </section>
 
         <PlanningPanel v-if="laCanBo && userToken" :class="mobileMuc('block-dossier-planning')" :dossier="dossier" :token="userToken" :la-can-bo="laCanBo" />
         <AcceptancePanel v-if="laCanBo && userToken" :class="mobileMuc('block-dossier-acceptance')" :dossier="dossier" :token="userToken" />
+        <DossierLegalPanel
+          v-if="laCanBo && userToken"
+          :class="mobileMuc('block-dossier-legal')"
+          :dossier="dossier"
+          :token="userToken"
+          :co-the-kiem-tra="coTheKiemTra"
+        />
 
         <section id="block-dossier-progress" class="mt-5" :class="mobileMuc('block-dossier-progress')" aria-labelledby="tieu-de-tien-trinh">
           <h4 id="tieu-de-tien-trinh" class="text-[14px] font-semibold m-0 mb-2">Tiến trình quy trình</h4>
@@ -190,8 +212,9 @@ import PlanningPanel from "../features/planning/PlanningPanel.vue";
 import AcceptancePanel from "../features/acceptance/AcceptancePanel.vue";
 import DossierActionBar from "./DossierActionBar.vue";
 import DossierWarnings from "./DossierWarnings.vue";
+import DossierLegalPanel from "./DossierLegalPanel.vue";
 import { readRoles } from "../auth";
-import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo } from "../api";
+import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo, reviewDossierFile } from "../api";
 import { API_BASE } from "../config";
 import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, tenVai, ngayNgan, ngayGio } from "../utils/labels";
 import type { HoSo } from "../types";
@@ -221,6 +244,7 @@ const MUC_CO_BAN = [
   { id: "block-dossier-files", ten: "Giấy tờ" },
   { id: "block-dossier-planning", ten: "Quy hoạch" },
   { id: "block-dossier-acceptance", ten: "Nghiệm thu" },
+  { id: "block-dossier-legal", ten: "Pháp lý" },
   { id: "block-dossier-audit", ten: "Lịch sử xử lý" },
   { id: "block-dossier-progress", ten: "Tiến trình" },
 ] as const;
@@ -232,10 +256,26 @@ const VAI_CAN_BO = [
   "dx:auditor",
   "dx:platform-admin",
 ];
+const VAI_KIEM_TRA = [
+  "app:cap-phep:mot-cua",
+  "app:cap-phep:tham-dinh",
+  "app:cap-phep:lanh-dao",
+  "dx:platform-admin",
+  "dx:tenant-admin",
+];
 const laCanBo = computed(() => readRoles(props.userToken).some((r) => VAI_CAN_BO.includes(r)));
+const coTheKiemTra = computed(() => readRoles(props.userToken).some((r) => VAI_KIEM_TRA.includes(r)));
 const featureCtx = useOptionalFeatureContext();
 const tabMoRong = computed(() => dossierTabsChoVai(featureCtx?.vaiTro.value ?? [], props.dossier));
-const MUC = computed(() => MUC_CO_BAN.filter((m) => laCanBo.value || (m.id !== "block-dossier-planning" && m.id !== "block-dossier-acceptance")));
+const MUC = computed(() =>
+  MUC_CO_BAN.filter(
+    (m) =>
+      laCanBo.value ||
+      (m.id !== "block-dossier-planning" &&
+        m.id !== "block-dossier-acceptance" &&
+        m.id !== "block-dossier-legal"),
+  ),
+);
 const mucHien = computed(() => [...MUC.value, ...tabMoRong.value.map((t) => ({ id: `muc-${t.ma}`, ten: t.ten }))]);
 const mucDangXem = ref<string>(MUC_CO_BAN[0].id);
 function denMuc(id: string) {
@@ -259,6 +299,9 @@ const loadingPermit = ref(false);
 const isPades = computed(() => String(permitInfo.value?.thuat_toan || "").startsWith("PAdES"));
 const docs = ref<any[]>([]);
 const loadingDocs = ref(false);
+const dangDanhGia = ref("");
+const lyDoTep = ref("");
+const dangLuuTep = ref("");
 
 // Trạng thái kiểm tra từng giấy tờ do cán bộ đánh giá (đạt / không đạt / cách ly)
 function docStatusLabel(d: any): string {
@@ -284,6 +327,36 @@ async function loadDocs() {
     docs.value = [];
   } finally {
     loadingDocs.value = false;
+  }
+}
+
+function moDanhGiaTep(d: any): void {
+  dangDanhGia.value = d.id;
+  lyDoTep.value = "";
+}
+
+async function danhGiaTep(d: any, trangThai: "dat" | "khong_dat"): Promise<void> {
+  if (!props.userToken) return;
+  if (trangThai === "khong_dat" && !lyDoTep.value.trim()) {
+    notify("Nhập lý do không đạt", "canh_bao");
+    return;
+  }
+  dangLuuTep.value = d.id;
+  try {
+    await reviewDossierFile(
+      props.userToken,
+      d.id,
+      trangThai,
+      trangThai === "khong_dat" ? lyDoTep.value.trim() : "",
+    );
+    d.trang_thai_kiem_tra = trangThai;
+    d.ly_do = trangThai === "khong_dat" ? lyDoTep.value.trim() : null;
+    notify(trangThai === "dat" ? "Đã đánh giá giấy tờ đạt" : "Đã ghi nhận giấy tờ không đạt", "ok");
+    dangDanhGia.value = "";
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không đánh giá được giấy tờ", "loi");
+  } finally {
+    dangLuuTep.value = "";
   }
 }
 const auditList = ref<any[]>([]);

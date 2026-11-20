@@ -39,7 +39,7 @@ interface Lineage {
   bang_nguon: string[];
   dieu_kien_loc: string;
   job: string;
-  lineage_events: unknown[];
+  lineage_events: any[];
 }
 interface Citation {
   so: number;
@@ -60,6 +60,15 @@ interface TrendResponse {
 }
 interface WorkloadResponse {
   items: { ho_ten: string; so_ho_so_duoc_giao: number; dang_xu_ly: number }[];
+}
+interface PlanningFailResponse {
+  items: { ma_zone: string; ten: string; so_lan_fail: number }[];
+}
+interface AcceptanceProgressResponse {
+  items: { loai_moc: string; ket_qua: string; so_luong: number }[];
+}
+interface OnTimeResponse {
+  items: { thang: string; da_cap: number; dung_han: number; ty_le: number }[];
 }
 interface HoSoTomTat {
   id: string;
@@ -157,6 +166,9 @@ const trendData = ref<TrendResponse | null>(null);
 const workload = ref<WorkloadResponse | null>(null);
 const overdue = ref<DanhSachHoSo | null>(null);
 const todayTasks = ref<DanhSachHoSo | null>(null);
+const planningFail = ref<PlanningFailResponse | null>(null);
+const acceptanceProgress = ref<AcceptanceProgressResponse | null>(null);
+const onTime = ref<OnTimeResponse | null>(null);
 const dashboardLoading = ref(false);
 const dashboardError = ref("");
 
@@ -248,23 +260,59 @@ const workloadItems = computed(() =>
   (workload.value?.items ?? []).slice(0, 8).map((x) => ({ label: x.ho_ten, value: Number(x.so_ho_so_duoc_giao) || 0 })),
 );
 
+const acceptanceRows = computed(() => {
+  const map = new Map<string, { dat: number; khong_dat: number; khac: number }>();
+  for (const row of acceptanceProgress.value?.items ?? []) {
+    const item = map.get(row.loai_moc) || { dat: 0, khong_dat: 0, khac: 0 };
+    if (row.ket_qua === "dat") item.dat += Number(row.so_luong) || 0;
+    else if (row.ket_qua === "khong_dat") item.khong_dat += Number(row.so_luong) || 0;
+    else item.khac += Number(row.so_luong) || 0;
+    map.set(row.loai_moc, item);
+  }
+  return Array.from(map.entries()).map(([loai, value]) => ({ loai, ...value }));
+});
+const onTimeRecent = computed(() => (onTime.value?.items ?? []).slice(-6).reverse());
+function tenMoc(value: string): string {
+  return {
+    mong: "Móng",
+    ket_cau: "Kết cấu",
+    hoan_thien: "Hoàn thiện",
+    hoan_cong: "Hoàn công",
+  }[value] || value;
+}
+function tomTatNguon(value: any): string {
+  if (!value) return "—";
+  if (Array.isArray(value)) {
+    return value
+      .map((x) => (typeof x === "string" ? x : x?.name || x?.namespace || JSON.stringify(x)))
+      .join(", ");
+  }
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
 async function loadDashboard(): Promise<void> {
   dashboardLoading.value = true;
   dashboardError.value = "";
   const thang = filter.thang || "";
   try {
-    const [b, t, w, o, h] = await Promise.all([
+    const [b, t, w, o, h, pf, ap, ot] = await Promise.all([
       apiGet<BreakdownResponse>(`/metrics/status-breakdown${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
       apiGet<TrendResponse>("/metrics/trend?months=6"),
       apiGet<WorkloadResponse>("/metrics/workload"),
       apiGet<DanhSachHoSo>("/metrics/overdue"),
       apiGet<DanhSachHoSo>("/metrics/today-tasks"),
+      apiGet<PlanningFailResponse>(`/metrics/planning-fail${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
+      apiGet<AcceptanceProgressResponse>(`/metrics/acceptance-progress${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
+      apiGet<OnTimeResponse>("/metrics/on-time?months=12"),
     ]);
     breakdown.value = b;
     trendData.value = t;
     workload.value = w;
     overdue.value = o;
     todayTasks.value = h;
+    planningFail.value = pf;
+    acceptanceProgress.value = ap;
+    onTime.value = ot;
   } catch (e) {
     dashboardError.value = e instanceof Error ? e.message : "Lỗi không xác định";
   } finally {
@@ -587,6 +635,59 @@ function fmtDate(iso?: string): string {
         </div>
         <BarChart title="Tải việc theo cán bộ" :items="workloadItems" />
 
+        <div class="grid gap-4 lg:grid-cols-3">
+          <div class="the p-4">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold chu-phu">Quy hoạch không đạt</h2>
+              <span class="tt tt-do">{{ planningFail?.items?.length || 0 }}</span>
+            </div>
+            <p v-if="!planningFail?.items?.length" class="mt-2 text-sm chu-phu">Không có vùng nào bị đánh không đạt trong kỳ.</p>
+            <ul v-else class="mt-2 list-none space-y-1.5 p-0 text-[13px]">
+              <li v-for="z in planningFail.items.slice(0, 5)" :key="z.ma_zone || z.ten" class="flex justify-between gap-2 border-b border-vien-nhat pb-1.5 last:border-0">
+                <span class="min-w-0 truncate">{{ z.ten || z.ma_zone }}</span>
+                <b class="whitespace-nowrap text-son">{{ z.so_lan_fail }} lần</b>
+              </li>
+            </ul>
+          </div>
+
+          <div class="the p-4">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold chu-phu">Tiến độ nghiệm thu</h2>
+              <span class="mo">{{ acceptanceRows.length }} mốc</span>
+            </div>
+            <p v-if="!acceptanceRows.length" class="mt-2 text-sm chu-phu">Chưa có mốc nghiệm thu trong kỳ.</p>
+            <table v-else class="bang mt-2 w-full text-[12.5px]">
+              <thead><tr><th>Mốc</th><th>Đạt</th><th>Không đạt</th></tr></thead>
+              <tbody>
+                <tr v-for="m in acceptanceRows" :key="m.loai">
+                  <td>{{ tenMoc(m.loai) }}</td>
+                  <td><span class="tt tt-xanh">{{ m.dat }}</span></td>
+                  <td><span class="tt tt-do">{{ m.khong_dat }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="the p-4">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold chu-phu">Tỷ lệ đúng hạn</h2>
+              <span class="mo">6 tháng gần nhất</span>
+            </div>
+            <p v-if="!onTimeRecent.length" class="mt-2 text-sm chu-phu">Chưa có dữ liệu đúng hạn.</p>
+            <table v-else class="bang mt-2 w-full text-[12.5px]">
+              <thead><tr><th>Tháng</th><th>Đã cấp</th><th>Đúng hạn</th><th>Tỷ lệ</th></tr></thead>
+              <tbody>
+                <tr v-for="m in onTimeRecent" :key="m.thang">
+                  <td class="whitespace-nowrap">{{ m.thang }}</td>
+                  <td>{{ m.da_cap }}</td>
+                  <td>{{ m.dung_han }}</td>
+                  <td><b :class="Number(m.ty_le) < 80 ? 'text-son' : 'text-xanh'">{{ m.ty_le }}%</b></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div v-if="dashboardLoading" class="grid gap-4 lg:grid-cols-2" role="status" aria-busy="true">
           <span class="sr-only">Đang tải danh sách hồ sơ</span>
           <div v-for="i in 2" :key="i" class="kinh animate-pulse space-y-3 p-4 shadow" aria-hidden="true">
@@ -664,6 +765,26 @@ function fmtDate(iso?: string): string {
             <p class="chu-phu">
               Sự kiện lineage: {{ lineage.lineage_events.length }}
             </p>
+            <div v-if="lineage.lineage_events.length" class="mt-3 overflow-x-auto border-t border-vien-nhat pt-2">
+              <table class="bang w-full text-[12px]">
+                <thead>
+                  <tr>
+                    <th>Thời điểm</th>
+                    <th>Tác vụ</th>
+                    <th>Dữ liệu vào</th>
+                    <th>Dữ liệu ra</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="e in lineage.lineage_events" :key="e.id">
+                    <td class="whitespace-nowrap">{{ fmtDate(e.event_time) }}</td>
+                    <td class="whitespace-nowrap">{{ e.job || lineage.job }}</td>
+                    <td class="max-w-[240px]">{{ tomTatNguon(e.inputs) }}</td>
+                    <td class="max-w-[240px]">{{ tomTatNguon(e.outputs) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </template>

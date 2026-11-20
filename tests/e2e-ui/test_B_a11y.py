@@ -31,6 +31,8 @@ def _tai_khoan() -> dict[str, str]:
 
 def _axe(page) -> list[dict]:
     page.add_script_tag(path=str(AXE))
+    # Kết thúc transition màu trước khi đo tương phản (theme đổi trong 500ms).
+    page.evaluate("() => document.getAnimations().forEach((a) => { try { a.finish(); } catch (e) {} })")
     res = page.evaluate("async () => await axe.run(document, {resultTypes:['violations']})")
     return [v for v in res["violations"] if v["impact"] in ("serious", "critical")]
 

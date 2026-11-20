@@ -8,3 +8,4 @@ export * from "./break_glass";
 export * from "./files";
 export * from "./construction";
 export * from "./dsar";
+export * from "./legal";
