@@ -1,0 +1,245 @@
+1
+00:00:00,500 --> 00:00:12,486
+Xin phép xây một căn nhà ở riêng lẻ, người dân
+thường phải đi lại nhiều lần.
+
+2
+00:00:12,586 --> 00:00:18,052
+Hồ sơ thiếu một tờ giấy là quay về.
+
+3
+00:00:18,152 --> 00:00:26,322
+Bản vẽ sai quy hoạch thì đến lúc thẩm định mới
+biết.
+
+4
+00:00:26,422 --> 00:00:33,478
+Cán bộ phải đối chiếu tay hàng chục chỉ tiêu,
+
+5
+00:00:33,578 --> 00:00:40,794
+còn lãnh đạo không biết hồ sơ nào sắp quá hạn.
+
+6
+00:00:40,894 --> 00:00:52,880
+Luật cho phép giải quyết trong 7 ngày làm việc
+(Điều 54 Nghị định 217/2026),
+
+7
+00:00:52,980 --> 00:00:59,400
+nhưng thực tế hồ sơ thường đi nhiều vòng.
+
+8
+00:01:00,500 --> 00:01:10,132
+DX-OS C3 là một nền tảng mã nguồn mở cho
+phường.
+
+9
+00:01:10,232 --> 00:01:27,974
+Lõi nền tảng lo đăng nhập một lần, phân quyền,
+lưu tệp quét virus, chữ ký số, quy trình,
+
+10
+00:01:28,074 --> 00:01:31,623
+nhật ký kiểm toán.
+
+11
+00:01:31,723 --> 00:01:40,544
+Ứng dụng cấp phép xây dựng chạy trên lõi đó.
+
+12
+00:01:40,644 --> 00:01:50,682
+Cả hệ thống chạy được trên một máy chủ của
+phường,
+
+13
+00:01:50,782 --> 00:01:59,400
+không phụ thuộc dịch vụ đám mây nước ngoài.
+
+14
+00:02:00,500 --> 00:02:10,980
+Ông Minh nộp hồ sơ xây nhà 5 tầng.
+
+15
+00:02:11,080 --> 00:02:36,187
+Danh mục giấy tờ lấy đúng Điều 60 Nghị định
+217: đơn theo Mẫu số 01, giấy tờ đất,
+
+16
+00:02:36,287 --> 00:02:52,369
+ba bản vẽ và bản cam kết an toàn công trình
+liền kề.
+
+17
+00:02:52,469 --> 00:03:18,820
+Thiếu giấy nào hệ thống báo đúng giấy đó ngay
+trên màn hình, không đợi cán bộ trả về.
+
+18
+00:03:18,920 --> 00:03:29,400
+Tệp được quét virus trước khi lưu.
+
+19
+00:03:30,500 --> 00:03:38,569
+Một cửa tiếp nhận, lãnh đạo phân công.
+
+20
+00:03:38,669 --> 00:03:57,057
+Mỗi người chỉ thấy việc của mình, lấy từ quy
+trình thật chứ không phải danh sách cứng.
+
+21
+00:03:57,157 --> 00:04:06,946
+Thẩm định viên kiểm tra quy hoạch trên bản đồ.
+
+22
+00:04:07,046 --> 00:04:19,629
+Thửa TD-A-01 thuộc vùng chỉ cho phép tối đa 3
+tầng, 12 mét.
+
+23
+00:04:19,729 --> 00:04:34,248
+Phương án 5 tầng bị chỉ ra ngay từng chỉ tiêu
+vi phạm, có trích dẫn.
+
+24
+00:04:34,348 --> 00:04:48,006
+Sửa còn 3 tầng thì đạt, và cả hai lần kiểm tra
+đều được lưu lại.
+
+25
+00:04:48,106 --> 00:04:59,400
+Dữ liệu quy hoạch ở đây là dữ liệu tổng hợp
+cho demo.
+
+26
+00:05:00,500 --> 00:05:14,030
+Thiết kế được thẩm định theo từng bộ môn: kiến
+trúc, kết cấu, cơ điện.
+
+27
+00:05:14,130 --> 00:05:22,403
+Bản v1 thiếu kết cấu và sơ đồ cấp điện sai,
+
+28
+00:05:22,503 --> 00:05:32,529
+nên thẩm định viên để lại nhận xét ngay trên
+bản vẽ.
+
+29
+00:05:32,629 --> 00:05:49,469
+Chủ đầu tư nộp v2, hệ thống so sánh hai phiên
+bản và chỉ cần thẩm định lại phần đã thay
+
+30
+00:05:49,569 --> 00:05:50,248
+đổi.
+
+31
+00:05:50,348 --> 00:05:59,400
+Không còn cảnh gửi đi gửi lại cả bộ hồ sơ
+giấy.
+
+32
+00:06:00,500 --> 00:06:27,328
+Lãnh đạo phê duyệt, giấy phép được ký số chuẩn
+PAdES bằng khoá nằm trong thiết bị bảo mật
+
+33
+00:06:27,428 --> 00:06:30,959
+mềm SoftHSM.
+
+34
+00:06:31,059 --> 00:06:40,641
+Khoá không bao giờ rời thiết bị.
+
+35
+00:06:40,741 --> 00:06:59,400
+Mỗi giấy phép có một mã công khai ngẫu nhiên,
+không đoán được.
+
+36
+00:07:00,500 --> 00:07:08,457
+Cấp phép xong chưa phải là hết.
+
+37
+00:07:08,557 --> 00:07:18,074
+Trật tự xây dựng nghiệm thu theo mốc.
+
+38
+00:07:18,174 --> 00:07:35,228
+Móng sai cao độ thì ghi không đạt kèm lý do,
+chủ đầu tư khắc phục,
+
+39
+00:07:35,328 --> 00:07:43,026
+kiểm tra lại mới cho làm tiếp.
+
+40
+00:07:43,126 --> 00:07:59,400
+Từng lần nghiệm thu đều được lưu thành phiên
+bản, không ghi đè.
+
+41
+00:08:00,500 --> 00:08:14,348
+Người dân, ngân hàng hay hàng xóm đều kiểm tra
+được giấy phép thật hay giả mà không cần
+
+42
+00:08:14,448 --> 00:08:20,922
+tài khoản, và không thấy dữ liệu cá nhân.
+
+43
+00:08:21,022 --> 00:08:28,617
+Sửa một byte trong PDF là chữ ký không còn
+khớp.
+
+44
+00:08:28,717 --> 00:08:34,068
+Mọi thao tác, kể cả truy cập khẩn,
+
+45
+00:08:34,168 --> 00:08:44,329
+đều nằm trong nhật ký dạng chuỗi băm: sửa một
+dòng là chuỗi gãy.
+
+46
+00:08:44,429 --> 00:08:58,598
+Công dân tự xem, rút đồng thuận hoặc yêu cầu
+dữ liệu của mình theo Luật Bảo vệ dữ liệu cá
+
+47
+00:08:58,698 --> 00:08:59,400
+nhân.
+
+48
+00:09:00,500 --> 00:09:09,732
+Lãnh đạo thấy ngay hồ sơ nào quá hạn, cán bộ
+nào đang quá tải.
+
+49
+00:09:09,832 --> 00:09:16,354
+Trợ lý pháp lý chạy trên máy chủ của phường,
+
+50
+00:09:16,454 --> 00:09:25,686
+chỉ trả lời khi có căn cứ trong kho văn bản và
+luôn ghi nguồn.
+
+51
+00:09:25,786 --> 00:09:38,479
+Số liệu tác động trên slide được đo từ chính
+hệ thống vừa demo; phần nào là giả định,
+
+52
+00:09:38,579 --> 00:09:41,038
+chúng tôi ghi rõ.
+
+53
+00:09:41,138 --> 00:09:54,433
+Bước tiếp theo là kết nối Cổng Dịch vụ công
+Quốc gia và cơ sở dữ liệu đất đai để công dân
+
+54
+00:09:54,533 --> 00:09:59,400
+không phải nộp lại giấy tờ đã có.
