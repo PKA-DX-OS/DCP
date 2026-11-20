@@ -13,6 +13,7 @@ import DonutChart from "./components/DonutChart.vue";
 import LineChart from "./components/LineChart.vue";
 import BarChart from "./components/BarChart.vue";
 import AuditorPanel from "./components/AuditorPanel.vue";
+import TenantAdminPanel from "./components/TenantAdminPanel.vue";
 import LogoMark from "./components/LogoMark.vue";
 
 const { cheDo } = useTheme();
@@ -76,7 +77,7 @@ interface DanhSachHoSo {
 
 const KEY_FILTER = "dxos-bdh-filter";
 const APP_CODE = "cap-phep";
-type Tab = "chi-so" | "tro-ly" | "kiem-toan";
+type Tab = "chi-so" | "tro-ly" | "kiem-toan" | "quan-tri";
 
 type AuthState = "dang_kiem_tra" | "chua_dang_nhap" | "khong_quyen" | "ok";
 const auth = ref<AuthState>("dang_kiem_tra");
@@ -84,6 +85,9 @@ const tab = ref<Tab>("chi-so");
 const vaiTro = ref<string[]>([]);
 const laKiemToan = computed(() =>
   vaiTro.value.some((r) => ["dx:auditor", "dx:tenant-admin", "dx:platform-admin"].includes(r)),
+);
+const laQuanTri = computed(() =>
+  vaiTro.value.some((r) => ["dx:tenant-admin", "dx:platform-admin"].includes(r)),
 );
 
 // Bộ lọc giữ nguyên khi chuyển tab và khi tải lại trang (sessionStorage)
@@ -488,6 +492,18 @@ function fmtDate(iso?: string): string {
       >
         Kiểm toán
       </button>
+      <button
+        v-if="laQuanTri"
+        class="px-3 py-2 text-sm"
+        :class="
+          tab === 'quan-tri'
+            ? 'border-b-2 border-slate-800 font-semibold'
+            : 'chu-phu'
+        "
+        @click="tab = 'quan-tri'"
+      >
+        Quản trị
+      </button>
     </nav>
 
     <!-- Tab Chỉ số: dùng v-show để giữ trạng thái khi chuyển tab -->
@@ -701,6 +717,11 @@ function fmtDate(iso?: string): string {
     <!-- Tab Kiểm toán (chỉ dx:auditor / quản trị) -->
     <section v-if="laKiemToan" v-show="tab === 'kiem-toan'">
       <AuditorPanel />
+    </section>
+
+    <!-- Tab Quản trị địa bàn (dx:platform-admin / dx:tenant-admin) -->
+    <section v-if="laQuanTri" v-show="tab === 'quan-tri'">
+      <TenantAdminPanel :vai-tro="vaiTro" />
     </section>
   </main>
 </template>

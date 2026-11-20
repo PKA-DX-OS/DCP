@@ -70,12 +70,17 @@ def test_v2_11_web_api_contracts():
 
 def test_v2_11_app_mounts_staff_screens():
     app = _doc("App.vue")
-    for comp in ("Navbar", "WorkspaceView", "ConstructionView"):
-        assert f"<{comp}" in app, f"App.vue chưa gắn {comp}"
+    assert "<Navbar" in app
+    assert '<component :is="f.component"' in app, "App.vue chưa gắn tab động từ registry"
+    assert "<WorkspaceView" in _doc("features/ban-lam-viec/BanLamViecTab.vue")
+    assert "ConstructionView" in _doc("features/cong-trinh/index.ts")
 
 
 def test_v2_11_app_mounts_citizen_screens():
     app = _doc("App.vue")
-    thieu = [c for c in ("DossiersView", "ConsentView", "CreateDossierModal", "DetailDossierModal",
-                         "SupplementModal", "Forbidden403Modal", "BreakGlassModal") if f"<{c}" not in app]
+    thieu = [c for c in ("CreateDossierModal", "DetailDossierModal", "SupplementModal",
+                         "Forbidden403Modal", "BreakGlassModal") if f"<{c}" not in app]
     assert not thieu, f"App.vue chưa gắn: {thieu}"
+    assert '<component :is="f.component"' in app, "App.vue chưa gắn tab động từ registry"
+    assert "<DossiersView" in _doc("features/ho-so/HoSoTab.vue")
+    assert "<ConsentView" in _doc("features/du-lieu/DuLieuTab.vue")

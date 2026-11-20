@@ -163,7 +163,7 @@ async def on_time(months: int = Query(default=12, ge=1, le=24), authorization: s
             SELECT to_char(m.thang, 'YYYY-MM') AS thang,
                    count(h.id) AS da_cap,
                    count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) AS dung_han,
-                   COALESCE(round(100.0 * count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) / NULLIF(count(h.id), 0), 1), 0) AS ty_le
+                   COALESCE(round(100::numeric * count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) / NULLIF(count(h.id), 0), 1), 0) AS ty_le
             FROM m
             LEFT JOIN app_cap_phep.ho_so h
               ON h.tenant = core.jwt_tenant()

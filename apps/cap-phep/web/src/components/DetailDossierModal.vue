@@ -132,7 +132,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           <p class="goi-y mt-0 mb-2">Mọi lần mở hồ sơ, xem tệp và xử lý đều được ghi lại và không sửa được. Sắp theo thời gian, cũ nhất trước.</p>
           <p v-if="loadingAudit" class="text-phu m-0">Đang tải nhật ký…</p>
           <p v-else-if="auditList.length === 0" class="text-phu m-0">Chưa có ghi nhận nào.</p>
-          <ol v-else id="list-dossier-audit" class="list-none m-0 p-0 max-h-[260px] overflow-y-auto border-t border-vien-nhat">
+          <ol v-else id="list-dossier-audit" tabindex="0" aria-label="Lịch sử xử lý hồ sơ" class="list-none m-0 p-0 max-h-[260px] overflow-y-auto border-t border-vien-nhat">
             <li
               v-for="(item, idx) in lichSuTheoThoiGian"
               :key="idx"
