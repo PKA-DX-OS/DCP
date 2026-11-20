@@ -50,14 +50,14 @@ export function fieldClasses(size: Size = "md", invalid = false): string {
 }
 
 const TONE: Record<Tone, string> = {
-  // Dùng cặp màu đậm/nhạt đủ tương phản ở nền sáng; dark: đổi sang tông nhạt.
-  neutral: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-  brand: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200",
-  success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200",
-  warning: "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  danger: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200",
-  info: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200",
-  gold: "bg-yellow-50 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200",
+  // Bảng màu kính + champagne của bản cũ; các lớp nền đã có trong style.css.
+  neutral: "bg-mat-2 text-phu",
+  brand: "bg-cham/15 text-cham",
+  success: "bg-xanh-nen text-xanh",
+  warning: "bg-vang-nen text-vang",
+  danger: "bg-do-nen text-son",
+  info: "bg-lam-nen text-lam",
+  gold: "bg-cham/20 text-cham",
 };
 
 export function badgeClasses(tone: Tone = "neutral", size: "sm" | "md" = "md"): string {

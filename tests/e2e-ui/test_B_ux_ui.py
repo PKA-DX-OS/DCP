@@ -48,7 +48,7 @@ def test_BU01_dashboard_lanh_dao_co_kpi_chart_va_danh_sach():
         page = ctx.new_page()
         try:
             _dang_nhap(page, "ld.hoa", accounts["ld.hoa"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_text("Bảng điều hành lãnh đạo").wait_for(timeout=20000)
+            page.get_by_role("heading", name="Chỉ số điều hành").wait_for(timeout=20000)
             page.get_by_text("Hồ sơ theo trạng thái").wait_for(timeout=20000)
             page.get_by_text("Hồ sơ theo tháng (6 tháng)").wait_for(timeout=20000)
             page.get_by_text("Tải việc theo cán bộ").wait_for(timeout=20000)
@@ -90,7 +90,7 @@ def test_BU05_auditor_ui_va_BU04_thong_bao():
             _dang_nhap(page, "cdt.minh", accounts["cdt.minh"], f"{BASE_URL}/")
             page.get_by_role("button", name=re.compile("Thông báo")).click()
             page.get_by_text("Có nhận xét thẩm định mới").wait_for(timeout=20000)
-            page.get_by_role("button", name="Đánh dấu tất cả đã đọc").click()
+            page.get_by_role("button", name="Đánh dấu đã đọc").click()
         finally:
             ctx.close()
             browser.close()

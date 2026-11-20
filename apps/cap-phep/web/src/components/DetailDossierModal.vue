@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <DossierActionBar v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" @done="hoSoCapNhat = $event" />
       <DossierWarnings v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" />
 
-      <nav class="flex gap-1 overflow-x-auto border-b border-slate-200 px-5" aria-label="Các phần của hồ sơ">
+      <nav class="flex gap-1 overflow-x-auto border-b border-vien-nhat px-5" aria-label="Các phần của hồ sơ">
         <button
           v-for="m in mucHien"
           :key="m.id"
@@ -31,8 +31,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           :class="[
             'shrink-0 border-b-2 px-2.5 py-2 text-[12.5px] whitespace-nowrap transition',
             mucDangXem === m.id
-              ? 'border-indigo-600 font-semibold text-indigo-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800',
+              ? 'border-[rgb(var(--c-cham))] font-semibold text-chu'
+              : 'border-transparent text-phu hover:text-chu',
           ]"
           @click="denMuc(m.id)"
         >{{ m.ten }}</button>

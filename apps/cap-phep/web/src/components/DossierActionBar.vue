@@ -210,7 +210,7 @@ onUnmounted(() => window.removeEventListener("dxos:tasks-changed", taiKhiThayDoi
 </script>
 
 <template>
-  <section v-if="viecHienTai && hanhDongCua(viecHienTai).length" :id="rootId" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3" :aria-labelledby="titleId">
+  <section v-if="viecHienTai && hanhDongCua(viecHienTai).length" :id="rootId" class="mt-4 rounded-[18px] border border-vien-nhat bg-mat-2 p-3" :aria-labelledby="titleId">
     <div :class="compact ? 'flex flex-col items-stretch gap-2' : 'flex flex-wrap items-center gap-2'">
       <div class="min-w-0 flex-1">
         <h4 :id="titleId" class="text-[13px] font-semibold m-0">Việc đang chờ bạn: {{ viecHienTai.name || viecHienTai.taskDefinitionKey }}</h4>

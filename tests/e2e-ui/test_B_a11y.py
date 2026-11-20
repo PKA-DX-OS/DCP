@@ -80,7 +80,7 @@ def test_a11y_login_danh_sach_dashboard():
         page = ctx.new_page()
         try:
             _dang_nhap(page, "ld.hoa", accounts["ld.hoa"], f"{BASE_URL}/dieu-hanh/")
-            page.get_by_text("Bảng điều hành lãnh đạo").wait_for(timeout=20000)
+            page.get_by_role("heading", name="Chỉ số điều hành").wait_for(timeout=20000)
             assert _axe(page) == []
             page.get_by_role("button", name=re.compile("Nền (sáng|tối)")).click()
             page.wait_for_timeout(250)

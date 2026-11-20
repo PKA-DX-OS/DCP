@@ -2,32 +2,27 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 
 /*
- * Token của design system (B-P0-07), đồng bộ với bản DxOs:
- * nền sáng slate, nhấn indigo, thẻ trắng, viền slate-200, chữ slate-800.
- * Chế độ tối giữ bộ màu kính cũ. Component mới chỉ dùng token này,
+ * Token của design system, đồng bộ với bảng màu kính + champagne của bản cũ
+ * (DXOS-OpenCore-C3 / Báo cáo tiến độ). Component mới dùng token này,
  * không đặt mã màu riêng.
  */
 :root,
 :root[data-theme="light"] {
-  /* Nhấn và nền ưu tiên */
-  --ds-brand: 79 70 229;    /* indigo-600 */
-  --ds-gold: 217 119 6;     /* amber-600 */
+  --ds-brand: 160 112 30;    /* champagne đậm để đọc trên nền sáng */
+  --ds-gold: 160 112 30;
 
-  /* Chữ và nút chính */
-  --ds-bg: 248 250 252;     /* slate-50 */
-  --ds-text: 30 41 59;      /* slate-800 */
-  --ds-muted: 71 85 105;    /* slate-600 */
-  --ds-primary: 79 70 229;  /* indigo-600 */
-  --ds-on-primary: 255 255 255;
-  --ds-on-brand: 255 255 255;
+  --ds-bg: 228 234 244;
+  --ds-text: 11 19 34;
+  --ds-muted: 72 93 124;
+  --ds-primary: 228 184 99;  /* nền nút champagne */
+  --ds-on-primary: 6 10 19;
+  --ds-on-brand: 6 10 19;
 
-  /* Trạng thái */
-  --ds-success: 5 150 105;  /* emerald-600 */
-  --ds-warning: 217 119 6;  /* amber-600 */
-  --ds-danger: 225 29 72;   /* rose-600 */
-  --ds-info: 79 70 229;     /* indigo-600 */
+  --ds-success: 24 122 78;
+  --ds-warning: 166 98 18;
+  --ds-danger: 190 60 48;
+  --ds-info: 37 78 138;
 
-  /* Chữ: Inter, thang 12/13/14/16/20/24/32 */
   --ds-font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ds-text-xs: 12px;
   --ds-text-sm: 13px;
@@ -37,7 +32,6 @@
   --ds-text-xl: 24px;
   --ds-text-2xl: 32px;
 
-  /* Khoảng cách 4/8/12/16/24/32, bo góc 8/12/16 */
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
@@ -48,56 +42,52 @@
   --ds-radius-md: 12px;
   --ds-radius-lg: 16px;
 
-  /* Bảng màu biểu đồ 5 màu */
-  --ds-chart-1: 79 70 229;
-  --ds-chart-2: 5 150 105;
-  --ds-chart-3: 217 119 6;
-  --ds-chart-4: 109 40 217;
-  --ds-chart-5: 225 29 72;
+  --ds-chart-1: 160 112 30;
+  --ds-chart-2: 37 78 138;
+  --ds-chart-3: 24 122 78;
+  --ds-chart-4: 166 98 18;
+  --ds-chart-5: 190 60 48;
 
-  --ds-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
-  --ds-shadow-lg: 0 20px 60px rgba(15, 23, 42, 0.18);
-  --ds-overlay: rgba(15, 23, 42, 0.6);
+  --ds-shadow: 0 16px 40px rgba(28, 46, 78, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(20, 40, 70, 0.08);
+  --ds-shadow-lg: 0 24px 64px rgba(28, 46, 78, 0.2), inset 0 1px 0 rgba(255, 255, 255, 1), inset 0 -1px 0 rgba(20, 40, 70, 0.08);
+  --ds-overlay: rgba(20, 32, 54, 0.35);
 }
 
 :root[data-theme="dark"] {
-  --ds-brand: 96 165 250;
-  --ds-gold: 252 211 77;
+  --ds-brand: 228 184 99;
+  --ds-gold: 228 184 99;
 
-  --ds-bg: 11 18 32;
-  --ds-text: 226 232 240;
-  --ds-muted: 148 163 184;
-  --ds-primary: 96 165 250;
-  --ds-on-primary: 11 18 32;
-  --ds-on-brand: 11 18 32;
+  --ds-bg: 11 19 34;
+  --ds-text: 240 244 250;
+  --ds-muted: 124 156 196;
+  --ds-primary: 228 184 99;
+  --ds-on-primary: 6 10 19;
+  --ds-on-brand: 6 10 19;
 
-  --ds-success: 134 239 172;
-  --ds-warning: 252 211 77;
-  --ds-danger: 252 165 165;
-  --ds-info: 96 165 250;
+  --ds-success: 125 211 170;
+  --ds-warning: 236 170 108;
+  --ds-danger: 240 138 126;
+  --ds-info: 169 196 232;
 
-  --ds-chart-1: 96 165 250;
-  --ds-chart-2: 134 239 172;
-  --ds-chart-3: 252 211 77;
-  --ds-chart-4: 167 139 250;
-  --ds-chart-5: 252 165 165;
+  --ds-chart-1: 228 184 99;
+  --ds-chart-2: 169 196 232;
+  --ds-chart-3: 125 211 170;
+  --ds-chart-4: 236 170 108;
+  --ds-chart-5: 240 138 126;
 
-  --ds-shadow: 0 1px 2px rgba(2, 6, 16, 0.24), 0 4px 12px rgba(2, 6, 16, 0.16);
-  --ds-shadow-lg: 0 16px 48px rgba(2, 6, 16, 0.4);
-  --ds-overlay: rgba(2, 6, 16, 0.6);
+  --ds-shadow: 0 16px 40px rgba(3, 7, 18, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(2, 6, 16, 0.35);
+  --ds-shadow-lg: 0 24px 64px rgba(3, 7, 18, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(2, 6, 16, 0.35);
+  --ds-overlay: rgba(6, 10, 19, 0.6);
 }
 
-/* Bề mặt thẻ: trắng, viền slate, đổ bóng nhẹ (giống DxOs) */
+/* Bề mặt kính: thẻ, bảng, biểu đồ, vùng tải tệp */
 .ds-glass {
-  background: var(--kinh);
+  background: var(--mat);
   border: 1px solid var(--vien);
   border-radius: var(--ds-radius-md);
   box-shadow: var(--ds-shadow);
-}
-:root[data-theme="dark"] .ds-glass {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: var(--ds-shadow-lg);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
 }
 
 /* Hộp thoại, ngăn kéo, thông báo nổi */
@@ -106,14 +96,16 @@
   border: 1px solid var(--vien);
   border-radius: var(--ds-radius-lg);
   box-shadow: var(--ds-shadow-lg);
-}
-:root[data-theme="dark"] .ds-hop {
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  backdrop-filter: blur(48px) saturate(180%);
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .ds-glass, .ds-hop { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--nen); }
+  .ds-glass, .ds-hop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--nen);
+  }
 }
 
 .ds-focus:focus-visible {

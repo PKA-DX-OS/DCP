@@ -59,13 +59,15 @@ def test_AFLOW_05_phe_duyet_tren_ui():
             page.get_by_role("button", name="Đăng xuất").wait_for(timeout=20000)
 
             page.get_by_role("button", name="Bàn làm việc", exact=True).click()
-            viec = page.locator("li").filter(has_text=f"Mã hồ sơ: {ma}")
-            viec.get_by_role("button", name="Xem hồ sơ").click()
+            viec = page.locator("aside button").filter(has_text=ma).first
+            viec.wait_for(timeout=30000)
+            viec.click()
+            page.get_by_role("button", name="Mở hồ sơ đầy đủ").click()
             page.locator("#modal-detail-dossier").wait_for(timeout=20000)
             page.locator("#block-dossier-actions").wait_for(timeout=20000)
 
-            page.get_by_role("button", name="Phê duyệt và ký", exact=True).click()
-            page.get_by_role("button", name="Xác nhận", exact=True).click()
+            page.locator("#modal-detail-dossier").get_by_role("button", name="Phê duyệt và ký", exact=True).click()
+            page.locator("#modal-detail-dossier").get_by_role("button", name="Xác nhận", exact=True).click()
             page.locator("#detail-trang-thai").filter(has_text="cấp phép").wait_for(timeout=30000)
         finally:
             page_ctx.close()

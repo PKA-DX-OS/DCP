@@ -128,9 +128,9 @@ def test_lanh_dao(page):
     expect(page.get_by_role("heading", name="Truy cập khẩn chờ duyệt")).to_be_visible(timeout=CHO)
     # Bảng điều hành dùng chung phiên đăng nhập
     page.goto(f"{BASE_URL}/dieu-hanh/", wait_until="domcontentloaded")
-    expect(page.get_by_text("Bảng điều hành lãnh đạo").first).to_be_visible(timeout=CHO)
-    expect(page.get_by_role("button", name="Chỉ số", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Trợ lý", exact=True)).to_be_visible()
+    expect(page.get_by_text("Chỉ số điều hành").first).to_be_visible(timeout=CHO)
+    expect(page.get_by_role("button", name="Chỉ số điều hành", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Hỏi đáp quy định", exact=True)).to_be_visible()
 
 
 def test_trat_tu_xay_dung(page):

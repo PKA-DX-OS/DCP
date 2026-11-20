@@ -3,7 +3,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles } from "./auth";
+import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles, readTenant } from "./auth";
 import { ApiError, apiDownload, apiGet, apiPost, luuBlob } from "./api";
 import { donViHienThi, formatThoiDiem, nhanChiSo, sapXepChiSo } from "./utils/metrics";
 import { renderMarkdown, tenNguon } from "./utils/markdown";
@@ -83,6 +83,21 @@ type AuthState = "dang_kiem_tra" | "chua_dang_nhap" | "khong_quyen" | "ok";
 const auth = ref<AuthState>("dang_kiem_tra");
 const tab = ref<Tab>("chi-so");
 const vaiTro = ref<string[]>([]);
+const tenNguoiDung = ref("");
+const tenant = ref("");
+const donVi = computed(() => {
+  const t = tenant.value;
+  if (t === "phuong-a") return "UBND Phường A";
+  if (t === "phuong-b") return "UBND Phường B";
+  return t || "Hệ thống cấp phép";
+});
+const vai = computed(() => {
+  if (vaiTro.value.includes("app:cap-phep:lanh-dao")) return "Lãnh đạo phường";
+  if (vaiTro.value.includes("dx:auditor")) return "Kiểm toán viên";
+  if (vaiTro.value.includes("dx:platform-admin")) return "Quản trị nền tảng";
+  if (vaiTro.value.includes("dx:tenant-admin")) return "Quản trị địa bàn";
+  return "Tài khoản đã xác thực";
+});
 const laKiemToan = computed(() =>
   vaiTro.value.some((r) => ["dx:auditor", "dx:tenant-admin", "dx:platform-admin"].includes(r)),
 );
@@ -376,6 +391,8 @@ onMounted(async () => {
     return;
   }
   vaiTro.value = readRoles(user.access_token);
+  tenNguoiDung.value = (user.profile?.name as string) || (user.profile?.preferred_username as string) || "";
+  tenant.value = readTenant(user.access_token);
   if (!canViewDashboard(vaiTro.value)) {
     auth.value = "khong_quyen";
     return;
@@ -443,67 +460,71 @@ function fmtDate(iso?: string): string {
     </button>
   </div>
 
-  <div v-else class="min-h-screen">
-    <div class="bg-amber-400 px-4 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-slate-900 shadow-sm">
-      Bản mô phỏng phục vụ cuộc thi OLP Tin học Sinh viên PMNM 2026 — Dữ liệu hu cấu (mẫu), giấy phép không có giá trị pháp lý
-    </div>
-    <header class="sticky top-0 z-30 bg-indigo-900 text-white shadow-md">
-      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-indigo-500 bg-indigo-700 text-xl font-bold shadow">DX</div>
-          <div>
-            <h1 class="text-lg font-extrabold leading-tight tracking-tight">DX-OS OPEN-CORE</h1>
-            <p class="text-xs text-indigo-200">Bảng điều hành lãnh đạo (Tầng 2 - C3)</p>
+  <div v-else class="flex min-h-screen max-w-full flex-col overflow-x-hidden">
+    <header class="thanh-tren sticky top-0 z-30 text-chu">
+      <div class="mx-auto flex h-[72px] max-w-[1320px] items-center gap-3 px-4 sm:px-6">
+        <LogoMark ink="currentColor" frame="var(--vien)" />
+        <div class="flex min-w-0 flex-col leading-tight">
+          <b class="truncate text-[15px] font-semibold">{{ donVi }}</b>
+          <span class="truncate text-[12.5px] text-phu">Bảng điều hành</span>
+        </div>
+        <div class="flex-1"></div>
+        <button
+          type="button"
+          class="nut-tren nut-giao-dien"
+          :aria-label="cheDo === 'toi' ? 'Nền sáng' : 'Nền tối'"
+          :title="cheDo === 'toi' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'"
+          @click="doiGiaoDien()"
+        >
+          <svg v-if="cheDo === 'toi'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2" />
+            <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" />
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z" />
+          </svg>
+        </button>
+        <a href="/" class="nut-tren nut-chu hidden sm:inline-grid">Trang cấp phép</a>
+        <template v-if="auth === 'ok'">
+          <div class="hidden pl-1.5 leading-tight md:block">
+            <div class="text-[13.5px] font-medium">{{ tenNguoiDung }}</div>
+            <div class="text-[12px] text-phu">{{ vai }}</div>
           </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" :disabled="dangXuatTep" @click="xuatExcel">Xuất Excel</button>
-          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" :disabled="dangXuatTep" @click="xuatPdf">Xuất PDF</button>
-          <a href="/" class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700">Về trang cấp phép</a>
-          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" @click="doiGiaoDien()">{{ cheDo === "toi" ? "Nền sáng" : "Nền tối" }}</button>
-          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" @click="logout()">Đăng xuất</button>
-        </div>
+          <button type="button" class="nut-tren nut-chu" @click="logout()">Đăng xuất</button>
+        </template>
+        <button v-else type="button" class="btn btn-sm btn-chinh" @click="login()">Đăng nhập</button>
       </div>
-      <nav class="border-t border-indigo-800 bg-white" aria-label="Điều hướng bảng điều hành">
-        <div class="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4">
-          <button
-            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
-            :class="tab === 'chi-so' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
-            @click="tab = 'chi-so'"
-          >Chỉ số</button>
-          <button
-            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
-            :class="tab === 'tro-ly' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
-            @click="tab = 'tro-ly'"
-          >Trợ lý</button>
-          <button
-            v-if="laKiemToan"
-            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
-            :class="tab === 'kiem-toan' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
-            @click="tab = 'kiem-toan'"
-          >Kiểm toán</button>
-          <button
-            v-if="laQuanTri"
-            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
-            :class="tab === 'quan-tri' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
-            @click="tab = 'quan-tri'"
-          >Quản trị</button>
-        </div>
+      <nav v-if="auth === 'ok'" class="relative mx-auto flex h-[46px] max-w-[1320px] gap-7 overflow-x-auto px-4 sm:px-6" aria-label="Điều hướng bảng điều hành">
+        <button type="button" class="tab-chinh" :class="tab === 'chi-so' && 'tab-dang-mo'" :aria-current="tab === 'chi-so' ? 'page' : undefined" @click="tab = 'chi-so'">Chỉ số điều hành</button>
+        <button type="button" class="tab-chinh" :class="tab === 'tro-ly' && 'tab-dang-mo'" :aria-current="tab === 'tro-ly' ? 'page' : undefined" @click="tab = 'tro-ly'">Hỏi đáp quy định</button>
+        <button v-if="laKiemToan" type="button" class="tab-chinh" :class="tab === 'kiem-toan' && 'tab-dang-mo'" :aria-current="tab === 'kiem-toan' ? 'page' : undefined" @click="tab = 'kiem-toan'">Kiểm toán</button>
+        <button v-if="laQuanTri" type="button" class="tab-chinh" :class="tab === 'quan-tri' && 'tab-dang-mo'" :aria-current="tab === 'quan-tri' ? 'page' : undefined" @click="tab = 'quan-tri'">Quản trị</button>
       </nav>
     </header>
-    <main id="bdh-main" class="mx-auto max-w-7xl space-y-4 p-4">
+    <main id="bdh-main" class="mx-auto w-full max-w-[1320px] flex-1 px-4 py-6 sm:px-6">
 
     <!-- Tab Chỉ số: dùng v-show để giữ trạng thái khi chuyển tab -->
     <section v-show="tab === 'chi-so'" class="space-y-4">
-      <div
-        class="flex flex-wrap items-end gap-4 rounded-lg kinh p-4 shadow"
-      >
+      <div class="mb-2 flex flex-wrap items-end gap-4">
+        <div>
+          <h1 class="tieu-de-trang">Chỉ số điều hành</h1>
+          <p class="mt-2 text-[16px] text-phu">
+            Tính trực tiếp từ dữ liệu của {{ donVi }}<template v-if="data">, cập nhật lúc {{ fmtDate(data.computed_at) }}</template>.
+          </p>
+        </div>
+        <div class="flex-1"></div>
+        <button class="btn" :disabled="dangXuatTep" @click="xuatExcel">Xuất Excel</button>
+        <button class="btn" :disabled="dangXuatTep" @click="xuatPdf">Xuất PDF</button>
+        <button class="btn" :disabled="loading" @click="loadMetrics()">Làm mới</button>
+      </div>
+
+      <div class="the flex flex-wrap items-end gap-4 p-4">
         <label class="text-sm">
           Tháng
           <input
             v-model="filter.thang"
             type="month"
-            class="ml-2 rounded border px-2 py-1"
+            class="o ml-2 w-auto"
           />
         </label>
       </div>
@@ -542,20 +563,22 @@ function fmtDate(iso?: string): string {
           Thời điểm tính: {{ fmtDate(data.computed_at) }}
         </p>
 
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <KpiCard
-            v-for="m in kpiCards"
-            :key="m.code"
-            :label="m.label"
-            :value="m.value"
-            :unit="m.unit"
-            :icon="m.icon"
-            :tone="m.tone"
-            :trend="m.trend"
-            :series="m.series"
-            :hint="m.error ? 'Không có số liệu cho kỳ này' : 'Bấm để xem phả hệ chỉ số'"
-            @select="openLineage(m.code)"
-          />
+        <div class="the overflow-hidden">
+          <div class="grid grid-cols-2 md:grid-cols-4">
+            <KpiCard
+              v-for="m in kpiCards"
+              :key="m.code"
+              :label="m.label"
+              :value="m.value"
+              :unit="m.unit"
+              :icon="m.icon"
+              :tone="m.tone"
+              :trend="m.trend"
+              :series="m.series"
+              :hint="m.error ? 'Không có số liệu cho kỳ này' : 'Bấm để xem phả hệ chỉ số'"
+              @select="openLineage(m.code)"
+            />
+          </div>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">
@@ -727,5 +750,46 @@ function fmtDate(iso?: string): string {
       <TenantAdminPanel :vai-tro="vaiTro" />
     </section>
     </main>
+    <footer class="mx-auto flex w-full max-w-[1320px] flex-wrap justify-between gap-2 px-4 pb-6 pt-2 text-[12.5px] text-phu sm:px-6">
+      <span>Hệ thống cấp phép xây dựng, DX-OS Open-Core 1.0</span>
+      <span>Phát hành theo giấy phép AGPL-3.0. <a href="/" class="underline underline-offset-2">Trang cấp phép</a></span>
+    </footer>
   </div>
 </template>
+
+
+<style scoped>
+.nut-tren {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+  border: 1px solid var(--vien);
+  background: var(--mat);
+  color: rgb(var(--c-chu));
+  display: inline-grid;
+  place-items: center;
+  transition: background 500ms var(--em), border-color 500ms var(--em), transform 500ms var(--em);
+}
+.nut-tren:hover {
+  background: var(--mat-noi);
+  border-color: var(--vien-noi);
+  transform: translateY(-1px);
+}
+.nut-giao-dien svg { transition: transform 500ms var(--em); }
+.nut-giao-dien:hover svg { transform: rotate(30deg); }
+.nut-chu { width: auto; padding: 0 14px; font-size: 13px; white-space: nowrap; }
+.tab-chinh {
+  position: relative;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: rgb(var(--c-phu));
+  transition: color 500ms var(--em);
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.tab-chinh:hover, .tab-dang-mo { color: rgb(var(--c-chu)); }
+</style>
