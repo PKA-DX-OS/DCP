@@ -35,7 +35,7 @@ Ban quản trị dự án có trách nhiệm làm rõ và thực thi các chuẩ
 
 ## Báo Cáo Vi Phạm
 
-Các hành vi vi phạm quy tắc ứng xử có thể được báo cáo qua email bảo mật của ban quản trị: `conduct@dxos.example.org` (mẫu). Mọi báo cáo sẽ được xem xét và xử lý một cách công bằng và bảo mật.
+Các hành vi vi phạm quy tắc ứng xử có thể được báo cáo qua email bảo mật của ban quản trị. Mọi báo cáo sẽ được xem xét và xử lý một cách công bằng và bảo mật.
 
 ---
 
