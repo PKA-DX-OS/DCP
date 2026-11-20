@@ -3,7 +3,7 @@
 
 code: cap-phep
 name: Cấp phép xây dựng nhà ở riêng lẻ và hậu kiểm công trường
-version: 1.0.0
+version: 1.1.0
 schema: app_cap_phep
 # Các phường (tenant) dùng ứng dụng; app_manager deploy BPMN, nạp tri thức và seed theo danh sách này
 tenants: [phuong-a, phuong-b]

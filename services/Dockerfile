@@ -3,8 +3,8 @@
 
 FROM python:3.12-slim
 
-LABEL org.opencontainers.image.version="1.0" \
-      org.opencontainers.image.revision="1.0"
+LABEL org.opencontainers.image.version="1.1" \
+      org.opencontainers.image.revision="1.1"
 
 # Thiết lập múi giờ Việt Nam và môi trường Python
 ENV TZ=Asia/Ho_Chi_Minh \
