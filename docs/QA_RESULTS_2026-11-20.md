@@ -34,17 +34,82 @@ Không chạy Lighthouse CLI vì cần Node và Chrome riêng ngoài stack. Các
 
 ## Kết quả
 
-### Lần chạy đầu: chưa có
+### 20/11/2026, commit `7420be4`, Windows 11 AMD64, Python 3.14.5
 
-Chưa chạy trên stack thật. Môi trường phát triển của commit này không tải được trình duyệt Playwright. Đã kiểm ở đây:
-- `pytest tests/e2e-ui --collect-only --browser chromium --browser firefox --browser webkit` thu thập đủ test cho cả ba trình duyệt, không lỗi import;
-- `ruff check`, `reuse lint` đạt.
+Stack dựng lại bằng `dx up` (DEMO_MODE=true), đã nạp `seed_hero`. Tổng hợp:
 
-Điền kết quả lần chạy thật vào đây theo mẫu:
+| Phần | Kết quả |
+| :--- | :--- |
+| Test theo vai + đa trình duyệt (`test_roles.py`, `test_cross_browser.py`) | 37 đạt, 5 bỏ qua có lý do, 0 lỗi |
+| Tiếp cận (axe-core) | 0 lỗi serious/critical trên cả ba trình duyệt; còn `page-has-heading-one`, `heading-order`, `landmark-unique` mức moderate |
+| Hiệu năng (Chromium) | Trong ngân sách ở cả ba trang (bảng dưới) |
+| Hồi quy hình ảnh (`test_visual.py`, 9 màn hình) | Đạt hai lần liên tiếp so với ảnh nền đã commit |
 
-```
-### <ngày>, commit <mã>, <hệ điều hành>, Python <phiên bản>
-<bảng từ logs/e2e-ui/qa/ket-qua-chromium.md>
-<bảng từ logs/e2e-ui/qa/ket-qua-firefox.md>
-<bảng từ logs/e2e-ui/qa/ket-qua-webkit.md>
-```
+Chưa chạy trong đợt này: `test_B_a11y.py` (axe trên trang chào, danh sách hồ sơ, bảng điều hành, kiểm toán) và các test e2e luồng đầy đủ khác của Track A/B.
+
+5 test bỏ qua: 3 test thẩm định viên (td.binh chưa được phân công hồ sơ nào trong dữ liệu mẫu; chạy lại sau cảnh 4 của kịch bản demo) và 2 phép đo LCP/transferSize chỉ có trên Chromium.
+
+Lỗi phát hiện và đã sửa trong đợt này: vùng cuộn không nhận focus bàn phím (Firefox/WebKit), độ tương phản màu nền sáng của trang tra cứu, thanh tiến độ và ô chọn tệp nghiệm thu thiếu nhãn, route APISIX thiếu trên máy đã `dx init` trước khi có route fragment mới (cảnh báo hồ sơ, quy hoạch, nghiệm thu trả 404).
+
+#### chromium 159.0.8154.6
+
+- Ngày giờ: 2026-11-20T15:07:21+07:00; commit `7420be4`
+- Môi trường: Windows 11 AMD64, Python 3.14.5, http://localhost:8080
+
+| Màn hình | Kết quả |
+| :--- | :--- |
+| trang chào, tra cứu | đạt |
+| đăng nhập, bàn làm việc, chi tiết hồ sơ | đạt |
+| bảng điều hành | đạt |
+
+| Màn hình (axe) | serious/critical | Mức khác |
+| :--- | :--- | :--- |
+| tra cứu công khai | không | không |
+| đăng nhập Keycloak | không | không |
+| bàn làm việc | không | page-has-heading-one:moderate |
+| chi tiết hồ sơ (cán bộ) | không | không |
+| thẩm định thiết kế (chủ đầu tư) | không | heading-order:moderate |
+
+| Trang | DCL (ms) | load (ms) | LCP (ms) | JS+CSS (KB) |
+| :--- | ---: | ---: | ---: | ---: |
+| trang chào / | 86 | 179 | 200 | 459 |
+| tra cứu /kiem-tra/ | 17 | 19 | 80 | 0 |
+| bảng điều hành /dieu-hanh/ | 30 | 32 | 80 | 199 |
+
+#### firefox 159.0
+
+- Ngày giờ: 2026-11-20T15:08:00+07:00; commit `7420be4`
+- Môi trường: Windows 11 AMD64, Python 3.14.5, http://localhost:8080
+
+| Màn hình | Kết quả |
+| :--- | :--- |
+| trang chào, tra cứu | đạt |
+| đăng nhập, bàn làm việc, chi tiết hồ sơ | đạt |
+| bảng điều hành | đạt |
+
+| Màn hình (axe) | serious/critical | Mức khác |
+| :--- | :--- | :--- |
+| tra cứu công khai | không | không |
+| đăng nhập Keycloak | không | không |
+| bàn làm việc | không | page-has-heading-one:moderate |
+| chi tiết hồ sơ (cán bộ) | không | không |
+| thẩm định thiết kế (chủ đầu tư) | không | heading-order:moderate, landmark-unique:moderate |
+
+#### webkit 27.2
+
+- Ngày giờ: 2026-11-20T15:08:15+07:00; commit `7420be4`
+- Môi trường: Windows 11 AMD64, Python 3.14.5, http://localhost:8080
+
+| Màn hình | Kết quả |
+| :--- | :--- |
+| trang chào, tra cứu | đạt |
+| đăng nhập, bàn làm việc, chi tiết hồ sơ | đạt |
+| bảng điều hành | đạt |
+
+| Màn hình (axe) | serious/critical | Mức khác |
+| :--- | :--- | :--- |
+| tra cứu công khai | không | không |
+| đăng nhập Keycloak | không | không |
+| bàn làm việc | không | page-has-heading-one:moderate |
+| chi tiết hồ sơ (cán bộ) | không | không |
+| thẩm định thiết kế (chủ đầu tư) | không | heading-order:moderate |
