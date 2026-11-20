@@ -66,19 +66,32 @@ def _axe(page, ten: str) -> list:
     if not AXE.exists():
         pytest.skip("Thiếu axe-core: chạy `npm ci` trong apps/cap-phep/web")
     page.add_script_tag(path=str(AXE))
+    # Đo trạng thái cuối: kết thúc hiệu ứng chuyển cảnh trước khi tính độ tương phản
+    page.evaluate("() => document.getAnimations().forEach((a) => { try { a.finish(); } catch (e) {} })")
     res = page.evaluate("async () => await axe.run(document, {resultTypes: ['violations']})")
     nang = [v for v in res["violations"] if v["impact"] in ("serious", "critical")]
     KET_QUA["axe"][ten] = {
         "serious_critical": [f"{v['id']} ({len(v['nodes'])})" for v in nang],
         "khac": [f"{v['id']}:{v['impact']}" for v in res["violations"] if v not in nang],
+        "chi_tiet": [
+            {"id": v["id"], "target": n.get("target"), "html": (n.get("html") or "")[:200], "ly_do": n.get("failureSummary")}
+            for v in nang for n in v["nodes"][:5]
+        ],
     }
     return nang
+
+
+def _mo_ta(loi: list) -> list:
+    """Thông điệp lỗi kèm phần tử vi phạm để sửa được ngay từ log."""
+    return [f"{v['id']}: {', '.join(str(n.get('target')) for n in v['nodes'][:5])}" for v in loi]
 
 
 @pytest.fixture()
 def ctx(trinh_duyet):
     # bypass_csp: CSP chặn chèn axe-core; chỉ dùng trong test
-    c = trinh_duyet.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN", bypass_csp=True)
+    c = trinh_duyet.new_context(
+        viewport={"width": 1366, "height": 900}, locale="vi-VN", bypass_csp=True, reduced_motion="reduce"
+    )
     yield c
     c.close()
 
@@ -112,6 +125,9 @@ def ghi_ket_qua(trinh_duyet):
         dong += ["| Màn hình (axe) | serious/critical | Mức khác |", "| :--- | :--- | :--- |"]
         dong += [f"| {k} | {', '.join(v['serious_critical']) or 'không'} | {', '.join(v['khac']) or 'không'} |" for k, v in KET_QUA["axe"].items()]
         dong.append("")
+        chi_tiet = [(k, c) for k, v in KET_QUA["axe"].items() for c in v.get("chi_tiet", [])]
+        if chi_tiet:
+            dong += ["Phần tử vi phạm:", ""] + [f"- {k}: `{c['id']}` tại `{c['target']}`" for k, c in chi_tiet] + [""]
     if KET_QUA["hieu_nang"]:
         dong += ["| Trang | DCL (ms) | load (ms) | LCP (ms) | JS+CSS (KB) |", "| :--- | ---: | ---: | ---: | ---: |"]
         dong += [f"| {k} | {v['dcl_ms']} | {v['load_ms']} | {v['lcp_ms']} | {v['js_css_kb']} |" for k, v in KET_QUA["hieu_nang"].items()]
@@ -157,7 +173,7 @@ def test_axe_keycloak_va_tra_cuu(ctx):
     p.get_by_role("button", name="Đăng nhập", exact=True).click()
     p.locator("#username").wait_for(timeout=CHO)
     loi += _axe(p, "đăng nhập Keycloak")
-    assert loi == [], [v["id"] for v in loi]
+    assert loi == [], _mo_ta(loi)
 
 
 def test_axe_ban_lam_viec_va_chi_tiet(ctx):
@@ -169,16 +185,17 @@ def test_axe_ban_lam_viec_va_chi_tiet(ctx):
     p.get_by_role("button", name="Xem hồ sơ").first.click()
     p.locator("[role='dialog']").first.wait_for(timeout=CHO)
     loi += _axe(p, "chi tiết hồ sơ (cán bộ)")
-    assert loi == [], [v["id"] for v in loi]
+    assert loi == [], _mo_ta(loi)
 
 
 def test_axe_tham_dinh_thiet_ke(ctx):
     p = ctx.new_page()
     _dang_nhap(p, "cdt.minh")
+    p.locator("#txt-tim-ho-so").fill("CP-HERO-2026-001")
     p.locator("tr, li").filter(has_text="CP-HERO-2026-001").first.get_by_role("button").first.click(timeout=CHO)
     p.locator("#muc-thiet-ke").wait_for(timeout=CHO)
     loi = _axe(p, "thẩm định thiết kế (chủ đầu tư)")
-    assert loi == [], [v["id"] for v in loi]
+    assert loi == [], _mo_ta(loi)
 
 
 # ---------- Hiệu năng (Chromium) ----------

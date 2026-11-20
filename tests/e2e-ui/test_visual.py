@@ -140,6 +140,7 @@ def test_tra_cuu(page):
 
 def test_tham_dinh_thiet_ke(page):
     _dang_nhap(page, "cdt.minh")
+    page.locator("#txt-tim-ho-so").fill("CP-HERO-2026-001")
     hang = page.get_by_text("CP-HERO-2026-001").first
     expect(hang).to_be_visible(timeout=CHO)
     page.locator("tr, li").filter(has_text="CP-HERO-2026-001").first.get_by_role("button").first.click()

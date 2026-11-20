@@ -53,6 +53,14 @@ def mo_viec_dau_tien(page) -> None:
     expect(page.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
 
 
+def tim_ho_so(page, ma: str):
+    """Lọc danh sách hồ sơ theo mã để không phụ thuộc phân trang; trả về hàng chứa mã."""
+    page.locator("#txt-tim-ho-so").fill(ma)
+    hang = page.locator("tr, li").filter(has_text=ma).first
+    expect(hang).to_be_visible(timeout=CHO)
+    return hang
+
+
 @pytest.fixture()
 def page(trinh_duyet):
     ctx = trinh_duyet.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
@@ -69,7 +77,7 @@ def test_chu_dau_tu(page):
     for khong_duoc in ("Bàn làm việc", "Truy cập khẩn", "Công trình"):
         expect(tabs.get_by_role("button", name=khong_duoc, exact=True)).to_have_count(0)
     # Hồ sơ hero có trong danh sách; mở được hộp nộp hồ sơ với danh mục giấy tờ Điều 60
-    expect(page.get_by_text("CP-HERO-2026-001").first).to_be_visible(timeout=CHO)
+    tim_ho_so(page, "CP-HERO-2026-001")
     page.locator("#btn-nop-ho-so-modal").click()
     expect(page.locator("#form-nop-ho-so")).to_be_visible()
     page.keyboard.press("Escape")
@@ -82,9 +90,10 @@ def test_mot_cua(page):
     expect(tabs.get_by_role("button", name="Hồ sơ của tôi", exact=True)).to_have_count(0)
     expect(tabs.get_by_role("button", name="Truy cập khẩn", exact=True)).to_have_count(0)
     mo_viec_dau_tien(page)
-    # Hồ sơ mở từ việc của mình có thanh hành động "Việc đang chờ bạn"
+    # Hồ sơ mở từ việc của mình có thanh hành động "Việc đang chờ bạn" và phần quy hoạch của cán bộ
     expect(page.locator("#block-dossier-actions")).to_be_visible(timeout=CHO)
     expect(page.get_by_text(re.compile("^Việc đang chờ bạn"))).to_be_visible()
+    expect(page.locator("#block-dossier-planning")).to_be_attached(timeout=CHO)
 
 
 def test_tham_dinh(page):
@@ -92,7 +101,17 @@ def test_tham_dinh(page):
     tabs = nav(page)
     expect(tabs.get_by_role("button", name="Bàn làm việc", exact=True)).to_be_visible(timeout=CHO)
     expect(tabs.get_by_role("button", name="Truy cập khẩn", exact=True)).to_have_count(0)
-    mo_viec_dau_tien(page)
+    expect(tabs.get_by_role("button", name="Hồ sơ của tôi", exact=True)).to_have_count(0)
+    tabs.get_by_role("button", name="Bàn làm việc", exact=True).click()
+    expect(page.get_by_role("heading", name="Bàn làm việc")).to_be_visible(timeout=CHO)
+    # td.binh chỉ có việc sau khi lãnh đạo phân công (cảnh 4 của demo); dữ liệu mẫu có thể chưa có
+    xem = page.get_by_role("button", name="Xem hồ sơ")
+    try:
+        xem.first.wait_for(timeout=5000)
+    except sync_api.TimeoutError:
+        pytest.skip("td.binh chưa được phân công hồ sơ nào: diễn cảnh 4 (ld.hoa phân công) rồi chạy lại")
+    xem.first.click()
+    expect(page.locator("[role='dialog']").first).to_be_visible(timeout=CHO)
     # Thẩm định viên thấy phần quy hoạch có nút kiểm tra
     expect(page.locator("#block-dossier-planning")).to_be_visible(timeout=CHO)
     expect(page.locator("#planning-check-btn")).to_be_visible()
