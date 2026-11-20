@@ -41,6 +41,18 @@ ALLOWED_PUBLIC_RPCS = {
         "danh_gia_tep",
         "cap_nhat_dinh_danh_dia_diem",
         "kiem_tra_tham_quyen_ho_so",
+        "tao_phien_ban",
+        "ds_ban_ve",
+        "cap_nhat_thong_tin_tham_quyen",
+        "xac_nhan_canh_bao_ho_so",
+        "danh_sach_canh_bao_ho_so",
+        "them_ban_ve",
+        "ds_phien_ban",
+        "danh_gia_ban_ve",
+        "them_nhan_xet",
+        "xu_ly_nhan_xet",
+        "ds_nhan_xet",
+        "trang_thai_tham_dinh",
     },
 }
 

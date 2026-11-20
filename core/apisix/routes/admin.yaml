@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# APISIX route fragment - B-PLAT-01: quản trị địa bàn.
+# Dịch vụ construction nhận tiền tố /api/v1/admin.
+
+routes:
+  - id: route_svc_admin
+    uri: /api/v1/admin*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 60
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1

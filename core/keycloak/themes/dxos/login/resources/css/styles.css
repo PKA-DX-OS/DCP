@@ -29,6 +29,7 @@ body {
   letter-spacing: 0;
 }
 
+.card-pf,
 .pf-c-login__main,
 .pf-v5-c-login__main {
   background: rgba(15, 23, 42, 0.72) !important;
@@ -36,6 +37,14 @@ body {
   border-radius: 20px !important;
   box-shadow: 0 16px 48px rgba(2, 6, 16, 0.5) !important;
   backdrop-filter: blur(14px);
+}
+
+#kc-form-wrapper,
+#kc-content,
+#kc-content-wrapper,
+.pf-c-input-group,
+.login-pf-page .card-pf {
+  background: transparent !important;
 }
 
 .pf-c-form__label,

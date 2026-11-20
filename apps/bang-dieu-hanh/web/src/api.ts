@@ -46,11 +46,21 @@ async function request<T>(method: "GET" | "POST", path: string, body?: unknown):
     await clearSession();
     throw new ApiError(401, "HET_PHIEN", "Phiên đăng nhập đã hết hạn");
   }
+
+  let chiTiet = "";
+  if (!resp.ok) {
+    try {
+      const loi = (await resp.json()) as { detail?: string | { loi?: string } };
+      chiTiet = typeof loi?.detail === "string" ? loi.detail : (loi?.detail?.loi ?? "");
+    } catch {
+      /* body không phải JSON: dùng thông báo mặc định */
+    }
+  }
   if (resp.status === 403) {
-    throw new ApiError(403, "KHONG_DU_QUYEN", "Bạn không có quyền xem nội dung này");
+    throw new ApiError(403, "KHONG_DU_QUYEN", chiTiet || "Bạn không có quyền xem nội dung này");
   }
   if (!resp.ok) {
-    throw new ApiError(resp.status, "LOI_MAY_CHU", `Lỗi máy chủ (${resp.status})`);
+    throw new ApiError(resp.status, "LOI_MAY_CHU", chiTiet || `Lỗi máy chủ (${resp.status})`);
   }
   return (await resp.json()) as T;
 }

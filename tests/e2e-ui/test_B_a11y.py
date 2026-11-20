@@ -5,6 +5,8 @@
 
 import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -46,6 +48,7 @@ def test_a11y_login_danh_sach_dashboard():
     accounts = _tai_khoan()
     if "cdt.minh" not in accounts or "ld.hoa" not in accounts:
         pytest.skip("Thiếu tài khoản demo")
+    subprocess.run([sys.executable, "scripts/seed_hero.py"], cwd=ROOT, check=True)
 
     with sync_api.sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
@@ -62,6 +65,13 @@ def test_a11y_login_danh_sach_dashboard():
             _dang_nhap(page, "cdt.minh", accounts["cdt.minh"], f"{BASE_URL}/")
             page.get_by_role("button", name="Hồ sơ của tôi", exact=True).click()
             page.locator("#table-ho-so").wait_for(timeout=20000)
+            assert _axe(page) == []
+
+            page.locator("#btn-detail-CP-HERO-2026-001").wait_for(timeout=20000)
+            page.locator("#btn-detail-CP-HERO-2026-001").click()
+            page.locator("#modal-detail-dossier").wait_for(timeout=20000)
+            page.get_by_role("button", name="Thiết kế", exact=True).click()
+            page.locator("#design-review-summary").wait_for(timeout=20000)
             assert _axe(page) == []
         finally:
             ctx.close()
@@ -85,6 +95,17 @@ def test_a11y_login_danh_sach_dashboard():
                 _dang_nhap(page, "kt.an", accounts["kt.an"], f"{BASE_URL}/dieu-hanh/")
                 page.get_by_role("button", name="Kiểm toán", exact=True).click()
                 page.get_by_text("Nhật ký kiểm toán").wait_for(timeout=20000)
+                assert _axe(page) == []
+            finally:
+                ctx.close()
+
+        if "admin" in accounts:
+            ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN", bypass_csp=True)
+            page = ctx.new_page()
+            try:
+                _dang_nhap(page, "admin", accounts["admin"], f"{BASE_URL}/dieu-hanh/")
+                page.get_by_role("button", name="Quản trị", exact=True).click()
+                page.get_by_role("heading", name="Quản trị địa bàn").wait_for(timeout=20000)
                 assert _axe(page) == []
             finally:
                 ctx.close()
