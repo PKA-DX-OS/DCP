@@ -275,3 +275,16 @@ def test_A04_chia_se_du_lieu_theo_nd_278_va_luu_tru():
     listing = httpx.get(f"{GATEWAY_URL}/api/v1/planning/archive", headers=headers, timeout=20.0)
     assert listing.status_code == 200, listing.text
     assert any(x["ho_so_id"] == ho_so_id for x in listing.json())
+
+    # Lọc ở máy chủ theo hồ sơ: chỉ trả bản ghi của hồ sơ đó (giao diện không phải tải cả phường)
+    for duong_dan in ("archive", "bien-lai", "share/logs"):
+        loc = httpx.get(
+            f"{GATEWAY_URL}/api/v1/planning/{duong_dan}", params={"ho_so_id": ho_so_id}, headers=headers, timeout=20.0
+        )
+        assert loc.status_code == 200, (duong_dan, loc.text)
+        assert all(x["ho_so_id"] == ho_so_id for x in loc.json()), duong_dan
+    assert any(x["ho_so_id"] == ho_so_id for x in httpx.get(
+        f"{GATEWAY_URL}/api/v1/planning/archive", params={"ho_so_id": ho_so_id}, headers=headers, timeout=20.0
+    ).json())
+    sai = httpx.get(f"{GATEWAY_URL}/api/v1/planning/archive", params={"ho_so_id": "khong-phai-uuid"}, headers=headers, timeout=20.0)
+    assert sai.status_code == 422, sai.text

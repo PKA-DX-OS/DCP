@@ -568,20 +568,13 @@ function fmtDate(iso?: string): string {
           </p>
         </div>
         <div class="flex-1"></div>
+        <label class="flex items-center gap-2 text-sm chu-phu">
+          Tháng
+          <input v-model="filter.thang" type="month" class="o w-auto" />
+        </label>
         <button class="btn" :disabled="dangXuatTep" @click="xuatExcel">Xuất Excel</button>
         <button class="btn" :disabled="dangXuatTep" @click="xuatPdf">Xuất PDF</button>
         <button class="btn" :disabled="loading" @click="loadMetrics()">Làm mới</button>
-      </div>
-
-      <div class="the flex flex-wrap items-end gap-4 p-4">
-        <label class="text-sm">
-          Tháng
-          <input
-            v-model="filter.thang"
-            type="month"
-            class="o ml-2 w-auto"
-          />
-        </label>
       </div>
 
       <div v-if="loading" class="grid grid-cols-2 gap-4 md:grid-cols-4" role="status" aria-busy="true">
@@ -596,14 +589,9 @@ function fmtDate(iso?: string): string {
         </div>
       </div>
 
-      <div v-else-if="loadError" class="rounded-lg kinh p-4 shadow">
-        <p class="text-red-700">Không tải được số liệu: {{ loadError }}</p>
-        <button
-          class="mt-2 rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
-          @click="loadMetrics()"
-        >
-          Thử lại
-        </button>
+      <div v-else-if="loadError" class="the p-4" role="alert">
+        <p class="m-0 text-son">Không tải được số liệu: {{ loadError }}</p>
+        <button class="btn btn-sm mt-3" @click="loadMetrics()">Thử lại</button>
       </div>
 
       <p
@@ -614,10 +602,6 @@ function fmtDate(iso?: string): string {
       </p>
 
       <template v-else>
-        <p class="text-sm chu-phu">
-          Thời điểm tính: {{ fmtDate(data.computed_at) }}
-        </p>
-
         <div class="the overflow-hidden">
           <div class="grid grid-cols-2 md:grid-cols-4">
             <KpiCard

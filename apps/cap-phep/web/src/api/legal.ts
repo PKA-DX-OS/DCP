@@ -48,8 +48,14 @@ export async function createFee(token: string, body: Record<string, any>): Promi
   return apiJson("/planning/fees", { token, method: "POST", body }, "Lỗi tạo biểu phí");
 }
 
-export async function fetchReceipts(token: string): Promise<any[]> {
-  return apiJson("/planning/bien-lai", { token }, "Lỗi tải biên lai");
+/** Thêm ?ho_so_id= để máy chủ lọc theo hồ sơ, không tải cả phường về trình duyệt. */
+function theoHoSo(duongDan: string, hoSoId?: string): string {
+  if (!hoSoId) return duongDan;
+  return `${duongDan}${duongDan.includes("?") ? "&" : "?"}ho_so_id=${encodeURIComponent(hoSoId)}`;
+}
+
+export async function fetchReceipts(token: string, hoSoId?: string): Promise<any[]> {
+  return apiJson(theoHoSo("/planning/bien-lai", hoSoId), { token }, "Lỗi tải biên lai");
 }
 
 export async function createReceipt(token: string, body: Record<string, any>): Promise<any> {
@@ -69,8 +75,8 @@ export async function updateReceiptStatus(
   );
 }
 
-export async function fetchArchive(token: string): Promise<any[]> {
-  return apiJson("/planning/archive", { token }, "Lỗi tải danh sách lưu trữ");
+export async function fetchArchive(token: string, hoSoId?: string): Promise<any[]> {
+  return apiJson(theoHoSo("/planning/archive", hoSoId), { token }, "Lỗi tải danh sách lưu trữ");
 }
 
 export async function createArchive(token: string, hoSoId: string, body: Record<string, any>): Promise<any> {
@@ -98,8 +104,8 @@ export async function shareDossierData(token: string, body: Record<string, any>)
   return apiJson("/planning/share/export", { token, method: "POST", body }, "Lỗi tạo bản ghi chia sẻ dữ liệu");
 }
 
-export async function fetchShareLogs(token: string): Promise<any[]> {
-  return apiJson("/planning/share/logs?limit=200", { token }, "Lỗi tải nhật ký chia sẻ");
+export async function fetchShareLogs(token: string, hoSoId?: string): Promise<any[]> {
+  return apiJson(theoHoSo("/planning/share/logs?limit=200", hoSoId), { token }, "Lỗi tải nhật ký chia sẻ");
 }
 
 export async function fetchSharePayload(token: string, hoSoId: string): Promise<any> {

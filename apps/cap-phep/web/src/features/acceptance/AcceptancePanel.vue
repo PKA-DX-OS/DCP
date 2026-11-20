@@ -8,6 +8,8 @@ import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { uploadFile } from "../../api/files";
 import { notify } from "../../composables/useToast";
 import { Button, Skeleton } from "../../design-system";
+import ChonTep from "../../components/ChonTep.vue";
+
 
 const props = defineProps<{
   dossier: any;
@@ -28,7 +30,7 @@ const saving = ref(false);
 const dangTaoQuyTrinh = ref(false);
 const error = ref("");
 const selectedMoc = ref<any>(null);
-const fileRef = ref<HTMLInputElement | null>(null);
+const fileRef = ref<InstanceType<typeof ChonTep> | null>(null);
 const fileHoanCong = ref<File | null>(null);
 const tasks = ref<any[]>([]);
 
@@ -206,7 +208,7 @@ async function nopBanVe() {
     await submitAsBuilt(props.token, props.dossier.id, { file_id: up.file_id, ghi_chu: "Bản vẽ hoàn công" });
     notify("Đã nộp bản vẽ hoàn công", "ok");
     fileHoanCong.value = null;
-    if (fileRef.value) fileRef.value.value = "";
+    fileRef.value?.xoa();
     await tai();
   } catch (e) {
     notify(e instanceof Error ? e.message : "Không nộp được bản vẽ hoàn công", "loi");
@@ -221,7 +223,7 @@ onMounted(tai);
 <template>
   <section id="block-dossier-acceptance" class="mt-5" aria-labelledby="tieu-de-nghiem-thu">
     <div class="flex flex-wrap items-baseline justify-between gap-3 mb-2">
-      <h4 id="tieu-de-nghiem-thu" class="text-[14px] font-semibold m-0">Nghiệm thu và hoàn công</h4>
+      <h3 id="tieu-de-nghiem-thu" class="text-[14px] font-semibold m-0">Nghiệm thu và hoàn công</h3>
       <span class="goi-y">Căn cứ NĐ 207/2026/NĐ-CP</span>
     </div>
 
@@ -265,7 +267,7 @@ onMounted(tai);
 
       <div class="grid gap-3 md:grid-cols-2">
         <div class="the p-3">
-          <h5 class="text-[13px] font-semibold mt-0 mb-2">Tạo mốc / nghiệm thu lại</h5>
+          <h4 class="text-[13px] font-semibold mt-0 mb-2">Tạo mốc / nghiệm thu lại</h4>
           <div class="grid gap-2">
             <label class="block"><span class="nhan">Mốc</span>
               <select v-model="form.loai_moc" class="o w-full">
@@ -286,7 +288,7 @@ onMounted(tai);
         </div>
 
         <div class="the p-3">
-          <h5 class="text-[13px] font-semibold mt-0 mb-2">Nộp biên bản</h5>
+          <h4 class="text-[13px] font-semibold mt-0 mb-2">Nộp biên bản</h4>
           <label class="block"><span class="nhan">Mốc áp dụng</span>
             <select class="o w-full" :value="selectedMoc?.id || ''" @change="selectedMoc = (duLieu?.milestones || []).find((m: any) => m.id === ($event.target as HTMLSelectElement).value) || null">
               <option value="">Chọn mốc</option>
@@ -306,9 +308,11 @@ onMounted(tai);
       </div>
 
       <div class="the p-3 mt-3">
-        <h5 id="tieu-de-hoan-cong" class="text-[13px] font-semibold mt-0 mb-2">Bản vẽ hoàn công</h5>
-        <input ref="fileRef" type="file" class="chon-tep inline-block w-auto" accept="application/pdf" aria-labelledby="tieu-de-hoan-cong" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
-        <Button size="sm" variant="secondary" class="ml-2" :disabled="saving" @click="nopBanVe">Nộp bản vẽ</Button>
+        <h4 id="tieu-de-hoan-cong" class="text-[13px] font-semibold mt-0 mb-2">Bản vẽ hoàn công</h4>
+        <div class="flex flex-wrap items-center gap-3">
+          <ChonTep ref="fileRef" nhan="Chọn bản vẽ PDF" accept="application/pdf" aria-labelledby="tieu-de-hoan-cong" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
+          <Button size="sm" variant="secondary" :disabled="saving" @click="nopBanVe">Nộp bản vẽ</Button>
+        </div>
         <ul v-if="duLieu?.as_built?.length" class="list-none m-0 p-0 mt-2 text-[13px]">
           <li v-for="a in duLieu.as_built" :key="a.id" class="flex justify-between gap-2 py-1 border-b border-vien-nhat">
             <span>Bản vẽ v{{ a.version }} — {{ new Date(a.ngay_nop).toLocaleString("vi-VN") }}</span>
@@ -319,7 +323,7 @@ onMounted(tai);
       </div>
 
       <div v-if="lichSu.length" class="mt-3">
-        <h5 class="text-[13px] font-semibold m-0 mb-1">Lịch sử nghiệm thu</h5>
+        <h4 class="text-[13px] font-semibold m-0 mb-1">Lịch sử nghiệm thu</h4>
         <div class="the overflow-hidden">
           <table class="bang w-full text-[12.5px]">
             <thead><tr><th>Loại</th><th>Sự kiện</th><th>Trạng thái</th><th>Nội dung</th><th>Thời điểm</th></tr></thead>
@@ -337,7 +341,7 @@ onMounted(tai);
       </div>
 
       <div v-if="duLieu?.milestones?.length" class="mt-3">
-        <h5 class="text-[13px] font-semibold m-0 mb-1">Biên bản đã nộp</h5>
+        <h4 class="text-[13px] font-semibold m-0 mb-1">Biên bản đã nộp</h4>
         <ul class="list-none m-0 p-0 text-[13px]">
           <template v-for="m in duLieu.milestones" :key="m.id">
             <li v-for="b in m.bien_ban" :key="b.id" class="py-1 border-b border-vien-nhat">

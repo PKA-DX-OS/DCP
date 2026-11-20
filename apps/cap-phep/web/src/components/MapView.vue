@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="rounded-[10px] border border-vien bg-mat p-3">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-      <h5 class="text-[13px] font-semibold m-0">{{ title }}</h5>
+      <h4 class="text-[13px] font-semibold m-0">{{ title }}</h4>
       <span class="goi-y">Nền trơn offline, dữ liệu GeoJSON tổng hợp</span>
     </div>
     <div class="flex flex-wrap gap-3 mb-2 text-[12px] text-phu" aria-label="Lớp bản đồ">

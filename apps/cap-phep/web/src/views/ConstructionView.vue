@@ -102,7 +102,7 @@ onMounted(async () => {
 <template>
   <section class="space-y-4">
     <div>
-      <h2 class="tieu-de-trang">Công trình</h2>
+      <h1 class="tieu-de-trang">Công trình</h1>
       <p class="text-phu mt-1">Trạng thái công trình và phiếu kiểm tra hậu kiểm.</p>
     </div>
 
@@ -117,7 +117,7 @@ onMounted(async () => {
     <section class="mt-6" aria-labelledby="tieu-de-phieu-kiem-tra">
       <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h3 id="tieu-de-phieu-kiem-tra" class="text-[15px] font-semibold m-0">Phiếu kiểm tra hiện trường</h3>
+          <h2 id="tieu-de-phieu-kiem-tra" class="text-[15px] font-semibold m-0">Phiếu kiểm tra hiện trường</h2>
           <p class="m-0 mt-1 text-[12.5px] text-phu">{{ phieu.length }} phiếu · {{ soCanhBaoCamBien }} cảnh báo cảm biến</p>
         </div>
         <div class="flex flex-wrap gap-1.5" role="group" aria-label="Lọc nguồn phiếu kiểm tra">

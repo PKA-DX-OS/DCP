@@ -44,7 +44,7 @@ onMounted(tai);
 <template>
   <section v-if="loading || error || duLieu?.items?.length" id="block-dossier-warnings" class="mt-4 p-3 rounded-[10px] border border-vien bg-mat" aria-labelledby="tieu-de-canh-bao">
     <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
-      <h4 id="tieu-de-canh-bao" class="text-[13px] font-semibold m-0">Cảnh báo hồ sơ</h4>
+      <h3 id="tieu-de-canh-bao" class="text-[13px] font-semibold m-0">Cảnh báo hồ sơ</h3>
       <span class="goi-y">Cảnh báo không chặn hồ sơ hợp pháp</span>
     </div>
     <p v-if="loading" class="text-phu m-0">Đang tải cảnh báo…</p>

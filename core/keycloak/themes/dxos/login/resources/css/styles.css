@@ -89,6 +89,90 @@ a,
   outline-offset: 2px;
 }
 
+/* Khung đăng nhập: theme cha "keycloak" lấy bố cục từ login.css, mà `styles` ở trên đã thay thế,
+   nên đặt lại độ rộng, căn giữa và màu tiêu đề tại đây. */
+.login-pf-page {
+  padding: 8vh 16px 48px !important;
+}
+
+.login-pf-page .card-pf {
+  max-width: 440px !important;
+  margin: 24px auto 0 !important;
+  padding: 32px 36px 28px !important;
+  border: 1px solid rgba(226, 232, 240, 0.14) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 48px rgba(2, 6, 16, 0.5) !important;
+  backdrop-filter: blur(14px);
+}
+
+.login-pf-page .login-pf-header,
+#kc-page-title {
+  margin: 0 0 20px !important;
+}
+
+#kc-page-title {
+  color: #f0f4fa !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+}
+
+.login-pf-page label,
+.login-pf-page .control-label,
+.pf-c-form__label-text {
+  color: #e2e8f0 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.login-pf-page .form-control,
+.login-pf-page .pf-c-form-control,
+.login-pf-page input[type="text"],
+.login-pf-page input[type="password"] {
+  height: 42px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(226, 232, 240, 0.2) !important;
+  color: #f0f4fa !important;
+  box-shadow: none !important;
+}
+
+.login-pf-page .pf-c-input-group {
+  gap: 6px;
+}
+
+.login-pf-page .pf-c-input-group .pf-c-button.pf-m-control {
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(226, 232, 240, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+.login-pf-page .pf-c-button.pf-m-control::after {
+  border: 0 !important;
+}
+
+#kc-login {
+  height: 44px;
+  border-radius: 999px !important;
+  margin-top: 8px;
+}
+
+.login-pf-page .alert,
+.login-pf-page .pf-c-alert {
+  border-radius: 10px !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  color: #fecaca !important;
+}
+
+#kc-content-wrapper .instruction,
+#kc-error-message p {
+  color: #cbd5e1 !important;
+  font-size: 14px !important;
+  line-height: 1.55;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -295,8 +295,8 @@ onMounted(async () => {
   const user = await getUser();
   const roles = readRoles(user?.access_token);
   nguoi.value = { sub: user?.profile?.sub as string | undefined, roles };
+  // Không tự mở hồ sơ: mo_ho_so ghi nhật ký truy cập dữ liệu cá nhân, nên chỉ mở khi cán bộ chọn việc
   await taiViec();
-  if (!selectedTask.value && danhSachLoc.value.length) await chonViec(danhSachLoc.value[0]);
 });
 
 defineExpose({ taiViec });
@@ -306,7 +306,7 @@ defineExpose({ taiViec });
   <section class="space-y-5">
     <div class="flex flex-wrap items-end gap-3">
       <div class="min-w-0">
-        <h2 class="tieu-de-trang">Bàn làm việc</h2>
+        <h1 class="tieu-de-trang">Bàn làm việc</h1>
         <p class="mt-2 text-[16px] text-phu">Hàng đợi công việc, chi tiết hồ sơ và thao tác xử lý trong một màn hình.</p>
       </div>
       <div class="flex-1"></div>
@@ -330,7 +330,7 @@ defineExpose({ taiViec });
 
     <section v-if="laQuanLy && !dangTai && escalations.length" class="the p-4" aria-labelledby="tieu-de-qua-han">
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 id="tieu-de-qua-han" class="m-0 text-[14px] font-semibold text-chu">Việc quá hạn / sắp hạn toàn địa bàn</h3>
+        <h2 id="tieu-de-qua-han" class="m-0 text-[14px] font-semibold text-chu">Việc quá hạn / sắp hạn toàn địa bàn</h2>
         <span class="tt tt-vang">{{ escalations.length }}</span>
       </div>
       <ul class="m-0 list-none p-0 text-[13px]">
@@ -367,7 +367,7 @@ defineExpose({ taiViec });
       <!-- Cột 1: hàng đợi công việc -->
       <aside class="the flex max-h-[760px] flex-col p-4 lg:col-span-4">
         <div class="mb-3 flex items-center justify-between border-b border-vien-nhat pb-3">
-          <h3 class="nhan-nho m-0">Hàng đợi công việc</h3>
+          <h2 class="nhan-nho m-0">Hàng đợi công việc</h2>
           <span class="tt tt-xam">{{ danhSachLoc.length }}</span>
         </div>
         <div class="flex-1 space-y-2 overflow-y-auto pr-1">
@@ -406,13 +406,13 @@ defineExpose({ taiViec });
           <Skeleton :lines="6" height="1.8rem" />
         </div>
         <div v-else-if="!selectedDossier" class="flex h-full min-h-[320px] items-center justify-center text-[13.5px] text-phu">
-          Chọn một việc ở cột bên trái để xem chi tiết.
+          Chọn một việc ở cột bên trái để mở hồ sơ. Mỗi lần mở được ghi vào nhật ký truy cập.
         </div>
         <template v-else>
           <div class="flex flex-wrap items-start justify-between gap-3 border-b border-vien-nhat pb-3">
             <div>
               <p class="nhan-nho m-0">Hồ sơ công trình</p>
-              <h3 class="ma m-0 text-[22px] font-semibold">{{ selectedDossier.ma_ho_so }}</h3>
+              <h2 class="ma m-0 text-[22px] font-semibold">{{ selectedDossier.ma_ho_so }}</h2>
               <p class="m-0 mt-1 text-[12.5px] text-phu">{{ selectedDossier.dia_chi_cong_trinh }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
@@ -489,7 +489,7 @@ defineExpose({ taiViec });
 
           <div class="mt-5 border-t border-vien-nhat pt-4">
             <div class="mb-2 flex items-center justify-between">
-              <h4 class="m-0 text-[14px] font-semibold text-chu">Tệp đính kèm hồ sơ</h4>
+              <h3 class="m-0 text-[14px] font-semibold text-chu">Tệp đính kèm hồ sơ</h3>
               <span class="text-[12.5px] text-phu">{{ files.length }} tệp</span>
             </div>
             <p v-if="!files.length" class="m-0 text-[12.5px] italic text-phu">Chưa có tệp đính kèm hoặc chưa tải được danh sách.</p>
@@ -520,7 +520,7 @@ defineExpose({ taiViec });
 
           <div class="mt-5 border-t border-vien-nhat pt-4">
             <div class="mb-2 flex items-center justify-between">
-              <h4 class="m-0 text-[14px] font-semibold text-chu">Lịch sử xử lý gần đây</h4>
+              <h3 class="m-0 text-[14px] font-semibold text-chu">Lịch sử xử lý gần đây</h3>
               <span class="text-[12.5px] text-phu">{{ audit.length }} ghi nhận</span>
             </div>
             <p v-if="!audit.length" class="m-0 text-[12.5px] italic text-phu">Chưa có ghi nhận nào.</p>
@@ -558,7 +558,7 @@ defineExpose({ taiViec });
 
       <!-- Cột 3: thao tác xử lý -->
       <aside class="the max-h-[760px] overflow-y-auto p-4 lg:col-span-12 xl:col-span-3">
-        <h3 class="nhan-nho m-0 border-b border-vien-nhat pb-3">Thao tác xử lý</h3>
+        <h2 class="nhan-nho m-0 border-b border-vien-nhat pb-3">Thao tác xử lý</h2>
         <p v-if="!selectedDossier" class="mt-4 text-[12.5px] italic text-phu">Chọn một việc để xem thao tác.</p>
         <template v-else>
           <DossierActionBar

@@ -117,12 +117,13 @@ async function tai(): Promise<void> {
     const [a, f, r, ar, s] = await Promise.all([
       fetchDossierAuthority(props.token, props.dossier.id).catch(() => null),
       fetchFees(props.token).catch(() => []),
-      fetchReceipts(props.token).catch(() => []),
-      fetchArchive(props.token).catch(() => []),
-      fetchShareLogs(props.token).catch(() => []),
+      fetchReceipts(props.token, props.dossier.id).catch(() => []),
+      fetchArchive(props.token, props.dossier.id).catch(() => []),
+      fetchShareLogs(props.token, props.dossier.id).catch(() => []),
     ]);
     authority.value = a;
     fees.value = f;
+    // Máy chủ đã lọc theo hồ sơ; lọc lại phòng khi máy chủ cũ chưa hỗ trợ tham số ho_so_id
     receipts.value = (r || []).filter((x) => x.ho_so_id === props.dossier.id);
     archive.value = (ar || []).filter((x) => x.ho_so_id === props.dossier.id);
     shareLogs.value = (s || []).filter((x) => x.ho_so_id === props.dossier.id);
@@ -338,7 +339,7 @@ onMounted(tai);
 <template>
   <section id="block-dossier-legal" class="mt-5" aria-labelledby="tieu-de-phap-ly">
     <div class="flex flex-wrap items-baseline justify-between gap-3 mb-2">
-      <h4 id="tieu-de-phap-ly" class="text-[14px] font-semibold m-0">Pháp lý, phí và lưu trữ</h4>
+      <h3 id="tieu-de-phap-ly" class="text-[14px] font-semibold m-0">Pháp lý, phí và lưu trữ</h3>
       <span class="goi-y">Thẩm quyền, định danh địa điểm, biên lai, lưu trữ và chia sẻ NĐ 278</span>
     </div>
 
@@ -349,7 +350,7 @@ onMounted(tai);
       <div class="grid gap-3 lg:grid-cols-2">
         <section class="the p-3" aria-labelledby="tieu-de-tham-quyen">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h5 id="tieu-de-tham-quyen" class="text-[13px] font-semibold m-0">Thẩm quyền cấp phép</h5>
+            <h4 id="tieu-de-tham-quyen" class="text-[13px] font-semibold m-0">Thẩm quyền cấp phép</h4>
             <button type="button" class="btn btn-sm" :disabled="saving === 'authority'" @click="kiemTraThamQuyen">
               {{ saving === "authority" ? "Đang kiểm tra…" : "Kiểm tra lại" }}
             </button>
@@ -422,7 +423,7 @@ onMounted(tai);
         </section>
 
         <section class="the p-3" aria-labelledby="tieu-de-dinh-danh">
-          <h5 id="tieu-de-dinh-danh" class="text-[13px] font-semibold m-0">Định danh địa điểm</h5>
+          <h4 id="tieu-de-dinh-danh" class="text-[13px] font-semibold m-0">Định danh địa điểm</h4>
           <div class="mt-2 flex flex-wrap items-end gap-2">
             <label class="min-w-[210px] flex-1">
               <span class="nhan">Mã định danh 12 chữ số</span>
@@ -450,7 +451,7 @@ onMounted(tai);
       <div class="mt-3 grid gap-3 lg:grid-cols-2">
         <section class="the p-3" aria-labelledby="tieu-de-phi">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h5 id="tieu-de-phi" class="text-[13px] font-semibold m-0">Phí và biên lai</h5>
+            <h4 id="tieu-de-phi" class="text-[13px] font-semibold m-0">Phí và biên lai</h4>
             <span class="mo">{{ receipts.length }} biên lai của hồ sơ</span>
           </div>
           <div tabindex="0" role="region" aria-label="Biểu phí địa phương" class="mt-2 max-h-40 overflow-auto">
@@ -516,7 +517,7 @@ onMounted(tai);
 
         <section class="the p-3" aria-labelledby="tieu-de-luu-tru">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h5 id="tieu-de-luu-tru" class="text-[13px] font-semibold m-0">Lưu trữ hồ sơ</h5>
+            <h4 id="tieu-de-luu-tru" class="text-[13px] font-semibold m-0">Lưu trữ hồ sơ</h4>
             <span class="mo">{{ archive.length }} bản ghi</span>
           </div>
           <ul v-if="archive.length" class="m-0 mt-2 list-none space-y-2 p-0 text-[12.5px]">
@@ -556,7 +557,7 @@ onMounted(tai);
 
       <section class="the mt-3 p-3" aria-labelledby="tieu-de-chia-se">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <h5 id="tieu-de-chia-se" class="text-[13px] font-semibold m-0">Chia sẻ dữ liệu NĐ 278</h5>
+          <h4 id="tieu-de-chia-se" class="text-[13px] font-semibold m-0">Chia sẻ dữ liệu NĐ 278</h4>
           <span class="mo">{{ shareLogs.length }} lần chia sẻ của hồ sơ</span>
         </div>
         <div v-if="shareLogs.length" tabindex="0" role="region" aria-label="Nhật ký chia sẻ dữ liệu" class="mt-2 max-h-48 overflow-auto">

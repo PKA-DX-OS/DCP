@@ -113,7 +113,7 @@ function zoneTone(loai: string): { fill: string; stroke: string; ten: string } {
 <template>
   <div class="rounded-[10px] border border-vien bg-mat p-3">
     <div class="flex items-center justify-between gap-3 mb-2">
-      <h5 class="text-[13px] font-semibold m-0">Bản đồ quy hoạch (dữ liệu tổng hợp)</h5>
+      <h4 class="text-[13px] font-semibold m-0">Bản đồ quy hoạch (dữ liệu tổng hợp)</h4>
       <span class="goi-y">Nền tảng không dùng GIS toàn thành phố</span>
     </div>
     <p v-if="!zones.length && !parcels.length" class="text-phu text-[13px] m-0">Chưa có dữ liệu bản đồ.</p>

@@ -6,8 +6,11 @@ Mô-đun đồng bộ danh mục người dùng từ Keycloak IdP sang core.user
 - Đồng bộ các thuộc tính người dùng: id, username, email, full_name, tenant, roles, active.
 - Tự động đặt active = false khi người dùng bị vô hiệu hóa (enabled = false) hoặc xóa khỏi Keycloak.
 - Đồng bộ cấu hình bảo mật cho client dxos-web (chống rò rỉ mã token, dynamic origins).
+- Đồng bộ cài đặt giao diện/ngôn ngữ của realm từ core/keycloak/realm-dxos.template.json: realm chỉ
+  được import lần đầu, nên realm đã tạo trước đó không nhận theme đăng nhập và tiếng Việt nếu không đồng bộ.
 """
 
+import json
 import logging
 import os
 import uuid
@@ -93,6 +96,56 @@ async def get_admin_client() -> Tuple[Optional[httpx.AsyncClient], Optional[str]
     return None, None, None
 
 
+# Chỉ các khóa giao diện/ngôn ngữ; không ghi đè chính sách bảo mật hay client của realm đang chạy
+REALM_KEYS = ("loginTheme", "internationalizationEnabled", "supportedLocales", "defaultLocale")
+REALM_TEMPLATE = Path(__file__).resolve().parent.parent.parent / "core" / "keycloak" / "realm-dxos.template.json"
+
+
+def realm_settings_from_template(path: Path = REALM_TEMPLATE) -> dict:
+    """Lấy các khóa REALM_KEYS có trong template; không có tệp thì trả rỗng."""
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        logger.warning("Không đọc được %s: %s", path, e)
+        return {}
+    return {k: data[k] for k in REALM_KEYS if k in data}
+
+
+def realm_settings_diff(current: dict, wanted: dict) -> dict:
+    """Khóa cần cập nhật: giá trị trên realm khác template (danh sách so không theo thứ tự)."""
+    def chuan(v):
+        return sorted(v) if isinstance(v, list) else v
+
+    return {k: v for k, v in wanted.items() if chuan(current.get(k)) != chuan(v)}
+
+
+async def sync_realm_settings(client: httpx.AsyncClient, base_url: str, admin_token: str) -> dict:
+    """Đặt theme đăng nhập và ngôn ngữ của realm theo template; trả về các khóa đã đổi."""
+    wanted = realm_settings_from_template()
+    if not wanted:
+        return {}
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    realm_url = f"{base_url}/admin/realms/{settings.keycloak_realm}"
+    try:
+        res = await client.get(realm_url, headers=headers)
+        if res.status_code != 200:
+            logger.warning("Không đọc được cấu hình realm: HTTP %s", res.status_code)
+            return {}
+        doi = realm_settings_diff(res.json(), wanted)
+        if not doi:
+            return {}
+        put_res = await client.put(realm_url, json=doi, headers=headers)
+        if put_res.status_code in (200, 204):
+            logger.info("Đã cập nhật cài đặt realm: %s", ", ".join(sorted(doi)))
+            return doi
+        logger.warning("Không cập nhật được realm: HTTP %s", put_res.status_code)
+    except Exception as e:
+        logger.warning(f"Lỗi khi đồng bộ cài đặt realm: {e}")
+    return {}
+
+
 async def sync_clients(client: httpx.AsyncClient, base_url: str, admin_token: str) -> None:
     """Cập nhật chính sách bảo mật cho các Keycloak client (N-08, N-09)."""
     headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
@@ -131,6 +184,7 @@ async def sync_keycloak_users() -> dict:
         raise RuntimeError(err_msg)
 
     try:
+        realm_doi = await sync_realm_settings(client, base_url, admin_token)
         await sync_clients(client, base_url, admin_token)
         users_url = f"{base_url}/admin/realms/{settings.keycloak_realm}/users"
         headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
@@ -220,6 +274,7 @@ async def sync_keycloak_users() -> dict:
         res_summary = {
             "total_keycloak_users": len(users),
             "synced_count": synced_count,
+            "realm_updated": sorted(realm_doi),
             "deactivated_count": deactivated_count,
         }
         logger.info(f"Hoàn thành đồng bộ danh bạ: {res_summary}")

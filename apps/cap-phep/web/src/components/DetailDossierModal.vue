@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <div class="hop-dau">
         <div>
           <span class="mo">Chi tiết hồ sơ</span>
-          <h3 id="detail-ma-ho-so" class="ma">{{ hoSoHienTai.ma_ho_so }}</h3>
+          <h2 id="detail-ma-ho-so" class="ma">{{ hoSoHienTai.ma_ho_so }}</h2>
           <div class="flex flex-wrap items-center gap-2 mt-1.5">
             <span id="detail-trang-thai" :class="getStatusBadgeClass(hoSoHienTai.trang_thai)">{{ formatStatus(hoSoHienTai.trang_thai) }}</span>
             <span class="mo">Bước hiện tại: <span id="detail-buoc">{{ tenBuoc(hoSoHienTai.buoc) }}</span></span>
@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <div ref="than" class="hop-than">
         <div class="grid gap-5 lg:grid-cols-2">
           <div :class="mobileMuc('muc-thong-tin')">
-            <h4 id="muc-thong-tin" class="muc-con">Chủ đầu tư</h4>
+            <h3 id="muc-thong-tin" class="muc-con">Chủ đầu tư</h3>
             <dl class="ds-thong-tin">
               <dt>Họ tên</dt><dd id="detail-chu-dau-tu">{{ dossier.ho_ten }}</dd>
               <dt>CCCD</dt><dd>{{ cheCccd(dossier.cccd) }}</dd>
@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             </dl>
           </div>
           <div :class="mobileMuc('muc-thong-tin')">
-            <h4 class="muc-con">Công trình</h4>
+            <h3 class="muc-con">Công trình</h3>
             <dl class="ds-thong-tin">
               <dt>Địa chỉ</dt><dd id="detail-dia-chi">{{ dossier.dia_chi_cong_trinh }}</dd>
               <dt>Thửa đất</dt><dd>{{ dossier.thua_dat }}</dd>
@@ -61,7 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
         <section v-if="dossier.trang_thai === 'DA_CAP' || permitInfo" id="block-giay-phep-signature" class="mt-5 p-4 rounded-[10px] border border-vien bg-mat" :class="mobileMuc('muc-thong-tin')">
           <div class="flex items-center justify-between gap-3 mb-3">
-            <h4 class="text-[14px] font-semibold m-0">Giấy phép và chữ ký số</h4>
+            <h3 class="text-[14px] font-semibold m-0">Giấy phép và chữ ký số</h3>
             <span id="badge-permit-status" :class="permitInfo?.trang_thai === 'revoked' ? 'tt tt-do' : 'tt tt-xanh'">
               {{ permitInfo?.trang_thai === "revoked" ? "Đã thu hồi" : permitInfo?.trang_thai === "valid" ? "Hợp lệ" : "Đã cấp" }}
             </span>
@@ -117,7 +117,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
         <section id="block-dossier-files" class="mt-5" :class="mobileMuc('block-dossier-files')" aria-labelledby="tieu-de-giay-to">
           <div class="flex items-baseline justify-between gap-3 mb-2">
-            <h4 id="tieu-de-giay-to" class="text-[14px] font-semibold m-0">Giấy tờ đã nộp</h4>
+            <h3 id="tieu-de-giay-to" class="text-[14px] font-semibold m-0">Giấy tờ đã nộp</h3>
             <span class="mo">{{ docs.length }} tệp</span>
           </div>
           <p v-if="loadingDocs" class="text-phu m-0">Đang tải danh sách giấy tờ…</p>
@@ -164,7 +164,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         />
 
         <section id="block-dossier-progress" class="mt-5" :class="mobileMuc('block-dossier-progress')" aria-labelledby="tieu-de-tien-trinh">
-          <h4 id="tieu-de-tien-trinh" class="text-[14px] font-semibold m-0 mb-2">Tiến trình quy trình</h4>
+          <h3 id="tieu-de-tien-trinh" class="text-[14px] font-semibold m-0 mb-2">Tiến trình quy trình</h3>
           <ol id="list-dossier-progress" class="list-none m-0 p-0 flex flex-wrap gap-x-2 gap-y-1 text-[13px]">
             <li v-for="(b, i) in TIEN_TRINH" :key="b" class="flex items-center gap-2">
               <span
@@ -183,7 +183,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
         <section id="block-dossier-audit" class="mt-5" :class="mobileMuc('block-dossier-audit')" aria-labelledby="tieu-de-lich-su">
           <div class="flex items-baseline justify-between gap-3 mb-1">
-            <h4 id="tieu-de-lich-su" class="text-[14px] font-semibold m-0">Ai đã xem và xử lý hồ sơ</h4>
+            <h3 id="tieu-de-lich-su" class="text-[14px] font-semibold m-0">Ai đã xem và xử lý hồ sơ</h3>
             <span class="mo">{{ auditList.length }} ghi nhận</span>
           </div>
           <p class="goi-y mt-0 mb-2">Mọi lần mở hồ sơ, xem tệp và xử lý đều được ghi lại và không sửa được. Sắp theo thời gian, cũ nhất trước.</p>
@@ -209,7 +209,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
         <!-- Phần do feature đăng ký (features/registry.ts: DOSSIER_TABS) -->
         <section v-for="t in tabMoRong" :id="'muc-' + t.ma" :key="t.ma" class="mt-5" :class="mobileMuc('muc-' + t.ma)">
-          <h4 class="muc-con">{{ t.ten }}</h4>
+          <h3 class="muc-con">{{ t.ten }}</h3>
           <component :is="t.component" :dossier="dossier" :user-token="userToken" />
         </section>
       </div>

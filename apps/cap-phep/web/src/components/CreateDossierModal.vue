@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     <div ref="hop" tabindex="-1" class="hop max-w-[760px]" role="dialog" aria-modal="true" aria-labelledby="tieu-de-nop">
       <div class="hop-dau">
         <div>
-          <h3 id="tieu-de-nop">Nộp hồ sơ cấp phép xây dựng</h3>
+          <h2 id="tieu-de-nop">Nộp hồ sơ cấp phép xây dựng</h2>
           <p class="goi-y m-0 mt-1">Chuẩn bị đủ giấy tờ theo danh mục bên dưới. Hệ thống kiểm tra lại toàn bộ trước khi nhận; thời hạn giải quyết 15 ngày làm việc kể từ khi hồ sơ hợp lệ.</p>
         </div>
         <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>
@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           <span class="text-[12px] text-phu">{{ ["Chủ đầu tư", "Công trình", "Giấy tờ kèm theo"][step] }}</span>
         </div>
         <div :class="step !== 0 ? 'hidden md:block' : ''">
-        <h4 class="muc-con">Chủ đầu tư</h4>
+        <h3 class="muc-con">Chủ đầu tư</h3>
         <div class="grid sm:grid-cols-3 gap-3">
           <div>
             <label for="input-doi-tuong" class="nhan">Loại chủ thể</label>
@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         </div>
 
         <div :class="step !== 1 ? 'hidden md:block' : ''">
-        <h4 class="muc-con">Công trình</h4>
+        <h3 class="muc-con">Công trình</h3>
         <label for="input-dia-chi" class="nhan">Địa chỉ công trình</label>
         <input id="input-dia-chi" v-model="form.dia_chi_cong_trinh" required class="o" placeholder="Số 123 Đường Mẫu, Phường A" />
         <div class="grid sm:grid-cols-3 gap-3 mt-3">
@@ -79,7 +79,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         </div>
 
         <div :class="step !== 2 ? 'hidden md:block' : ''">
-        <h4 class="muc-con">Giấy tờ kèm theo</h4>
+        <h3 class="muc-con">Giấy tờ kèm theo</h3>
         <p v-if="loadingRequirements" class="goi-y m-0" role="status">Đang tải danh mục giấy tờ…</p>
         <DocumentChecklist v-else v-model="docs" :requirements="requirements" :errors="tatCaLoi" :form-values="form" />
         <p class="goi-y mt-2 mb-0">PDF hoặc DWG, tối đa 20 MB mỗi tệp. Tệp được quét virus trước khi lưu.</p>
