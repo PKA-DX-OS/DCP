@@ -37,6 +37,13 @@ jobs:
       - name: Chặn mã giả và placeholder
         run: python scripts/check_no_fakes.py
 
+      - name: Kiểm tra APISIX route fragments
+        run: python scripts/build_apisix.py --check
+
+      - name: Kiểm tra hợp đồng OpenAPI
+        run: |
+          python -c "import yaml; [yaml.safe_load(open(f, encoding='utf-8')) for f in ('contracts/planning.yaml', 'contracts/acceptance.yaml')]"
+
       - name: Kiểm tra giấy phép
         run: python scripts/license_check.py
 
@@ -49,7 +56,7 @@ jobs:
       - name: Sinh và kiểm tra SBOM
         run: |
           python scripts/sbom.py
-          python -c "import json; json.load(open('sbom/dxos-1.0.cdx.json'))"
+          python -c "import json; json.load(open('sbom/dxos-1.1.cdx.json'))"
 
   web:
     name: Build hai ứng dụng web

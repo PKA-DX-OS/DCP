@@ -12,8 +12,8 @@ import re
 import asyncio
 import html
 from datetime import datetime, timezone
-from fastapi import FastAPI, Header, HTTPException, status, UploadFile, File, Request, Response
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi import FastAPI, Header, HTTPException, status, UploadFile, File, Request, Response, Query
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import qrcode
@@ -256,7 +256,7 @@ async def sign_document(
         )
 
     # 128 bit ngẫu nhiên, không dò được (U-01)
-    public_code = f"DOC-{secrets.token_urlsafe(16)}"
+    public_code = _new_public_code()
 
     # Sinh nội dung PDF
     pdf_bytes = generate_document_pdf(public_code, req.doc_type, req.data)
@@ -404,7 +404,7 @@ PUBLIC_PAGE_CSS = """
 --bong:0 16px 40px rgba(3,7,18,.5),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(2,6,16,.35);--em:cubic-bezier(.16,1,.3,1)}
 @media (prefers-color-scheme:light){:root{color-scheme:light;--nen:#e4eaf4;--g1:rgba(124,156,196,.55);--g2:rgba(228,184,99,.35);--g3:rgba(169,196,232,.5);
 --mat:rgba(255,255,255,.55);--mat-noi:rgba(255,255,255,.8);--vien:rgba(255,255,255,.75);--vien-noi:rgba(124,156,196,.6);--vien-nhat:rgba(11,19,34,.08);
---chu:#0b1322;--phu:#485d7c;--cham:#a0701e;--xanh:#187a4e;--xanh-nen:rgba(24,122,78,.1);--do:#be3c30;--do-nen:rgba(190,60,48,.1);
+--chu:#0b1322;--phu:#485d7c;--cham:#7a5312;--xanh:#11603c;--xanh-nen:rgba(24,122,78,.1);--do:#a3322a;--do-nen:rgba(190,60,48,.1);
 --bong:0 16px 40px rgba(28,46,78,.14),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(20,40,70,.08)}}
 *{box-sizing:border-box}html{background:var(--nen)}
 body{margin:0;min-height:100vh;color:var(--chu);font:14px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -421,6 +421,7 @@ animation:hien .7s var(--em) backwards;transition:border-color .5s var(--em),tra
 @keyframes hien{from{opacity:0;transform:translateY(16px) scale(.985)}}
 h1{font-size:24px;font-weight:600;line-height:1.3;margin:0 0 6px;letter-spacing:-.01em}h2{font-size:16px;font-weight:600;margin:0 0 4px}
 p{margin:0;color:var(--phu)}
+main a{color:var(--cham);text-underline-offset:2px}
 .tt{display:inline-flex;align-items:center;gap:6px;margin:20px 0 4px;padding:4px 12px;border-radius:999px;font-weight:500;font-size:13px;
 animation:hien .7s .25s var(--em) backwards}
 .tt::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor}
@@ -430,8 +431,9 @@ dt,dd{padding:10px 0;border-top:1px solid var(--vien-nhat)}dt{color:var(--phu);p
 #val-public-code{color:var(--cham);font-weight:600}
 .doi-soat{margin-top:28px;padding-top:24px;border-top:1px solid var(--vien-nhat)}
 form{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
-input[type=file]{flex:1;min-width:220px;color:var(--phu);font:inherit;font-size:13px;border:1px solid var(--vien);border-radius:14px;padding:10px 12px;background:transparent;
-transition:border-color .5s var(--em)}input[type=file]:hover{border-color:var(--vien-noi)}
+input[type=file],.ma-input{flex:1;min-width:220px;color:var(--chu);font:inherit;font-size:13px;border:1px solid var(--vien);border-radius:14px;padding:10px 12px;background:transparent;
+transition:border-color .5s var(--em)}input[type=file]:hover,.ma-input:hover{border-color:var(--vien-noi)}
+.ma-input{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.02em}
 input[type=file]::file-selector-button{font:inherit;color:var(--chu);background:var(--mat-noi);border:1px solid var(--vien);border-radius:999px;padding:4px 12px;margin-right:10px;cursor:pointer}
 button{font:inherit;font-weight:500;color:#060a13;background:var(--cham-nen);border:0;border-radius:999px;padding:10px 24px;cursor:pointer;
 transition:transform .5s var(--em),box-shadow .5s var(--em)}
@@ -517,16 +519,80 @@ def _result_body(row, ket_qua: str = "") -> str:
     )
 
 
+PUBLIC_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _new_public_code() -> str:
+    """Mã không dùng I, O, 0, 1 để tránh nhầm khi đọc/QR."""
+    return "DOC-" + "".join(secrets.choice(PUBLIC_CODE_ALPHABET) for _ in range(24))
+
+
+def _ma_tra_cuu_sach(code: str) -> str:
+    """Bỏ khoảng trắng; giữ nguyên chữ hoa/thường vì mã cũ phân biệt."""
+    return re.sub(r"\s+", "", str(code or ""))
+
+
 async def _fetch_public_row(public_code: str):
+    code = _ma_tra_cuu_sach(public_code)
+    ung_vien = [code]
+    # Người dùng hay nhầm l/I với 1; thử thêm biến thể nhưng luôn ưu tiên mã gốc.
+    for a, b in (("l", "1"), ("I", "1"), ("1", "l"), ("1", "I")):
+        if a in code:
+            ung_vien.append(code.replace(a, b))
     async with get_db_connection() as conn:
-        return await conn.fetchrow(
-            """
-            SELECT public_code, doc_type, tenant, status, issued_at, revoked_at, sha256, signature, key_version, algorithm
-            FROM core.signed_docs
-            WHERE public_code = $1
-            """,
-            public_code,
-        )
+        for ma in dict.fromkeys(ung_vien):
+            row = await conn.fetchrow(
+                """
+                SELECT public_code, doc_type, tenant, status, issued_at, revoked_at, sha256, signature, key_version, algorithm
+                FROM core.signed_docs
+                WHERE public_code = $1
+                """,
+                ma,
+            )
+            if row:
+                return row
+    return None
+
+
+@app.get("/kiem-tra/")
+async def public_landing():
+    """Landing tra cứu công khai, có form nhập mã (B-UX-02)."""
+    vi_du = ""
+    try:
+        async with get_db_connection() as conn:
+            row = await conn.fetchrow(
+                "SELECT public_code FROM core.signed_docs WHERE status = 'valid' ORDER BY issued_at DESC LIMIT 1"
+            )
+        if row:
+            vi_du = row["public_code"]
+    except Exception:
+        vi_du = ""
+    vi_du_html = (
+        f'<p>Ví dụ: <a href="/kiem-tra/{html.escape(vi_du)}"><code>{html.escape(vi_du)}</code></a></p>'
+        if vi_du
+        else ""
+    )
+    body = (
+        "<h1>Tra cứu văn bản điện tử</h1>"
+        "<p>Nhập mã in trên văn bản hoặc quét mã QR để xem trạng thái, chữ ký số và đối soát tệp PDF.</p>"
+        '<form method="get" action="/kiem-tra/tra">'
+        '<input id="ma-tra-cuu" name="ma" type="text" class="ma-input" '
+        'placeholder="DOC-XXXXXXXX" autocomplete="off" required autofocus>'
+        '<button type="submit">Tra cứu</button></form>'
+        f"{vi_du_html}"
+        "<p>Hệ thống không yêu cầu đăng nhập và không hiển thị dữ liệu cá nhân.</p>"
+    )
+    return _public_page("Tra cứu văn bản điện tử", body)
+
+
+@app.get("/kiem-tra/tra")
+async def public_lookup_redirect(ma: str = Query(default="")):
+    code = _ma_tra_cuu_sach(ma)
+    if not code:
+        return RedirectResponse("/kiem-tra/", status_code=status.HTTP_303_SEE_OTHER)
+    from urllib.parse import quote
+
+    return RedirectResponse(f"/kiem-tra/{quote(code, safe='')}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/kiem-tra/{public_code}")
@@ -537,6 +603,7 @@ async def public_check(public_code: str, request: Request):
     Mọi giá trị đưa vào HTML đều được escape, trang không chạy script (U-02).
     """
     is_html_request = "text/html" in request.headers.get("accept", "").lower()
+    public_code = _ma_tra_cuu_sach(public_code)
     if not PUBLIC_CODE_RE.fullmatch(public_code or ""):
         return _not_found(is_html_request)
     row = await _fetch_public_row(public_code)

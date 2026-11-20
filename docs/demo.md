@@ -18,7 +18,11 @@ Cài gói ứng dụng và dữ liệu mẫu:
 ```bash
 python scripts/app_manager.py install --app cap-phep
 python apps/cap-phep/seed/seed.py
+python scripts/seed_hero.py
+python scripts/seed_demo_history.py
 ```
+
+`seed_demo_history.py` tạo 72 hồ sơ demo trải 12 tháng (`CP-DEMO-HIST-*`) để dashboard có dữ liệu chart; chạy lại an toàn.
 
 Tài khoản demo do `seed.py` sinh và ghi vào `secrets/demo-accounts.txt`:
 

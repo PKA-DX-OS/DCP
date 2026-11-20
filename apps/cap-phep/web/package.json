@@ -1,6 +1,6 @@
 {
   "name": "cap-phep-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "DX-OS Tầng 2 - Cấp phép xây dựng nhà ở riêng lẻ (Vue 3 + Vite + TS + Tailwind)",
   "type": "module",
@@ -9,16 +9,22 @@
     "build": "vue-tsc --noEmit && vite build",
     "type-check": "vue-tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:design-review": "npx -y openapi-typescript@7 ../../../contracts/design-review.yaml -o src/features/design-review/schema.gen.ts && node scripts/them-spdx.mjs src/features/design-review/schema.gen.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.5",
+    "leaflet": "^1.9.4",
     "oidc-client-ts": "^3.1.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.12",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.6.0",
     "autoprefixer": "^10.4.20",
+    "axe-core": "^4.10.2",
+    "happy-dom": "^20.14.6",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",

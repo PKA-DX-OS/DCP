@@ -46,11 +46,21 @@ async function request<T>(method: "GET" | "POST", path: string, body?: unknown):
     await clearSession();
     throw new ApiError(401, "HET_PHIEN", "Phiên đăng nhập đã hết hạn");
   }
+
+  let chiTiet = "";
+  if (!resp.ok) {
+    try {
+      const loi = (await resp.json()) as { detail?: string | { loi?: string } };
+      chiTiet = typeof loi?.detail === "string" ? loi.detail : (loi?.detail?.loi ?? "");
+    } catch {
+      /* body không phải JSON: dùng thông báo mặc định */
+    }
+  }
   if (resp.status === 403) {
-    throw new ApiError(403, "KHONG_DU_QUYEN", "Bạn không có quyền xem nội dung này");
+    throw new ApiError(403, "KHONG_DU_QUYEN", chiTiet || "Bạn không có quyền xem nội dung này");
   }
   if (!resp.ok) {
-    throw new ApiError(resp.status, "LOI_MAY_CHU", `Lỗi máy chủ (${resp.status})`);
+    throw new ApiError(resp.status, "LOI_MAY_CHU", chiTiet || `Lỗi máy chủ (${resp.status})`);
   }
   return (await resp.json()) as T;
 }
@@ -63,4 +73,28 @@ export function apiGet<T>(path: string): Promise<T> {
 /** Chỉ dùng cho hỏi đáp trợ lý; không ghi dữ liệu nghiệp vụ. */
 export function apiPost<T>(path: string, body: unknown): Promise<T> {
   return request<T>("POST", path, body);
+}
+
+/** Tải tệp xuất (Excel/PDF) kèm token, trả Blob để trình duyệt lưu. */
+export async function apiDownload(path: string): Promise<Blob> {
+  const token = await getValidToken();
+  if (!token) {
+    await login();
+    throw new ApiError(401, "CHUA_DANG_NHAP", "Cần đăng nhập");
+  }
+  const resp = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "*/*" },
+  });
+  if (!resp.ok) throw new ApiError(resp.status, "LOI_TAI_TEP", `Không tải được tệp (${resp.status})`);
+  return await resp.blob();
+}
+
+/** Lưu Blob thành tệp trên máy người dùng. */
+export function luuBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }

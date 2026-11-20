@@ -63,6 +63,18 @@ export function readRoles(accessToken: string | null | undefined): string[] {
   }
 }
 
+/** Đọc claim `tenant` (mã địa bàn) từ access token để hiển thị đơn vị trên header. */
+export function readTenant(accessToken: string | null | undefined): string {
+  if (!accessToken) return "";
+  try {
+    const part = accessToken.split(".")[1] || "";
+    const json = JSON.parse(decodeURIComponent(escape(atob(part.replace(/-/g, "+").replace(/_/g, "/")))));
+    return String(json?.tenant || json?.tenant_id || "");
+  } catch {
+    return "";
+  }
+}
+
 export async function handleCallbackIfNeeded(): Promise<User | null> {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has("code") && urlParams.has("state")) {

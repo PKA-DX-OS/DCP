@@ -16,4 +16,4 @@ export const OIDC_REALM: string = env.VITE_OIDC_REALM || "dxos";
 
 /** Liên kết "Mã nguồn" ở chân trang (AGPL-3.0 Mục 13); giá trị đặt lúc build trong vite.config.ts. */
 export const SOURCE_URL: string = env.VITE_SOURCE_URL || "";
-export const APP_VERSION = "1.0";
+export const APP_VERSION = "1.1";

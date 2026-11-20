@@ -3,7 +3,7 @@
 
 import { ref } from "vue";
 import { ApiError } from "../api/client";
-import { fetchDocumentRequirements, fetchHoSo, nopHoSo, openHoSo, supplementHoSo } from "../api/dossiers";
+import { fetchDocumentRequirements, fetchHoSo, nopHoSo, openHoSo, supplementHoSo, updateSubjectAuthority } from "../api/dossiers";
 import { linkDossierFile, uploadFile } from "../api/files";
 import { completeTask, fetchTasks, startWorkflow } from "../api/flow";
 import { fetchConsents, fetchDsarRequests, grantConsent, submitDsarRequest, withdrawConsent } from "../api/dsar";
@@ -83,12 +83,24 @@ export function useCongDan(getToken: () => Promise<string | null>, getSub: () =>
       }
       const res = await nopHoSo(t, form, hoSoId, tep);
       try {
+        await updateSubjectAuthority(t, res.id, {
+          doi_tuong: form.doi_tuong,
+          trong_kcn: form.trong_kcn,
+          cap_hanh_chinh: form.cap_hanh_chinh,
+        });
+      } catch {
+        notify("Đã nộp hồ sơ nhưng chưa lưu được thông tin thẩm quyền; cán bộ sẽ bổ sung.", "canh_bao");
+      }
+      try {
         await startWorkflow(t, "cap-phep", res.ma_ho_so, {
           ho_so_id: res.id,
           ma_ho_so: res.ma_ho_so,
           chu_dau_tu_sub: getSub(),
           dien_tich_san_m2: Number(form.dien_tich_san_m2) || 100,
           khu_quan_ly_kien_truc: Boolean(form.khu_quan_ly_kien_truc),
+          dia_chi_cong_trinh: form.dia_chi_cong_trinh,
+          trang_thai_ho_so: "DA_NOP",
+          do_uu_tien: "binh_thuong",
         });
       } catch {
         notify(`Đã nộp hồ sơ ${res.ma_ho_so} nhưng chưa chuyển được tới một cửa. Phường sẽ xử lý thủ công.`, "canh_bao");

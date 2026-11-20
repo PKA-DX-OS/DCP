@@ -27,6 +27,7 @@ help_of() {
     restore) echo "restore [--list|--chi-kiem|--id ID] [--yes]  Phục hồi từ bản sao lưu (kiểm mã băm trước khi ghi)" ;;
     app-install) echo "app-install [app]        Cài hoặc nâng cấp gói ứng dụng (mặc định cap-phep)" ;;
     app-uninstall) echo "app-uninstall [app]      Gỡ gói ứng dụng (xóa schema của app, cần --yes)" ;;
+    migrate) echo "migrate [--status|--dry-run] Chạy migration PostgreSQL lõi trên DB đang chạy" ;;
     seed) echo "seed [tham số seed.py]   Nạp dữ liệu mẫu và tài khoản demo" ;;
     sync-users) echo "sync-users               Đồng bộ người dùng Keycloak sang core.users_directory" ;;
     bao-init) echo "bao-init                 Khởi tạo OpenBao (Shamir 5/3) và khóa ký doc-sign" ;;
@@ -74,9 +75,9 @@ cmd_init() {
   else
     echo "--> Python trên máy thiếu cryptography/pyyaml/httpx; chạy init trong image tools..."
     # Build thẳng bằng docker build: chưa có .env thì docker compose không đọc được compose.yaml
-    run docker build -f tools/Dockerfile -t dxos/tools:1.0 .
+    run docker build -f tools/Dockerfile -t dxos/tools:1.1 .
     # Chạy bằng uid/gid của người dùng để .env, secrets/ không thuộc root (Linux, WSL)
-    run docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd):/app" -w /app dxos/tools:1.0 scripts/init.py "$@"
+    run docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd):/app" -w /app dxos/tools:1.1 scripts/init.py "$@"
   fi
 }
 
@@ -109,6 +110,8 @@ cmd_up() {
   is_demo && echo "[CẢNH BÁO] DEMO_MODE=true: chỉ dùng thử nghiệm, không dùng cho môi trường thật."
   echo "--> Build image..."
   run "${COMPOSE[@]}" --profile core --profile tools build
+  echo "--> Ghép route APISIX từ core/apisix/routes..."
+  run "${TOOLS[@]}" scripts/build_apisix.py --from-env
   echo "--> Chạy profile core..."
   run "${COMPOSE[@]}" --profile core up -d --wait
   echo "--> Đồng bộ JWKS Keycloak sang PostgREST..."
@@ -190,6 +193,7 @@ case "$COMMAND" in
     run "${TOOLS[@]}" scripts/app_manager.py uninstall "$app"
     ;;
   seed)           need_env; run "${TOOLS[@]}" apps/cap-phep/seed/seed.py "$@" ;;
+  migrate)        need_env; PY=$(host_python) || PY=python3; run "$PY" scripts/migrate.py "$@" ;;
   sync-users)     need_env; run "${TOOLS[@]}" scripts/sync_users.py ;;
   bao-init)       need_env; run "${TOOLS[@]}" scripts/bao_ops.py init ;;
   bao-unseal)     need_env; run "${TOOLS[@]}" scripts/bao_ops.py unseal ;;

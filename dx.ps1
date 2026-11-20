@@ -25,6 +25,7 @@ $Help = [ordered]@{
     "restore"        = "restore [--list|--chi-kiem|--id ID] [--yes]  Phuc hoi tu ban sao luu (kiem ma bam truoc khi ghi)"
     "app-install"    = "app-install [app]        Cai hoac nang cap goi ung dung (mac dinh cap-phep)"
     "app-uninstall"  = "app-uninstall [app]      Go goi ung dung (xoa schema cua app, can --yes)"
+    "migrate"        = "migrate [--status|--dry-run] Chay migration PostgreSQL loi tren DB dang chay"
     "seed"           = "seed [tham so seed.py]   Nap du lieu mau va tai khoan demo"
     "sync-users"     = "sync-users               Dong bo nguoi dung Keycloak sang core.users_directory"
     "bao-init"       = "bao-init                 Khoi tao OpenBao (Shamir 5/3) va khoa ky doc-sign"
@@ -89,8 +90,8 @@ function Invoke-Init {
     } else {
         Write-Host "--> Python tren may thieu cryptography/pyyaml/httpx; chay init trong image tools..."
         # Build thang bang docker build: chua co .env thi docker compose khong doc duoc compose.yaml
-        Invoke-Step "docker" @("build", "-f", "tools/Dockerfile", "-t", "dxos/tools:1.0", ".")
-        Invoke-Step "docker" (@("run", "--rm", "-v", "${PWD}:/app", "-w", "/app", "dxos/tools:1.0", "scripts/init.py") + $ArgList)
+        Invoke-Step "docker" @("build", "-f", "tools/Dockerfile", "-t", "dxos/tools:1.1", ".")
+        Invoke-Step "docker" (@("run", "--rm", "-v", "${PWD}:/app", "-w", "/app", "dxos/tools:1.1", "scripts/init.py") + $ArgList)
     }
 }
 
@@ -117,6 +118,8 @@ function Invoke-Up {
     if (Test-Demo) { Write-Host "[CANH BAO] DEMO_MODE=true: chi dung thu nghiem, khong dung cho moi truong that." -ForegroundColor Yellow }
     Write-Host "--> Build image..."
     Invoke-Step "docker" @("compose", "--profile", "core", "--profile", "tools", "build")
+    Write-Host "--> Ghep route APISIX tu core/apisix/routes..."
+    Invoke-Tools @("scripts/build_apisix.py", "--from-env")
     Write-Host "--> Chay profile core..."
     Invoke-Step "docker" @("compose", "--profile", "core", "up", "-d", "--wait")
     Write-Host "--> Dong bo JWKS Keycloak sang PostgREST..."
@@ -124,6 +127,10 @@ function Invoke-Up {
     Invoke-Step "docker" @("compose", "restart", "postgrest")
     Write-Host "--> Kiem tra OpenBao..."
     Confirm-OpenBao
+    Write-Host "--> Chay migration PostgreSQL loi..."
+    $pyMigrate = Get-HostPython
+    if (-not $pyMigrate) { $pyMigrate = "python" }
+    Invoke-Step $pyMigrate @("scripts/migrate.py")
     Write-Host "--> Cai/nang cap goi ung dung cap-phep..."
     Invoke-Tools @("scripts/app_manager.py", "install", "cap-phep")
     if ((-not (Test-Path "secrets\demo-accounts.txt")) -and (Test-Demo)) {
@@ -192,6 +199,11 @@ switch ($Command) {
         Invoke-Tools @("scripts/app_manager.py", "uninstall", $app)
     }
     "seed"           { Assert-Env; Invoke-Tools (@("apps/cap-phep/seed/seed.py") + $Rest) }
+    "migrate"        {
+        $py = Get-HostPython
+        if (-not $py) { $py = "python" }
+        Invoke-Step $py (@("scripts/migrate.py") + $Rest)
+    }
     "sync-users"     { Assert-Env; Invoke-Tools @("scripts/sync_users.py") }
     "bao-init"       { Assert-Env; Invoke-Tools @("scripts/bao_ops.py", "init") }
     "bao-unseal"     { Assert-Env; Invoke-Tools @("scripts/bao_ops.py", "unseal") }
@@ -205,7 +217,7 @@ switch ($Command) {
     "release" {
         $py = Get-HostPython
         if (-not $py) { $py = "python" }
-        $ver = if ($Rest.Count -gt 0) { $Rest[0] } else { "1.0" }
+        $ver = if ($Rest.Count -gt 0) { $Rest[0] } else { "1.1" }
         Invoke-Step $py @("scripts/release.py", "--version", $ver)
     }
     "reset"          { Invoke-Reset $Rest }

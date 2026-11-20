@@ -50,11 +50,15 @@ class DocumentRequirementDef(BaseModel):
     yeu_cau_hieu_luc: bool = False
     thong_tin: List[str] = []
     mo_ta: Optional[str] = None
+    legal_citation_key: Optional[str] = None
+    mau_bieu: Optional[str] = None
+    doi_tuong: str = "tat_ca"
 
 
 class DocumentManifestDef(BaseModel):
     thu_tuc: str
     ten: str
+    doi_tuong: List[Dict[str, str]] = []
     requirements: List[DocumentRequirementDef] = []
 
 
@@ -74,6 +78,7 @@ class AppManifest(BaseModel):
     flow_policies: Dict[str, Any] = {}
     doc_signers: Dict[str, Any] = {}
     break_glass: Dict[str, Any] = {}
+    dsar_policies: Dict[str, Any] = {}
     document_manifest: Optional[DocumentManifestDef] = None
 
 

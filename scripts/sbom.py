@@ -23,7 +23,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "sbom"
-VERSION = "1.0"
+VERSION = "1.1"
 
 
 def parse_requirements(path: Path):

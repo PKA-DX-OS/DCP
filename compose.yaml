@@ -41,9 +41,7 @@ services:
       DXOS_OWNER_PASSWORD: ${DXOS_OWNER_PASSWORD:?thiếu DXOS_OWNER_PASSWORD, chạy dx init}
       TZ: Asia/Ho_Chi_Minh
     volumes:
-      - ./core/postgres/00-init-dbs.sql:/docker-entrypoint-initdb.d/00-init-dbs.sql:ro
-      - ./core/postgres/00-roles.sh:/docker-entrypoint-initdb.d/00-roles.sh:ro
-      - ./core/postgres/01-core-schema.sql:/docker-entrypoint-initdb.d/01-core-schema.sql:ro
+      - ./core/postgres:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-dxos}"]
@@ -196,6 +194,7 @@ services:
       KC_HEALTH_ENABLED: "true"
     volumes:
       - ./secrets/realm-dxos.json:/opt/keycloak/data/import/realm-dxos.json:ro
+      - ./core/keycloak/themes:/opt/keycloak/themes:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -246,7 +245,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-files
     restart: unless-stopped
     profiles: [core]
@@ -289,7 +288,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-softhsm-init
     restart: "no"
     profiles: [core]
@@ -310,7 +309,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-doc-sign
     restart: unless-stopped
     profiles: [core]
@@ -365,7 +364,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-flow
     restart: unless-stopped
     profiles: [core]
@@ -406,7 +405,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-ingest
     restart: unless-stopped
     profiles: [core]
@@ -443,7 +442,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-ngsi-ld
     restart: unless-stopped
     profiles: [core]
@@ -479,7 +478,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-audit
     restart: unless-stopped
     profiles: [core]
@@ -518,7 +517,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-outbox-relay
     restart: unless-stopped
     profiles: [core]
@@ -559,7 +558,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-metrics-api
     restart: unless-stopped
     profiles: [core]
@@ -591,11 +590,54 @@ services:
       retries: 5
     mem_limit: 256m
 
+  construction:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1
+    container_name: dxos-construction
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "construction.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080/auth}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?thiếu KEYCLOAK_ADMIN_PASSWORD}
+      FLOWABLE_URL: ${FLOWABLE_URL:-http://flowable:8080/flowable-rest}
+      FLOWABLE_USER: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_PASSWORD: ${FLOWABLE_PASSWORD:?thiếu FLOWABLE_PASSWORD}
+      DEMO_MODE: ${DEMO_MODE:-false}
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+      - ./apps:/app/apps:ro
+      - ./scripts:/app/scripts:ro
+      - ./core/legal:/app/core/legal:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
   export-warm:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-export-warm
     restart: unless-stopped
     profiles: [core]
@@ -631,7 +673,7 @@ services:
     build:
       context: ./apps/cap-phep/web
       dockerfile: Dockerfile
-    image: dxos/cap-phep-web:1.0
+    image: dxos/cap-phep-web:1.1
     container_name: dxos-main-web
     restart: unless-stopped
     profiles: [core]
@@ -649,7 +691,7 @@ services:
     build:
       context: ./apps/bang-dieu-hanh/web
       dockerfile: Dockerfile
-    image: dxos/bang-dieu-hanh-web:1.0
+    image: dxos/bang-dieu-hanh-web:1.1
     container_name: dxos-bang-dieu-hanh-web
     restart: unless-stopped
     profiles: [core]
@@ -712,7 +754,7 @@ services:
     build:
       context: .
       dockerfile: services/Dockerfile
-    image: dxos/services:1.0
+    image: dxos/services:1.1
     container_name: dxos-assistant
     restart: unless-stopped
     profiles: [core, ai]
@@ -748,7 +790,7 @@ services:
     build:
       context: .
       dockerfile: tools/Dockerfile
-    image: dxos/tools:1.0
+    image: dxos/tools:1.1
     container_name: dxos-sensor-sim
     restart: unless-stopped
     profiles: [sim]
@@ -771,7 +813,7 @@ services:
     build:
       context: .
       dockerfile: tools/Dockerfile
-    image: dxos/tools:1.0
+    image: dxos/tools:1.1
     profiles: [tools, gitops]
     networks:
       - edge

@@ -1,21 +1,21 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:b7f077a5-d228-472b-8522-c957514c7a84",
+  "serialNumber": "urn:uuid:6f7d98ae-00df-4ba1-ad6d-864004ae598d",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-19T04:57:30.156934+00:00",
+    "timestamp": "2026-11-20T16:36:03.872470+00:00",
     "tools": [
       {
         "vendor": "DX-OS",
         "name": "scripts/sbom.py",
-        "version": "1.0"
+        "version": "1.1"
       }
     ],
     "component": {
       "type": "application",
       "name": "dxos-open-core",
-      "version": "1.0",
+      "version": "1.1",
       "licenses": [
         {
           "license": {
@@ -34,7 +34,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -46,7 +46,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -58,7 +58,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -70,7 +70,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -82,7 +82,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -94,7 +94,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -106,7 +106,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -118,7 +118,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -130,7 +130,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -142,7 +142,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -154,7 +154,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -166,7 +166,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -178,7 +178,19 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "purl": "pkg:pypi/openpyxl@3.1.5",
+      "properties": [
+        {
+          "name": "dxos:source",
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -190,7 +202,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -202,7 +214,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -214,7 +226,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -226,7 +238,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -238,7 +250,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -250,7 +262,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -262,7 +274,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\requirements.txt"
+          "value": "services/requirements.txt"
         }
       ]
     },
@@ -382,7 +394,7 @@
       "properties": [
         {
           "name": "dxos:source",
-          "value": "services\\Dockerfile"
+          "value": "services/Dockerfile"
         }
       ]
     }

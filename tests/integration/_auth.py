@@ -15,6 +15,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+import httpx
+
 ROOT = Path(__file__).resolve().parents[2]
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080")
 DEMO_ACCOUNTS_FILE = ROOT / "secrets" / "demo-accounts.txt"
@@ -33,6 +35,37 @@ def _load_accounts() -> dict:
 
 _ACCOUNTS = _load_accounts()
 _TOKEN_CACHE = {}
+
+
+def _env(key: str) -> str | None:
+    env_file = ROOT / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith(f"{key}="):
+                return line.split("=", 1)[1].strip()
+    return None
+
+
+def get_keycloak_admin_client() -> tuple[httpx.Client, str]:
+    """Trả client trỏ Keycloak và access token realm master (dùng cho test quản trị)."""
+    pw = _env("KEYCLOAK_ADMIN_PASSWORD")
+    assert pw, "Thiếu KEYCLOAK_ADMIN_PASSWORD trong .env"
+    user = _env("KEYCLOAK_ADMIN") or "admin"
+    last = None
+    for base in ("http://127.0.0.1:8081/auth", f"{GATEWAY_URL}/auth"):
+        client = httpx.Client(base_url=base, timeout=10.0)
+        try:
+            r = client.post(
+                "/realms/master/protocol/openid-connect/token",
+                data={"client_id": "admin-cli", "username": user, "password": pw, "grant_type": "password"},
+            )
+            if r.status_code == 200:
+                return client, r.json()["access_token"]
+            last = f"{base}: HTTP {r.status_code}"
+        except httpx.HTTPError as e:
+            last = f"{base}: {e}"
+        client.close()
+    raise AssertionError(f"Không lấy được token quản trị Keycloak ({last})")
 
 
 def get_token(username: str, force_fresh: bool = False) -> str:

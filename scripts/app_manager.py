@@ -179,8 +179,9 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                 await conn.execute(
                     """
                     INSERT INTO app_cap_phep.document_requirements
-                        (loai, ten, bat_buoc, yeu_cau_hieu_luc, thong_tin, mo_ta, thu_tu, updated_at)
-                    VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, now())
+                        (loai, ten, bat_buoc, yeu_cau_hieu_luc, thong_tin, mo_ta, thu_tu,
+                         legal_citation_key, mau_bieu, doi_tuong, updated_at)
+                    VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, now())
                     """,
                     req.loai,
                     req.ten,
@@ -189,6 +190,9 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                     json.dumps(req.thong_tin or [], ensure_ascii=False),
                     req.mo_ta,
                     idx,
+                    req.legal_citation_key,
+                    req.mau_bieu,
+                    req.doi_tuong,
                 )
             await conn.execute("NOTIFY pgrst, 'reload schema'")
             print(f"  [PASS] Đã nạp {len(manifest.document_manifest.requirements)} loại giấy tờ vào manifest.")
@@ -265,7 +269,8 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
             if pool:
                 async with pool.acquire() as conn:
                     await conn.execute(
-                        "DELETE FROM core.knowledge_chunks WHERE app = $1 AND tenant = ANY($2::text[])",
+                        "DELETE FROM core.knowledge_chunks WHERE app = $1 AND tenant = ANY($2::text[]) "
+                        "AND source NOT LIKE 'legal-pdf/%' AND source NOT LIKE 'legal-analysis/%'",
                         app_code, target_tenants,
                     )
             for md_file in sorted(knowledge_dir.glob("*.md")):
@@ -293,6 +298,32 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                                     chunk,
                                 )
                 print(f"  - Đã nạp {len(chunks)} đoạn tri thức từ {md_file.name} cho {', '.join(target_tenants)}")
+
+            # 4b. Nạp trích dẫn pháp lý (A-LEGAL-01) để trợ lý trả citation có điều/khoản.
+            legal_dir = root / "core" / "legal"
+            citations_file = legal_dir / "citations.json"
+            docs_file = legal_dir / "danh_muc_van_ban.json"
+            if citations_file.exists() and docs_file.exists() and pool:
+                citations = json.loads(citations_file.read_text(encoding="utf-8"))
+                docs = {d["document_id"]: d for d in json.loads(docs_file.read_text(encoding="utf-8"))}
+                async with pool.acquire() as conn:
+                    for cit in citations:
+                        doc = docs.get(cit["document_id"])
+                        if not doc:
+                            continue
+                        pos = " ".join(x for x in [cit.get("clause"), cit.get("point")] if x)
+                        chunk = (
+                            f"Văn bản {doc['code']} ({doc['title']}) — {cit['article']}"
+                            f"{', ' + pos if pos else ''}: {cit['summary']} "
+                            f"Trạng thái hiệu lực: {doc.get('status') or 'cần đối chiếu'}; "
+                            f"ngày hiệu lực: {doc.get('effective_date') or 'chưa xác định'}."
+                        )
+                        for t in target_tenants:
+                            await conn.execute(
+                                "INSERT INTO core.knowledge_chunks (tenant, app, source, chunk) VALUES ($1, $2, $3, $4)",
+                                t, app_code, f"legal/{cit['citation_key']}", chunk,
+                            )
+                print(f"  - Đã nạp {len(citations)} trích dẫn pháp lý cho {', '.join(target_tenants)}")
 
     # 5. Lưu trữ chính sách hợp đồng vào core.app_policies (V2-08)
     if pool:
@@ -344,6 +375,17 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                     """,
                     app_code,
                     json.dumps(manifest.break_glass),
+                )
+
+            if manifest.dsar_policies:
+                await conn.execute(
+                    """
+                    INSERT INTO core.app_policies (app_code, policy_type, policy_key, policy_data)
+                    VALUES ($1, 'dsar_policies', 'default', $2::jsonb)
+                    ON CONFLICT (app_code, policy_type, policy_key) DO UPDATE SET policy_data = EXCLUDED.policy_data
+                    """,
+                    app_code,
+                    json.dumps(manifest.dsar_policies),
                 )
 
             for thu_tu, m in enumerate(manifest.metrics, start=1):

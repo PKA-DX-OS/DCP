@@ -27,13 +27,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         </div>
       </div>
 
-      <div class="flex gap-2">
-        <button type="button" class="btn" @click="$emit('refresh')">Làm mới</button>
+      <div class="flex flex-wrap gap-2">
+        <button v-if="isStaff" type="button" class="btn min-h-[44px]" :disabled="exporting" @click="xuatExcel">
+          {{ exporting ? "Đang xuất…" : "Xuất Excel" }}
+        </button>
+        <button type="button" class="btn min-h-[44px]" @click="$emit('refresh')">Làm mới</button>
         <button
           v-if="isApplicant || !isStaff"
           type="button"
           id="btn-nop-ho-so-modal"
-          class="btn btn-chinh"
+          class="btn btn-chinh min-h-[44px]"
           @click="$emit('create-dossier')"
         >Nộp hồ sơ mới</button>
       </div>
@@ -66,31 +69,36 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           :aria-pressed="filter === f.key"
           :class="['chip', filter === f.key && 'chip-chon']"
           @click="filter = f.key"
-        >{{ f.label }}<span v-if="f.count" class="ml-1 opacity-70">{{ f.count }}</span></button>
+        >{{ f.label }}<span v-if="f.count" class="ml-1 font-medium">{{ f.count }}</span></button>
       </div>
 
-      <div v-if="loading && dossiers.length === 0" id="loading-dossiers-state" class="px-6 py-12 text-center text-phu" role="status" aria-live="polite">
-        Đang tải danh sách hồ sơ…
+      <div v-if="loading && dossiers.length === 0" id="loading-dossiers-state" class="px-6 py-10" role="status" aria-live="polite" aria-busy="true">
+        <p class="sr-only">Đang tải danh sách hồ sơ…</p>
+        <Skeleton :lines="6" height="2.25rem" />
       </div>
 
-      <div v-else-if="dossiers.length === 0" id="empty-dossiers-state" class="px-6 py-12 text-center">
-        <p class="font-medium m-0">Chưa có hồ sơ nào.</p>
-        <p v-if="isStaff" class="text-phu mt-1.5 mb-0 max-w-[460px] mx-auto">
-          Danh sách chỉ hiện hồ sơ được giao cho bạn. Để mở hồ sơ khác, nhập mã hồ sơ vào ô tra cứu ở trên.
-        </p>
-        <p v-else class="text-phu mt-1.5 mb-0">Bấm "Nộp hồ sơ mới" để bắt đầu.</p>
+      <div v-else-if="dossiers.length === 0" id="empty-dossiers-state" class="px-4 py-6">
+        <EmptyState
+          :title="isStaff ? 'Chưa có hồ sơ được giao' : 'Chưa có hồ sơ nào'"
+          :description="isStaff ? 'Danh sách chỉ hiện hồ sơ được giao cho bạn. Để mở hồ sơ khác, nhập mã hồ sơ vào ô tra cứu ở trên.' : 'Nộp hồ sơ đầu tiên để bắt đầu theo dõi tiến độ.'"
+        >
+          <button v-if="!isStaff" type="button" class="btn btn-chinh min-h-[44px]" @click="$emit('create-dossier')">Nộp hồ sơ mới</button>
+          <button v-else type="button" class="btn min-h-[44px]" @click="$emit('refresh')">Tải lại</button>
+        </EmptyState>
       </div>
 
-      <div v-else class="overflow-x-auto">
+      <div v-else>
+        <div class="hidden overflow-x-auto md:block">
         <table class="bang" id="table-ho-so">
+          <caption class="sr-only">Danh sách hồ sơ cấp phép</caption>
           <thead>
             <tr>
-              <th>Mã hồ sơ</th>
-              <th>Chủ đầu tư</th>
-              <th>Công trình</th>
-              <th>Trạng thái</th>
-              <th>Hạn giải quyết</th>
-              <th><span class="sr-only">Thao tác</span></th>
+              <th scope="col">Mã hồ sơ</th>
+              <th scope="col">Chủ đầu tư</th>
+              <th scope="col">Công trình</th>
+              <th scope="col">Trạng thái</th>
+              <th scope="col">Hạn giải quyết</th>
+              <th scope="col"><span class="sr-only">Thao tác</span></th>
             </tr>
           </thead>
           <tbody>
@@ -127,6 +135,36 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             </tr>
           </tbody>
         </table>
+        </div>
+
+        <div class="divide-y divide-vien-nhat md:hidden" role="list" aria-label="Danh sách hồ sơ dạng thẻ">
+          <article v-for="d in trangHienTai" :key="'m-' + d.id" class="p-4" role="listitem">
+            <div class="flex items-start justify-between gap-2">
+              <b class="ma break-all">{{ d.ma_ho_so }}</b>
+              <span :class="getStatusBadgeClass(d.trang_thai)">{{ formatStatus(d.trang_thai) }}</span>
+            </div>
+            <p class="mt-1 mb-0 text-[14px] font-medium">{{ d.ho_ten }}</p>
+            <p class="mt-0.5 mb-0 text-[13px] text-phu">{{ d.dia_chi_cong_trinh }}</p>
+            <p class="mt-0.5 mb-0 text-[13px] text-phu">{{ d.so_tang }} tầng · {{ formatNumberVi(d.dien_tich_san_m2) }} m²</p>
+            <p class="mt-1 mb-0 text-[13px]" :class="hanGap(d) ? 'text-son font-semibold' : 'text-phu'">
+              Hạn: {{ hanText(d) }}<span v-if="d.qua_han" class="tt tt-do ml-2">Quá hạn</span>
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button
+                v-if="d.trang_thai === 'CAN_BO_SUNG'"
+                type="button"
+                :id="'btn-supplement-mobile-' + d.ma_ho_so"
+                class="btn btn-sm min-h-[44px] text-vang"
+                @click="$emit('supplement', d)"
+              >Bổ sung</button>
+              <button type="button" :id="'btn-detail-mobile-' + d.ma_ho_so" class="btn btn-sm min-h-[44px]" @click="$emit('view-detail', d)">Xem hồ sơ</button>
+            </div>
+          </article>
+          <p v-if="shown.length === 0" class="p-6 text-center text-phu">
+            {{ tuKhoa.trim() ? "Không tìm thấy hồ sơ khớp từ khóa." : "Không có hồ sơ nào ở trạng thái này." }}
+          </p>
+        </div>
+
         <nav v-if="soTrang > 1" class="flex items-center justify-end gap-2 px-4 py-3 border-t border-vien-nhat" aria-label="Phân trang hồ sơ">
           <span class="text-phu text-[13px] mr-auto">{{ (trang - 1) * KICH_THUOC_TRANG + 1 }}–{{ Math.min(trang * KICH_THUOC_TRANG, shown.length) }} / {{ shown.length }} hồ sơ</span>
           <button type="button" id="btn-trang-truoc" class="btn btn-sm" :disabled="trang <= 1" @click="trang--">Trước</button>
@@ -141,6 +179,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import type { HoSo } from "../types";
+import { EmptyState, Skeleton } from "../design-system";
+import { getValidToken } from "../auth";
+import { downloadFile } from "../api/files";
+import { notify } from "../composables/useToast";
 import { formatStatus, getStatusBadgeClass, formatNumberVi } from "../utils/formatters";
 import { cheCccd, ngayNgan } from "../utils/labels";
 
@@ -162,6 +204,7 @@ const emit = defineEmits<{
 }>();
 
 const searchCode = ref("");
+const exporting = ref(false);
 type FilterKey = "all" | "dang" | "bo-sung" | "cap" | "qua-han";
 const FILTER_KEYS: FilterKey[] = ["all", "dang", "bo-sung", "cap", "qua-han"];
 const KICH_THUOC_TRANG = 10;
@@ -255,6 +298,26 @@ const summary = computed(() => {
 function handleOpenByCode() {
   if (!searchCode.value.trim()) return;
   emit("open-by-code", searchCode.value.trim());
+}
+
+async function xuatExcel() {
+  exporting.value = true;
+  try {
+    const token = await getValidToken();
+    if (!token) throw new Error("Hết phiên đăng nhập");
+    const blob = await downloadFile(token, "/export/dossiers.xlsx");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ho-so-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    notify("Đã xuất danh sách hồ sơ", "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không xuất được Excel", "loi");
+  } finally {
+    exporting.value = false;
+  }
 }
 </script>
 

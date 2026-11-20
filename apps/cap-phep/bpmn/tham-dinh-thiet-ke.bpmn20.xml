@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://dxos.org/bpmn/app/cap-phep">
+  <process id="tham-dinh-thiet-ke" name="Thẩm định thiết kế đa bộ môn" isExecutable="true">
+    <startEvent id="startThietKe" name="Bắt đầu thẩm định thiết kế"/>
+    <sequenceFlow id="tk-f1" sourceRef="startThietKe" targetRef="taskThamDinhBoMon"/>
+
+    <userTask id="taskThamDinhBoMon" name="Thẩm định bộ môn ${bo_mon}"
+              flowable:candidateGroups="app:cap-phep:tham-dinh">
+      <documentation>Mỗi bộ môn thẩm định song song: kiến trúc, kết cấu, MEP, PCCC (nếu có).</documentation>
+      <multiInstanceLoopCharacteristics isSequential="false"
+                                        flowable:collection="${bo_mon_can_tham_dinh}"
+                                        flowable:elementVariable="bo_mon"/>
+    </userTask>
+
+    <sequenceFlow id="tk-f2" sourceRef="taskThamDinhBoMon" targetRef="taskTongHopThietKe"/>
+    <userTask id="taskTongHopThietKe" name="Tổng hợp kết quả thẩm định thiết kế"
+              flowable:candidateGroups="app:cap-phep:lanh-dao">
+      <documentation>Lãnh đạo tổng hợp kết quả các bộ môn và kết luận đạt/không đạt.</documentation>
+    </userTask>
+
+    <sequenceFlow id="tk-f3" sourceRef="taskTongHopThietKe" targetRef="gwThietKe"/>
+    <exclusiveGateway id="gwThietKe" name="Thiết kế đạt?" default="flowThietKeDat"/>
+    <sequenceFlow id="flowThietKeKhongDat" sourceRef="gwThietKe" targetRef="taskBoSungThietKe">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${vars:getOrDefault('ket_luan_thiet_ke', 'dat') == 'khong_dat'}]]></conditionExpression>
+    </sequenceFlow>
+
+    <userTask id="taskBoSungThietKe" name="Chủ đầu tư bổ sung thiết kế"
+              flowable:assignee="${vars:getOrDefault('chu_dau_tu_sub', vars:getOrDefault('cdt_sub', ''))}"
+              flowable:candidateGroups="app:cap-phep:chu-dau-tu">
+      <documentation>Chủ đầu tư tạo phiên bản mới và bổ sung bản vẽ theo nhận xét.</documentation>
+    </userTask>
+    <sequenceFlow id="flowBoSungXong" sourceRef="taskBoSungThietKe" targetRef="taskThamDinhBoMon"/>
+
+    <sequenceFlow id="flowThietKeDat" sourceRef="gwThietKe" targetRef="endThietKeDat"/>
+    <endEvent id="endThietKeDat" name="Thiết kế đạt"/>
+  </process>
+</definitions>

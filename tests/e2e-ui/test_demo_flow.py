@@ -227,9 +227,10 @@ def test_hanh_trinh_demo_tren_giao_dien():
             assert _cho(lambda: _so_chua_doc(mc) > so_truoc, timeout=20.0), "Chuông của mc.thu không tăng trong 20 giây"
             ban = mc.muc("Bàn làm việc")
             ban.get_by_role("button", name="Làm mới").click()
-            viec = ban.locator("li").filter(has_text=f"Mã hồ sơ: {ma}")
+            viec = ban.locator("aside button").filter(has_text=ma).first
             expect(viec).to_contain_text("Kiểm tra Hồ sơ Hợp lệ", timeout=15000)
-            viec.get_by_role("button", name="Xem hồ sơ").click()
+            viec.click()
+            ban.get_by_role("button", name="Mở hồ sơ đầy đủ").click()
             expect(mc.page.locator("#detail-ma-ho-so")).to_have_text(ma, timeout=15000)
             expect(mc.page.locator("#detail-chu-dau-tu")).to_have_text(ho_ten)
             expect(mc.page.locator("#block-dossier-files")).to_contain_text(f"{len(REQUIRED_DOC_LOAI)} tệp")
@@ -250,10 +251,11 @@ def test_hanh_trinh_demo_tren_giao_dien():
             td.da_vao_app()
             ban = td.muc("Bàn làm việc")
             ban.get_by_role("button", name="Làm mới").click()
-            viec = ban.locator("li").filter(has_text=f"Mã hồ sơ: {ma}")
+            viec = ban.locator("aside button").filter(has_text=ma).first
             expect(viec).to_be_visible(timeout=15000)
             td.chup("05-td-binh-viec-duoc-giao")
-            viec.get_by_role("button", name="Hoàn thành").click()
+            viec.click()
+            ban.get_by_role("button", name="Hoàn thành việc").click()
             expect(td.page.get_by_text("Đã hoàn thành việc")).to_be_visible(timeout=15000)
             expect(viec).to_have_count(0, timeout=15000)
             td.dong()
