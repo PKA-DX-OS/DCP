@@ -57,6 +57,7 @@ Tải bản gốc lên trang tra cứu thì báo **khớp**, tải bản đã s�
 
 - [ ] Máy cắm sạc, tắt thông báo hệ điều hành, tắt cập nhật tự động, độ phân giải chiếu 1920×1080, thu phóng trình duyệt 110–125 %.
 - [ ] `.\dx.ps1 ps`: mọi container `healthy`. `.\dx.ps1 doctor` đạt.
+- [ ] Trang đăng nhập hiện nền DX-OS và chữ tiếng Việt (**Đăng nhập vào tài khoản**). Nếu còn giao diện Keycloak mặc định tiếng Anh: `.\dx.ps1 sync-users` rồi `docker compose restart keycloak`.
 - [ ] Mở 4 cửa sổ trình duyệt, mỗi cửa sổ một hồ sơ trình duyệt riêng (Chrome: *Thêm người dùng*):
 
 | Cửa sổ | Địa chỉ | Tài khoản | Dùng ở cảnh |
