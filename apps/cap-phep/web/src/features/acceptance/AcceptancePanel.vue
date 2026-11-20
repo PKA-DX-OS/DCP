@@ -237,7 +237,7 @@ onMounted(tai);
           <span class="font-medium">Tiến độ: {{ tienDo.done }}/{{ tienDo.total }} mốc</span>
           <span class="mo">{{ tienDo.pct }}%</span>
         </div>
-        <div class="h-2 rounded bg-slate-100 overflow-hidden" role="progressbar" aria-label="Tiến độ nghiệm thu" :aria-valuenow="tienDo.pct" aria-valuemin="0" aria-valuemax="100">
+        <div class="h-2 rounded overflow-hidden" style="background: var(--tien-do-nen)" role="progressbar" aria-label="Tiến độ nghiệm thu" :aria-valuenow="tienDo.pct" aria-valuemin="0" aria-valuemax="100">
           <div class="h-full bg-[#0E7C7B]" :style="{ width: tienDo.pct + '%' }"></div>
         </div>
         <ol class="list-none m-0 p-0 mt-3 grid gap-2 sm:grid-cols-4">
@@ -305,7 +305,7 @@ onMounted(tai);
 
       <div class="the p-3 mt-3">
         <h5 id="tieu-de-hoan-cong" class="text-[13px] font-semibold mt-0 mb-2">Bản vẽ hoàn công</h5>
-        <input ref="fileRef" type="file" accept="application/pdf" aria-labelledby="tieu-de-hoan-cong" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
+        <input ref="fileRef" type="file" class="chon-tep inline-block w-auto" accept="application/pdf" aria-labelledby="tieu-de-hoan-cong" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
         <Button size="sm" variant="secondary" class="ml-2" :disabled="saving" @click="nopBanVe">Nộp bản vẽ</Button>
         <ul v-if="duLieu?.as_built?.length" class="list-none m-0 p-0 mt-2 text-[13px]">
           <li v-for="a in duLieu.as_built" :key="a.id" class="flex justify-between gap-2 py-1 border-b border-vien-nhat">

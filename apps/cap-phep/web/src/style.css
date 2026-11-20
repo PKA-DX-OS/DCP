@@ -16,8 +16,15 @@
   --nhan-nen: #e2e8f0;
   --nhan-chu: #0f172a;
   --canh-bao: #fca5a5;
+  /* Bản đồ nền trơn và thửa đất */
+  --ban-do-nen: #16202f;
+  --ban-do-thua: #93c5fd;
+  --tien-do-nen: rgba(226, 232, 240, 0.14);
 }
 :root[data-theme="light"] {
+  --ban-do-nen: #eef2f7;
+  --ban-do-thua: #0f2a43;
+  --tien-do-nen: rgba(15, 23, 42, 0.1);
   --nen: #f8fafc;
   --chu: #0f172a;
   --phu: #475569;

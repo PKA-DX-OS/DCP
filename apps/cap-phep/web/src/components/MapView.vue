@@ -27,6 +27,7 @@ let map: L.Map | null = null;
 let lopVung: L.LayerGroup | null = null;
 let lopThua: L.LayerGroup | null = null;
 let lopCongTrinh: L.LayerGroup | null = null;
+let doiGiaoDien: MutationObserver | null = null;
 
 function geometry(obj: any): any {
   if (!obj) return null;
@@ -51,6 +52,12 @@ function clearLayers() {
   lopCongTrinh?.clearLayers();
 }
 
+/** Màu theo giao diện sáng/tối, khai báo trong style.css. */
+function mau(bien: string, duPhong: string): string {
+  if (typeof window === "undefined") return duPhong;
+  return getComputedStyle(document.documentElement).getPropertyValue(bien).trim() || duPhong;
+}
+
 function rebuild() {
   if (!map || !lopVung || !lopThua || !lopCongTrinh) return;
   clearLayers();
@@ -73,16 +80,17 @@ function rebuild() {
       const gj = geojson(p.geom || p);
       if (!gj?.geometry) continue;
       const chon = props.selectedId === p.id;
+      const mauThua = mau("--ban-do-thua", "#0F2A43");
       L.geoJSON(gj, {
         pointToLayer: (_f, latlng) =>
           L.circleMarker(latlng, {
             radius: chon ? 9 : 6,
             color: "#fff",
             weight: 2,
-            fillColor: chon ? "#0E7C7B" : "#0F2A43",
+            fillColor: chon ? "#0E7C7B" : mauThua,
             fillOpacity: 1,
           }),
-        style: { color: "#0F2A43", weight: 1.5, fillColor: "#0F2A43", fillOpacity: 0.12 },
+        style: { color: mauThua, weight: 1.5, fillColor: mauThua, fillOpacity: 0.12 },
       })
         .bindPopup(`<b>Thửa ${p.ma_thua_dat || p.so_thua || ""}</b><br>${p.loai_dat || ""}`)
         .on("click", () => emit("select", p))
@@ -125,10 +133,14 @@ onMounted(async () => {
   lopThua = L.layerGroup().addTo(map);
   lopCongTrinh = L.layerGroup().addTo(map);
   rebuild();
+  // Đổi giao diện sáng/tối thì vẽ lại để màu thửa đất đủ tương phản với nền
+  doiGiaoDien = new MutationObserver(() => rebuild());
+  doiGiaoDien.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 });
 
 watch([() => props.zones, () => props.parcels, () => props.works, hienVung, hienThua, hienCongTrinh], rebuild, { deep: true });
 onBeforeUnmount(() => {
+  doiGiaoDien?.disconnect();
   map?.remove();
   map = null;
 });
@@ -145,14 +157,14 @@ onBeforeUnmount(() => {
       <label class="inline-flex min-h-[32px] items-center gap-1"><input v-model="hienThua" type="checkbox" /> Thửa đất</label>
       <label v-if="works.length" class="inline-flex min-h-[32px] items-center gap-1"><input v-model="hienCongTrinh" type="checkbox" /> Công trình</label>
     </div>
-    <div ref="el" class="h-[360px] w-full rounded-md border border-vien bg-slate-100" role="application" aria-label="Bản đồ thửa đất, vùng quy hoạch và công trình"></div>
+    <div ref="el" class="h-[360px] w-full rounded-md border border-vien" role="application" aria-label="Bản đồ thửa đất, vùng quy hoạch và công trình"></div>
     <p v-if="!zones.length && !parcels.length && !works.length" class="mt-2 mb-0 text-phu text-[13px]">Chưa có dữ liệu bản đồ.</p>
     <div class="flex flex-wrap gap-3 mt-2 goi-y">
       <span v-for="loai in ['o_do_thi', 'hanh_lang_giao_thong', 'cam_xay_dung']" :key="loai" class="inline-flex items-center gap-1">
         <span class="inline-block w-3 h-3 rounded-sm" :style="{ background: zoneTone(loai).fill, border: '1px solid ' + zoneTone(loai).stroke }"></span>
         {{ zoneTone(loai).ten }}
       </span>
-      <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-[#0F2A43]"></span>Thửa đất</span>
+      <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full" style="background: var(--ban-do-thua)"></span>Thửa đất</span>
       <span v-if="works.length" class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-[#D97706]"></span>Công trình</span>
     </div>
   </div>
@@ -161,7 +173,7 @@ onBeforeUnmount(() => {
 <style scoped>
 :deep(.leaflet-container) {
   font-family: inherit;
-  background: #eef2f7;
+  background: var(--ban-do-nen);
 }
 :deep(.leaflet-popup-content) {
   margin: 8px 10px;
