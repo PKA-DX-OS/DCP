@@ -28,12 +28,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         </span>
       </div>
 
-      <input
-        type="file"
+      <ChonTep
         :id="`file-${req.loai}`"
         :aria-label="entry(req.loai).file ? `Thay tệp ${req.ten}` : `Chọn tệp ${req.ten}`"
         :accept="DUOI_CHO_PHEP.join(',')"
-        class="chon-tep mt-3"
+        class="mt-3"
+        :nhan="entry(req.loai).file ? 'Chọn tệp khác' : 'Chọn tệp'"
         @change="onFileSelected(req, $event)"
       />
       <p v-if="entry(req.loai).file" class="text-[12.5px] text-xanh mt-1 mb-0">
@@ -73,6 +73,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { DocEntry, DocError, DocRequirement, NopHoSoPayload } from "../types";
+import ChonTep from "./ChonTep.vue";
+
 
 /** Giống giới hạn của dịch vụ files: PDF/DWG, tối đa 20 MB; chặn ngay trên giao diện. */
 const DUOI_CHO_PHEP = [".pdf", ".dwg"];

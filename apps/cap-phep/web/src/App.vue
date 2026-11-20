@@ -170,11 +170,11 @@ onMounted(async () => {
           <p class="brand-tagline">Nền tảng cấp phép xây dựng số, bảo mật và minh bạch.</p>
           <div class="brand-actions">
             <button type="button" class="brand-choice" @click="login()">
-              <span class="brand-choice-icon" aria-hidden="true">🏠</span>
+              <span class="brand-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-5h4v5" /></svg></span>
               <span><b>Dành cho công dân</b><span>Nộp hồ sơ, theo dõi tiến độ và nhận kết quả.</span></span>
             </button>
             <button type="button" class="brand-choice" @click="login()">
-              <span class="brand-choice-icon" aria-hidden="true">🏛️</span>
+              <span class="brand-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-5 9 5" /><path d="M4 9h16" /><path d="M6 9v9" /><path d="M10 9v9" /><path d="M14 9v9" /><path d="M18 9v9" /><path d="M3 20h18" /></svg></span>
               <span><b>Dành cho cán bộ</b><span>Tiếp nhận, thẩm định và phê duyệt hồ sơ.</span></span>
             </button>
           </div>

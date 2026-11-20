@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </div>
 
           <label for="file-bo-sung" class="nhan mt-3">Giấy tờ bổ sung</label>
-          <input type="file" id="file-bo-sung" class="chon-tep" :accept="DUOI_CHO_PHEP.join(',')" @change="handleFileUpload" />
+          <ChonTep id="file-bo-sung" :accept="DUOI_CHO_PHEP.join(',')" @change="handleFileUpload" />
           <p class="goi-y mt-1 mb-0">PDF, DWG, PNG hoặc JPG, tối đa 20 MB.</p>
           <p v-if="loiTep" id="loi-file-bo-sung" class="text-son text-[13px] mt-1 mb-0" role="alert">{{ loiTep }}</p>
           <p v-if="selectedFileName" class="text-[12.5px] text-xanh mt-1 mb-0">Đã chọn: {{ selectedFileName }}</p>
@@ -64,6 +64,8 @@ import { computed, ref } from "vue";
 import type { HoSo } from "../types";
 import { useModal } from "../composables/useModal";
 import { ngayNgan } from "../utils/labels";
+import ChonTep from "./ChonTep.vue";
+
 
 const DUOI_CHO_PHEP = [".pdf", ".dwg", ".png", ".jpg", ".jpeg"];
 const TOI_DA_BYTE = 20 * 1024 * 1024;

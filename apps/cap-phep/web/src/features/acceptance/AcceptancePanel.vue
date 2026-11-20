@@ -8,6 +8,8 @@ import { completeTask, fetchTasks, startWorkflow } from "../../api/flow";
 import { uploadFile } from "../../api/files";
 import { notify } from "../../composables/useToast";
 import { Button, Skeleton } from "../../design-system";
+import ChonTep from "../../components/ChonTep.vue";
+
 
 const props = defineProps<{
   dossier: any;
@@ -28,7 +30,7 @@ const saving = ref(false);
 const dangTaoQuyTrinh = ref(false);
 const error = ref("");
 const selectedMoc = ref<any>(null);
-const fileRef = ref<HTMLInputElement | null>(null);
+const fileRef = ref<InstanceType<typeof ChonTep> | null>(null);
 const fileHoanCong = ref<File | null>(null);
 const tasks = ref<any[]>([]);
 
@@ -206,7 +208,7 @@ async function nopBanVe() {
     await submitAsBuilt(props.token, props.dossier.id, { file_id: up.file_id, ghi_chu: "Bản vẽ hoàn công" });
     notify("Đã nộp bản vẽ hoàn công", "ok");
     fileHoanCong.value = null;
-    if (fileRef.value) fileRef.value.value = "";
+    fileRef.value?.xoa();
     await tai();
   } catch (e) {
     notify(e instanceof Error ? e.message : "Không nộp được bản vẽ hoàn công", "loi");
@@ -307,8 +309,10 @@ onMounted(tai);
 
       <div class="the p-3 mt-3">
         <h4 id="tieu-de-hoan-cong" class="text-[13px] font-semibold mt-0 mb-2">Bản vẽ hoàn công</h4>
-        <input ref="fileRef" type="file" class="chon-tep inline-block w-auto" accept="application/pdf" aria-labelledby="tieu-de-hoan-cong" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
-        <Button size="sm" variant="secondary" class="ml-2" :disabled="saving" @click="nopBanVe">Nộp bản vẽ</Button>
+        <div class="flex flex-wrap items-center gap-3">
+          <ChonTep ref="fileRef" nhan="Chọn bản vẽ PDF" accept="application/pdf" aria-labelledby="tieu-de-hoan-cong" @change="fileHoanCong = ($event.target as HTMLInputElement).files?.[0] || null" />
+          <Button size="sm" variant="secondary" :disabled="saving" @click="nopBanVe">Nộp bản vẽ</Button>
+        </div>
         <ul v-if="duLieu?.as_built?.length" class="list-none m-0 p-0 mt-2 text-[13px]">
           <li v-for="a in duLieu.as_built" :key="a.id" class="flex justify-between gap-2 py-1 border-b border-vien-nhat">
             <span>Bản vẽ v{{ a.version }} — {{ new Date(a.ngay_nop).toLocaleString("vi-VN") }}</span>
