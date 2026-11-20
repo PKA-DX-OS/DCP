@@ -43,11 +43,3 @@ export async function triggerDemoSensor(token: string, maCongTrinh: string, laeq
     "Lỗi gửi số liệu cảm biến mẫu",
   );
 }
-
-export async function fetchSensorAlerts(token: string): Promise<any[]> {
-  try {
-    return await apiJson<any[]>("/rest/canh_bao_cam_bien?order=created_at.desc", { token }, "Lỗi tải cảnh báo");
-  } catch {
-    return [];
-  }
-}

@@ -123,12 +123,3 @@ export function getStatusBadgeClass(status: any): string {
   };
   return map[String(status)] || "tt tt-xam";
 }
-
-export function formatDate(val: any): string {
-  if (!val) return "—";
-  try {
-    return new Date(val).toLocaleString("vi-VN");
-  } catch {
-    return String(val);
-  }
-}

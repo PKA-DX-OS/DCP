@@ -1,19 +1,11 @@
 // SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { AuditLogEntry, DocError, DocPayload, DocRequirement, HoSo, HoSoDetail, NopHoSoPayload } from "../types";
+import type { AuditLogEntry, DocError, DocPayload, DocRequirement, HoSo, NopHoSoPayload } from "../types";
 import { ApiError, apiJson } from "./client";
 
 export async function fetchHoSo(token: string): Promise<HoSo[]> {
   return apiJson<HoSo[]>("/rest/v_ho_so?order=created_at.desc&limit=100", { token }, "Lỗi tải danh sách hồ sơ");
-}
-
-export async function fetchHoSoDetail(token: string, id: string): Promise<HoSoDetail> {
-  return apiJson<HoSoDetail>(
-    `/rest/v_ho_so?id=eq.${encodeURIComponent(id)}&select=*,ho_so_tep(*)`,
-    { token, accept: "application/vnd.pgrst.object+json" },
-    "Lỗi tải chi tiết hồ sơ",
-  );
 }
 
 /** Tệp đính kèm của một hồ sơ (mới nhất trước). */

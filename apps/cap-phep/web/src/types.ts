@@ -110,12 +110,6 @@ export interface DocError {
   action?: string;
 }
 
-export interface HoSoDetail extends HoSo {
-  tep_dinh_kem?: any[];
-  lich_su?: any[];
-  giay_phep?: any;
-}
-
 export interface AuditLogEntry {
   id: string;
   event_time?: string;
@@ -133,67 +127,6 @@ export interface AuditLogEntry {
   prev_hash?: string;
   current_hash?: string;
   detail?: any;
-}
-
-export interface GiayPhep {
-  id: string;
-  ma_giay_phep?: string;
-  ho_so_id: string;
-  so_giay_phep: string;
-  ngay_cap?: string;
-  nguoi_ky_id?: string;
-  chu_ky_ed25519?: string;
-  key_version?: number;
-  pdf_file_id?: string;
-  pdf_sha256?: string;
-  signed_doc_id?: string;
-  public_code?: string;
-  trang_thai: "HIEU_LUC" | "THU_HOI" | "valid" | "revoked";
-  ly_do_thu_hoi?: string;
-}
-
-export interface CongTrinh {
-  id: string;
-  tenant: string;
-  giay_phep_id: string;
-  ma_cong_trinh: string;
-  entity_id: string;
-  dia_chi: string;
-  created_at: string;
-}
-
-export interface PhieuKiemTra {
-  id: string;
-  tenant?: string;
-  ma_phieu?: string;
-  cong_trinh_id?: string;
-  nguon?: string;
-  loai_vi_pham?: string;
-  chi_so?: string;
-  gia_tri?: number;
-  nguong?: number;
-  thoi_diem?: string;
-  chi_so_do_duoc?: number;
-  nguong_cho_phep?: number;
-  don_vi?: string;
-  can_bo_kiem_tra?: string;
-  trang_thai: "CHO_XU_LY" | "DA_XU_LY" | "CHO_KIEM_TRA" | "DANG_KIEM_TRA";
-  created_at?: string;
-}
-
-export interface BreakGlassRequest {
-  id: string;
-  tenant?: string;
-  actor_id?: string;
-  requester_sub?: string;
-  resource_id?: string;
-  object_id?: string;
-  object_type?: string;
-  reason: string;
-  duration_hours?: number;
-  status: "CHO_DUYET" | "DA_DUYET" | "TU_CHOI" | "pending" | "approved" | "rejected";
-  expires_at?: string;
-  created_at?: string;
 }
 
 /** Việc quy trình trả từ /flow/tasks (trường chính của Flowable; trường khác giữ nguyên). */
