@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors -->
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 820" width="1280" height="820" font-family="Be Vietnam Pro, Noto Sans, DejaVu Sans, Arial, sans-serif" role="img" aria-labelledby="t d">
+<title id="t">DX-OS C3: kiến trúc một trang</title><desc id="d">Người dùng đi qua APISIX và Keycloak tới giao diện, dịch vụ lõi và hạ tầng dữ liệu; cột bên phải là các lớp bảo mật xuyên suốt.</desc>
+<defs><marker id="m" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#475569"/></marker></defs>
+<rect x="0" y="0" width="1280" height="820" rx="0" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.2"/>
+<text x="20" y="40" font-size="22" font-weight="700" fill="#0f172a" text-anchor="start">DX-OS C3: kiến trúc một trang</text>
+<text x="1260" y="40" font-size="12" font-weight="400" fill="#64748b" text-anchor="end">Theo compose.yaml (profile core; ai, sim tuỳ chọn)</text>
+<rect x="20" y="60" width="960" height="80" rx="12" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1.2"/>
+<text x="36" y="80" font-size="12" font-weight="700" fill="#334155" text-anchor="start">NGƯỜI DÙNG</text>
+<rect x="36.0" y="84" width="177.6" height="44" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.2"/>
+<text x="124.8" y="103.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Công dân</text>
+<text x="124.8" y="120.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">chủ đầu tư</text>
+<rect x="223.6" y="84" width="177.6" height="44" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.2"/>
+<text x="312.4" y="103.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Cán bộ phường</text>
+<text x="312.4" y="120.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">một cửa, thẩm định, trật tự XD</text>
+<rect x="411.2" y="84" width="177.6" height="44" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.2"/>
+<text x="500.0" y="103.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Lãnh đạo</text>
+<text x="500.0" y="120.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">duyệt, điều hành</text>
+<rect x="598.8" y="84" width="177.6" height="44" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.2"/>
+<text x="687.5999999999999" y="103.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Người tra cứu</text>
+<text x="687.5999999999999" y="120.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">không cần đăng nhập</text>
+<rect x="786.4" y="84" width="177.6" height="44" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.2"/>
+<text x="875.1999999999999" y="103.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Cảm biến công trường</text>
+<text x="875.1999999999999" y="120.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">HTTP :8080 · MQTT TLS :8883</text>
+<line x1="500" y1="140" x2="500" y2="154" stroke="#475569" stroke-width="1.6" marker-end="url(#m)"/>
+<text x="508" y="154.0" font-size="11" font-weight="400" fill="#475569" text-anchor="start">HTTP(S) qua :8080</text>
+<rect x="20" y="160" width="960" height="84" rx="12" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1.2"/>
+<text x="36" y="180" font-size="12" font-weight="700" fill="#334155" text-anchor="start">BIÊN</text>
+<rect x="36.0" y="184" width="459.0" height="48" rx="8" fill="#ffffff" stroke="#67e8f9" stroke-width="1.2"/>
+<text x="265.5" y="205.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">APISIX 3.11  :8080</text>
+<text x="265.5" y="222.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">cổng duy nhất · OIDC bearer · CSP · giới hạn tần suất</text>
+<rect x="505.0" y="184" width="459.0" height="48" rx="8" fill="#ffffff" stroke="#67e8f9" stroke-width="1.2"/>
+<text x="734.5" y="205.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Keycloak 26.1</text>
+<text x="734.5" y="222.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">đăng nhập một lần · realm dxos · vai theo phường</text>
+<line x1="500" y1="244" x2="500" y2="258" stroke="#475569" stroke-width="1.6" marker-end="url(#m)"/>
+<rect x="20" y="264" width="960" height="84" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.2"/>
+<text x="36" y="284" font-size="12" font-weight="700" fill="#334155" text-anchor="start">GIAO DIỆN (ứng dụng cấp phép, tầng 2)</text>
+<rect x="36.0" y="288" width="302.6666666666667" height="48" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.2"/>
+<text x="187.33333333333334" y="309.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">main-web</text>
+<text x="187.33333333333334" y="326.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">ứng dụng cấp phép (Vue 3)</text>
+<rect x="348.6666666666667" y="288" width="302.6666666666667" height="48" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.2"/>
+<text x="500.0" y="309.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">bang-dieu-hanh-web</text>
+<text x="500.0" y="326.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">/dieu-hanh/ · chỉ số, trợ lý, kiểm toán</text>
+<rect x="661.3333333333334" y="288" width="302.6666666666667" height="48" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.2"/>
+<text x="812.6666666666667" y="309.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Trang tra cứu</text>
+<text x="812.6666666666667" y="326.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">/kiem-tra/ · do doc-sign trả HTML</text>
+<line x1="500" y1="348" x2="500" y2="362" stroke="#475569" stroke-width="1.6" marker-end="url(#m)"/>
+<text x="508" y="362.0" font-size="11" font-weight="400" fill="#475569" text-anchor="start">REST / SSE</text>
+<rect x="20" y="368" width="960" height="184" rx="12" fill="#fffbeb" stroke="#fde68a" stroke-width="1.2"/>
+<text x="36" y="388" font-size="12" font-weight="700" fill="#334155" text-anchor="start">DỊCH VỤ LÕI (tầng 1, FastAPI dùng chung dxos_core)</text>
+<rect x="36.0" y="392" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="109.16666666666667" y="422.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">flow</text>
+<text x="109.16666666666667" y="439.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">façade BPMN · SoD · SSE</text>
+<rect x="192.33333333333334" y="392" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="265.5" y="422.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">files</text>
+<text x="265.5" y="439.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">kiểm MIME · quét virus</text>
+<rect x="348.6666666666667" y="392" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="421.83333333333337" y="422.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">doc-sign</text>
+<text x="421.83333333333337" y="439.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">PDF + QR · ký PAdES</text>
+<rect x="505.0" y="392" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="578.1666666666666" y="422.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">audit</text>
+<text x="578.1666666666666" y="439.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">chuỗi băm · niêm phong</text>
+<rect x="661.3333333333334" y="392" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="734.5" y="422.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">construction</text>
+<text x="734.5" y="439.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">quy hoạch · nghiệm thu</text>
+<rect x="817.6666666666667" y="392" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="890.8333333333334" y="422.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">PostgREST 12.2</text>
+<text x="890.8333333333334" y="439.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">RPC + RLS</text>
+<rect x="36.0" y="470" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="109.16666666666667" y="500.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">metrics-api</text>
+<text x="109.16666666666667" y="517.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">chỉ số từ app.yaml</text>
+<rect x="192.33333333333334" y="470" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="265.5" y="500.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">assistant</text>
+<text x="265.5" y="517.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">hỏi đáp có trích dẫn</text>
+<rect x="348.6666666666667" y="470" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="421.83333333333337" y="500.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">ingest</text>
+<text x="421.83333333333337" y="517.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">số đo cảm biến</text>
+<rect x="505.0" y="470" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="578.1666666666666" y="500.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">ngsi-ld</text>
+<text x="578.1666666666666" y="517.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">dữ liệu đô thị</text>
+<rect x="661.3333333333334" y="470" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="734.5" y="500.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">outbox-relay</text>
+<text x="734.5" y="517.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">sự kiện → NATS</text>
+<rect x="817.6666666666667" y="470" width="146.33333333333334" height="66" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2"/>
+<text x="890.8333333333334" y="500.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">export-warm</text>
+<text x="890.8333333333334" y="517.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">xuất Parquet</text>
+<line x1="500" y1="552" x2="500" y2="566" stroke="#475569" stroke-width="1.6" marker-end="url(#m)"/>
+<rect x="20" y="572" width="960" height="164" rx="12" fill="#fdf2f8" stroke="#fbcfe8" stroke-width="1.2"/>
+<text x="36" y="592" font-size="12" font-weight="700" fill="#334155" text-anchor="start">HẠ TẦNG DỮ LIỆU</text>
+<rect x="36.0" y="596" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="148.25" y="622.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">PostgreSQL 16</text>
+<text x="148.25" y="639.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">pgvector · RLS theo phường</text>
+<rect x="270.5" y="596" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="382.75" y="622.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Flowable 7.1</text>
+<text x="382.75" y="639.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">quy trình BPMN</text>
+<rect x="505.0" y="596" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="617.25" y="622.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">SeaweedFS 3.85</text>
+<text x="617.25" y="639.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">kho tệp S3</text>
+<rect x="739.5" y="596" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="851.75" y="622.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">NATS 2.10</text>
+<text x="851.75" y="639.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">JetStream sự kiện</text>
+<rect x="36.0" y="664" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="148.25" y="690.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">OpenBao 2.2</text>
+<text x="148.25" y="707.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">bí mật · khoá</text>
+<rect x="270.5" y="664" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="382.75" y="690.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">SoftHSM2</text>
+<text x="382.75" y="707.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">khoá ký PAdES</text>
+<rect x="505.0" y="664" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="617.25" y="690.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">ClamAV 1.4</text>
+<text x="617.25" y="707.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">quét virus tệp</text>
+<rect x="739.5" y="664" width="224.5" height="58" rx="8" fill="#ffffff" stroke="#f9a8d4" stroke-width="1.2"/>
+<text x="851.75" y="690.0" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Ollama 0.5</text>
+<text x="851.75" y="707.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">mô hình ngôn ngữ (profile ai)</text>
+<rect x="1000" y="60" width="260" height="676" rx="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="1016" y="82" font-size="12" font-weight="700" fill="#334155" text-anchor="start">BẢO MẬT XUYÊN SUỐT</text>
+<text x="1016" y="118" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Ít cổng mở</text>
+<text x="1016" y="135" font-size="11" font-weight="400" fill="#475569" text-anchor="start">ra ngoài chỉ :8080 (web, API) và</text>
+<text x="1016" y="150" font-size="11" font-weight="400" fill="#475569" text-anchor="start">8883 (MQTT); còn lại 127.0.0.1</text>
+<text x="1016" y="188" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Danh tính</text>
+<text x="1016" y="205" font-size="11" font-weight="400" fill="#475569" text-anchor="start">OIDC/JWT Keycloak; vai</text>
+<text x="1016" y="220" font-size="11" font-weight="400" fill="#475569" text-anchor="start">app:cap-phep:*, dx:*</text>
+<text x="1016" y="258" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Cách ly dữ liệu</text>
+<text x="1016" y="275" font-size="11" font-weight="400" fill="#475569" text-anchor="start">RLS PostgreSQL theo tenant</text>
+<text x="1016" y="290" font-size="11" font-weight="400" fill="#475569" text-anchor="start">và theo phân công hồ sơ</text>
+<text x="1016" y="328" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Tách quyền (SoD)</text>
+<text x="1016" y="345" font-size="11" font-weight="400" fill="#475569" text-anchor="start">người thẩm định không tự duyệt;</text>
+<text x="1016" y="360" font-size="11" font-weight="400" fill="#475569" text-anchor="start">truy cập khẩn có hạn, có duyệt</text>
+<text x="1016" y="398" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Tệp an toàn</text>
+<text x="1016" y="415" font-size="11" font-weight="400" fill="#475569" text-anchor="start">kiểm MIME + ClamAV</text>
+<text x="1016" y="430" font-size="11" font-weight="400" fill="#475569" text-anchor="start">trước khi lưu S3</text>
+<text x="1016" y="468" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Ký số</text>
+<text x="1016" y="485" font-size="11" font-weight="400" fill="#475569" text-anchor="start">PAdES bằng SoftHSM;</text>
+<text x="1016" y="500" font-size="11" font-weight="400" fill="#475569" text-anchor="start">mã công khai để tra cứu</text>
+<text x="1016" y="538" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Kiểm toán</text>
+<text x="1016" y="555" font-size="11" font-weight="400" fill="#475569" text-anchor="start">nhật ký chuỗi băm,</text>
+<text x="1016" y="570" font-size="11" font-weight="400" fill="#475569" text-anchor="start">xác minh được, niêm phong</text>
+<text x="1016" y="608" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Dữ liệu cá nhân</text>
+<text x="1016" y="625" font-size="11" font-weight="400" fill="#475569" text-anchor="start">đồng thuận, DSAR,</text>
+<text x="1016" y="640" font-size="11" font-weight="400" fill="#475569" text-anchor="start">che CCCD (Luật 91/2025)</text>
+<text x="1016" y="678" font-size="13" font-weight="600" fill="#0f172a" text-anchor="start">Trình duyệt</text>
+<text x="1016" y="695" font-size="11" font-weight="400" fill="#475569" text-anchor="start">CSP chặt, không script ngoài;</text>
+<text x="1016" y="710" font-size="11" font-weight="400" fill="#475569" text-anchor="start">trang công khai không script</text>
+<text x="20" y="780" font-size="12" font-weight="400" fill="#64748b" text-anchor="start">Mũi tên chỉ chiều gọi chính. Chi tiết mạng, cổng và phiên bản: docs/architecture.md. Dữ liệu demo là dữ liệu tổng hợp.</text>
+</svg>
