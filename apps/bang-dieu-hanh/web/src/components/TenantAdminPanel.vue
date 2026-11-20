@@ -271,7 +271,7 @@ onMounted(async () => {
               Mã ĐVHC (không bắt buộc)
               <input id="tenant-dvhc" v-model.trim="form.ma_dvhc" class="mt-1 w-full rounded border px-2 py-2" placeholder="vd: 790103" inputmode="numeric" autocomplete="off" />
             </label>
-            <button type="submit" class="min-h-[44px] w-full rounded bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-50" :disabled="!coTheTao">
+            <button type="submit" class="min-h-[44px] w-full rounded bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="!coTheTao">
               {{ dangTao ? "Đang tạo…" : "Tạo địa bàn" }}
             </button>
             <p v-if="form.tenant && !maTenantHopLe" class="text-xs text-rose-700 dark:text-rose-300" role="alert">

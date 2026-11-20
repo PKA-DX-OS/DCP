@@ -132,9 +132,18 @@ def test_dashboard(page):
 def test_ban_lam_viec_va_chi_tiet_ho_so(page):
     _dang_nhap(page, "mc.thu")
     page.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    page.get_by_role("button", name="Xem hồ sơ").first.wait_for(timeout=CHO)
-    so_voi_nen(page, "ban-lam-viec", [page.locator("main li"), page.locator("header [aria-label^='Thông báo']")])
-    page.get_by_role("button", name="Xem hồ sơ").first.click()
+    page.locator("aside button").first.wait_for(timeout=CHO)
+    so_voi_nen(
+        page,
+        "ban-lam-viec",
+        [
+            page.locator("aside button"),
+            page.locator("section dd"),
+            page.locator("section li"),
+            page.locator("header [aria-label^='Thông báo']"),
+        ],
+    )
+    page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.click()
     dlg = page.locator("[role='dialog']").first
     expect(dlg).to_be_visible(timeout=CHO)
     che = [dlg.locator("dd"), dlg.locator("li"), dlg.locator("td"), dlg.locator("h3"), dlg.locator("svg")]

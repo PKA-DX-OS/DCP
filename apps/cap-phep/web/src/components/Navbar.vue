@@ -3,7 +3,6 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import LogoMark from "./LogoMark.vue";
 import { useTheme } from "../composables/useTheme";
 import type { ThongBao } from "../composables/useNotifications";
 
@@ -34,64 +33,123 @@ function ngayGio(value: string | null): string {
 </script>
 
 <template>
-  <header class="the flex flex-wrap items-center gap-3 px-4 py-3">
-    <div class="flex items-center gap-2">
-      <LogoMark :size="26" />
-      <span class="font-semibold">Cấp phép xây dựng</span>
+  <div class="w-full">
+    <!-- Banner mô phỏng cuộc thi -->
+    <div class="bg-amber-400 px-4 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-slate-900 shadow-sm">
+      Bản mô phỏng phục vụ cuộc thi OLP Tin học Sinh viên PMNM 2026 — Dữ liệu hu cấu (mẫu), giấy phép không có giá trị pháp lý
     </div>
 
-    <nav class="flex flex-wrap gap-1" aria-label="Điều hướng">
-      <button
-        v-for="t in tabs"
-        :key="t.ma"
-        class="rounded px-3 py-1 text-sm"
-        :class="tab === t.ma ? 'nhan-nen font-semibold' : 'text-phu'"
-        :aria-current="tab === t.ma ? 'page' : undefined"
-        @click="emit('chuyen-tab', t.ma)"
-      >
-        {{ t.ten }}
-      </button>
-    </nav>
-
-    <div class="flex-1"></div>
-
-    <span class="goi-y">
-      {{ trangThaiKetNoi === "da_ket_noi" ? "Trực tuyến" : trangThaiKetNoi === "mat_ket_noi" ? "Mất kết nối, đang thử lại" : "Đang kết nối" }}
-    </span>
-    <div class="relative">
-      <button
-        class="btn-sm"
-        :aria-label="`Thông báo, ${chuaDoc} chưa đọc`"
-        :aria-expanded="moThongBao"
-        aria-haspopup="true"
-        @click="moThongBao = !moThongBao"
-      >
-        <span aria-hidden="true">🔔</span>
-        <span class="ml-1">{{ chuaDoc }}</span>
-      </button>
-      <div v-if="moThongBao" class="fixed inset-0 z-10" aria-hidden="true" @click="moThongBao = false"></div>
-      <div v-if="moThongBao" class="absolute right-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-vien bg-mat p-3 shadow-xl">
-        <div class="flex items-center justify-between gap-2">
-          <b class="text-sm">Thông báo</b>
-          <button class="text-xs underline text-phu" @click="emit('da-doc')">Đánh dấu tất cả đã đọc</button>
+    <!-- Header chính -->
+    <header class="sticky top-0 z-30 bg-indigo-900 text-white shadow-md">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-indigo-500 bg-indigo-700 text-xl font-bold shadow">
+            DX
+          </div>
+          <div>
+            <h1 class="text-lg font-extrabold leading-tight tracking-tight">DX-OS OPEN-CORE</h1>
+            <p class="text-xs text-indigo-200">Dịch vụ Cấp phép Xây dựng Nhà ở Riêng lẻ (Tầng 2 - C3)</p>
+          </div>
         </div>
-        <ul v-if="danhSach.length" class="mt-2 max-h-80 list-none space-y-1 overflow-y-auto p-0">
-          <li v-for="item in danhSach" :key="item.id">
-            <button type="button" class="flex w-full gap-2 rounded p-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800" @click="chonThongBao(item)">
-              <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="item.read_at ? 'bg-slate-300' : 'bg-sky-500'" aria-hidden="true"></span>
-              <span class="min-w-0">
-                <span class="block font-medium">{{ item.title }}</span>
-                <span class="block text-xs text-phu">{{ item.body }}</span>
-                <span class="block text-[11px] text-phu">{{ ngayGio(item.created_at) }}</span>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="hidden text-xs text-indigo-200 sm:inline">
+            {{ trangThaiKetNoi === "da_ket_noi" ? "Trực tuyến" : trangThaiKetNoi === "mat_ket_noi" ? "Mất kết nối, đang thử lại" : "Đang kết nối" }}
+          </span>
+
+          <div class="relative">
+            <button
+              id="btn-sse-bell"
+              class="relative rounded-lg border border-indigo-600 bg-indigo-800 p-2 text-sm transition hover:bg-indigo-700"
+              :aria-label="`Thông báo, ${chuaDoc} chưa đọc`"
+              :aria-expanded="moThongBao"
+              aria-haspopup="true"
+              @click="moThongBao = !moThongBao"
+            >
+              <span aria-hidden="true">🔔</span>
+              <span
+                v-if="chuaDoc > 0"
+                class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow"
+              >
+                {{ chuaDoc }}
               </span>
             </button>
-          </li>
-        </ul>
-        <p v-else class="mt-2 text-sm text-phu">Chưa có thông báo.</p>
+
+            <div v-if="moThongBao" class="fixed inset-0 z-10" aria-hidden="true" @click="moThongBao = false"></div>
+            <div
+              v-if="moThongBao"
+              class="absolute right-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 text-slate-800 shadow-xl"
+            >
+              <div class="flex items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                <b class="text-sm">Thông báo</b>
+                <button class="text-xs font-medium text-indigo-600 underline" @click="emit('da-doc')">Đánh dấu tất cả đã đọc</button>
+              </div>
+              <ul v-if="danhSach.length" class="mt-2 max-h-80 list-none space-y-1 overflow-y-auto p-0">
+                <li v-for="item in danhSach" :key="item.id">
+                  <button
+                    type="button"
+                    class="flex w-full gap-2 rounded-lg p-2 text-left text-sm transition hover:bg-slate-50"
+                    @click="chonThongBao(item)"
+                  >
+                    <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="item.read_at ? 'bg-slate-300' : 'bg-indigo-500'" aria-hidden="true"></span>
+                    <span class="min-w-0">
+                      <span class="block font-medium">{{ item.title }}</span>
+                      <span class="block text-xs text-slate-500">{{ item.body }}</span>
+                      <span class="block text-[11px] text-slate-400">{{ ngayGio(item.created_at) }}</span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+              <p v-else class="mt-2 text-sm text-slate-500">Chưa có thông báo.</p>
+            </div>
+          </div>
+
+          <button
+            class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700"
+            @click="toggle()"
+          >
+            {{ theme === "dark" ? "Nền sáng" : "Nền tối" }}
+          </button>
+
+          <span class="hidden text-right text-xs leading-tight sm:block">
+            <span class="block font-semibold">{{ tenNguoiDung }}</span>
+            <span class="block text-indigo-300">Tài khoản đã xác thực</span>
+          </span>
+
+          <a
+            href="/dieu-hanh/"
+            class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700"
+          >
+            Bảng điều hành
+          </a>
+          <button
+            class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700"
+            @click="emit('dang-xuat')"
+          >
+            Đăng xuất
+          </button>
+        </div>
       </div>
-    </div>
-    <button class="btn-sm" @click="toggle()">{{ theme === "dark" ? "Nền sáng" : "Nền tối" }}</button>
-    <span class="goi-y">{{ tenNguoiDung }}</span>
-    <button class="btn-sm" @click="emit('dang-xuat')">Đăng xuất</button>
-  </header>
+
+      <!-- Tab điều hướng -->
+      <nav class="border-t border-indigo-800 bg-white" aria-label="Điều hướng">
+        <div class="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4">
+          <button
+            v-for="t in tabs"
+            :key="t.ma"
+            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
+            :class="
+              tab === t.ma
+                ? 'border-indigo-600 text-indigo-700'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'
+            "
+            :aria-current="tab === t.ma ? 'page' : undefined"
+            @click="emit('chuyen-tab', t.ma)"
+          >
+            {{ t.ten }}
+          </button>
+        </div>
+      </nav>
+    </header>
+  </div>
 </template>

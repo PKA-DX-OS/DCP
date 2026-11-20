@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <template>
   <div id="modal-detail-dossier" class="nen-hop" @click.self="$emit('close')">
-    <div ref="hop" tabindex="-1" class="hop max-w-[680px]" role="dialog" aria-modal="true" aria-labelledby="detail-ma-ho-so">
+    <div ref="hop" tabindex="-1" class="hop max-w-[1100px]" role="dialog" aria-modal="true" aria-labelledby="detail-ma-ho-so">
       <div class="hop-dau">
         <div>
           <span class="mo">Chi tiết hồ sơ</span>
@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <DossierActionBar v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" @done="hoSoCapNhat = $event" />
       <DossierWarnings v-if="laCanBo && userToken" :dossier="dossier" :token="userToken" class="mx-5" />
 
-      <nav class="flex gap-1 px-5 pt-2 border-b border-vien-nhat overflow-x-auto" aria-label="Các phần của hồ sơ">
+      <nav class="flex gap-1 overflow-x-auto border-b border-slate-200 px-5" aria-label="Các phần của hồ sơ">
         <button
           v-for="m in mucHien"
           :key="m.id"
@@ -28,26 +28,36 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           :id="`tab-chi-tiet-${m.id}`"
           :aria-controls="m.id"
           :aria-current="mucDangXem === m.id ? 'true' : undefined"
-          :class="['btn-lien-ket px-3 py-2 text-[13px] whitespace-nowrap', mucDangXem === m.id && 'font-semibold text-chu']"
+          :class="[
+            'shrink-0 border-b-2 px-2.5 py-2 text-[12.5px] whitespace-nowrap transition',
+            mucDangXem === m.id
+              ? 'border-indigo-600 font-semibold text-indigo-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800',
+          ]"
           @click="denMuc(m.id)"
         >{{ m.ten }}</button>
       </nav>
 
       <div ref="than" class="hop-than">
-        <h4 id="muc-thong-tin" class="muc-con" :class="mobileMuc('muc-thong-tin')">Chủ đầu tư</h4>
-        <dl class="ds-thong-tin" :class="mobileMuc('muc-thong-tin')">
-          <dt>Họ tên</dt><dd id="detail-chu-dau-tu">{{ dossier.ho_ten }}</dd>
-          <dt>CCCD</dt><dd>{{ cheCccd(dossier.cccd) }}</dd>
-          <dt>Điện thoại</dt><dd>{{ dossier.dien_thoai }}</dd>
-          <dt>Địa bàn</dt><dd>{{ tenDonVi(dossier.tenant) }}</dd>
-        </dl>
-
-        <h4 class="muc-con" :class="mobileMuc('muc-thong-tin')">Công trình</h4>
-        <dl class="ds-thong-tin" :class="mobileMuc('muc-thong-tin')">
-          <dt>Địa chỉ</dt><dd id="detail-dia-chi">{{ dossier.dia_chi_cong_trinh }}</dd>
-          <dt>Thửa đất</dt><dd>{{ dossier.thua_dat }}</dd>
-          <dt>Quy mô</dt><dd>{{ dossier.so_tang }} tầng, diện tích sàn {{ formatNumberVi(dossier.dien_tich_san_m2) }} m²</dd>
-        </dl>
+        <div class="grid gap-5 lg:grid-cols-2">
+          <div :class="mobileMuc('muc-thong-tin')">
+            <h4 id="muc-thong-tin" class="muc-con">Chủ đầu tư</h4>
+            <dl class="ds-thong-tin">
+              <dt>Họ tên</dt><dd id="detail-chu-dau-tu">{{ dossier.ho_ten }}</dd>
+              <dt>CCCD</dt><dd>{{ cheCccd(dossier.cccd) }}</dd>
+              <dt>Điện thoại</dt><dd>{{ dossier.dien_thoai }}</dd>
+              <dt>Địa bàn</dt><dd>{{ tenDonVi(dossier.tenant) }}</dd>
+            </dl>
+          </div>
+          <div :class="mobileMuc('muc-thong-tin')">
+            <h4 class="muc-con">Công trình</h4>
+            <dl class="ds-thong-tin">
+              <dt>Địa chỉ</dt><dd id="detail-dia-chi">{{ dossier.dia_chi_cong_trinh }}</dd>
+              <dt>Thửa đất</dt><dd>{{ dossier.thua_dat }}</dd>
+              <dt>Quy mô</dt><dd>{{ dossier.so_tang }} tầng, diện tích sàn {{ formatNumberVi(dossier.dien_tich_san_m2) }} m²</dd>
+            </dl>
+          </div>
+        </div>
 
         <section v-if="dossier.trang_thai === 'DA_CAP' || permitInfo" id="block-giay-phep-signature" class="mt-5 p-4 rounded-[10px] border border-vien bg-mat" :class="mobileMuc('muc-thong-tin')">
           <div class="flex items-center justify-between gap-3 mb-3">

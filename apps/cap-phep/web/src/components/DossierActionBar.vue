@@ -10,6 +10,8 @@ import { notify } from "../composables/useToast";
 const props = defineProps<{
   dossier: any;
   token: string;
+  compact?: boolean;
+  id?: string;
 }>();
 const emit = defineEmits<{ (e: "done", hoSo: any): void }>();
 
@@ -22,6 +24,9 @@ interface HanhDong {
   tone?: "chinh" | "do" | "vang";
   canChonCanBo?: boolean;
 }
+
+const rootId = computed(() => props.id || "block-dossier-actions");
+const titleId = computed(() => (props.id ? `${props.id}-title` : "tieu-de-hanh-dong"));
 
 const tasks = ref<any[]>([]);
 const dangTai = ref(false);
@@ -205,10 +210,10 @@ onUnmounted(() => window.removeEventListener("dxos:tasks-changed", taiKhiThayDoi
 </script>
 
 <template>
-  <section v-if="viecHienTai && hanhDongCua(viecHienTai).length" id="block-dossier-actions" class="mt-4 p-3 rounded-[10px] border border-vien bg-mat" aria-labelledby="tieu-de-hanh-dong">
-    <div class="flex flex-wrap items-center gap-2">
+  <section v-if="viecHienTai && hanhDongCua(viecHienTai).length" :id="rootId" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3" :aria-labelledby="titleId">
+    <div :class="compact ? 'flex flex-col items-stretch gap-2' : 'flex flex-wrap items-center gap-2'">
       <div class="min-w-0 flex-1">
-        <h4 id="tieu-de-hanh-dong" class="text-[13px] font-semibold m-0">Việc đang chờ bạn: {{ viecHienTai.name || viecHienTai.taskDefinitionKey }}</h4>
+        <h4 :id="titleId" class="text-[13px] font-semibold m-0">Việc đang chờ bạn: {{ viecHienTai.name || viecHienTai.taskDefinitionKey }}</h4>
         <p class="goi-y m-0">Hạn: {{ han(viecHienTai) }}</p>
       </div>
       <template v-if="coTheXuLy(viecHienTai)">
@@ -216,7 +221,7 @@ onUnmounted(() => window.removeEventListener("dxos:tasks-changed", taiKhiThayDoi
           v-for="h in hanhDongCua(viecHienTai)"
           :key="h.key"
           class="btn btn-sm"
-          :class="h.tone === 'chinh' ? 'btn-chinh' : ''"
+          :class="[h.tone === 'chinh' ? 'btn-chinh' : '', compact ? 'w-full justify-center' : '']"
           :disabled="dangGui"
           @click="moHanhDong(h)"
         >{{ h.nhan }}</button>

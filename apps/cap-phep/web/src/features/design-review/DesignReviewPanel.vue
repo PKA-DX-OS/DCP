@@ -96,6 +96,9 @@ function nhanKetLuan(value?: string): string {
 function toneKetLuan(value?: string): "success" | "danger" | "warning" | "neutral" {
   return value === "dat" ? "success" : value === "khong_dat" ? "danger" : value === "dang_tham_dinh" ? "warning" : "neutral";
 }
+function tenBoMon(ma: string): string {
+  return boMon.value.find((b) => b.ma === ma)?.ten || ma;
+}
 
 async function taiTatCa() {
   if (!token.value) return;
@@ -286,7 +289,7 @@ onMounted(taiTatCa);
       <Badge :tone="toneKetLuan(trangThai?.ket_luan)" size="sm">{{ nhanKetLuan(trangThai?.ket_luan) }}</Badge>
       <span class="text-ds-sm text-ds-muted">Phiên bản mới nhất: v{{ trangThai?.so_phien_ban || 0 }}</span>
       <span v-if="version" class="text-ds-sm text-ds-muted">Đang xem: v{{ version.so_phien_ban }} ({{ ngay(version.created_at) }})</span>
-      <Badge v-if="thieuBoMon.length" tone="danger" size="sm">Thiếu: {{ thieuBoMon.join(", ") }}</Badge>
+      <Badge v-if="thieuBoMon.length" tone="danger" size="sm">Thiếu: {{ thieuBoMon.map(tenBoMon).join(", ") }}</Badge>
       <Badge v-else-if="drawings.length" tone="success" size="sm">Đủ bộ môn bắt buộc</Badge>
       <Badge v-if="nhanXetMo" tone="warning" size="sm">{{ nhanXetMo }} nhận xét mở</Badge>
     </div>

@@ -184,18 +184,23 @@ const trendSeries = computed(() => {
     qua_han: items.map((x) => Number(x.qua_han) || 0),
   };
 });
-function seriesCho(code: string): number[] {
+function seriesCho(code: string): number[] | null {
   const t = trendSeries.value;
+  if (code === "ho_so_moi") return t.so_ho_so;
   if (code === "ho_so_qua_han") return t.qua_han;
   if (code === "ho_so_dang_xu_ly") return t.so_ho_so.map((v, i) => Math.max(0, v - (t.da_cap[i] || 0)));
-  return t.so_ho_so;
+  // Các chỉ số không suy ra từ chuỗi tháng thì không hiển thị xu hướng giả.
+  return null;
 }
 function xuHuong(series: number[]): number | null {
   if (series.length < 2) return null;
   const truoc = series[series.length - 2];
   const nay = series[series.length - 1];
-  if (!truoc) return null;
-  return ((nay - truoc) / truoc) * 100;
+  // Tránh % nhảy vọt vô nghĩa khi tháng trước chỉ có 1-2 hồ sơ
+  // hoặc khi mức thay đổi quá lớn (dữ liệu demo không đủ ổn định).
+  if (!truoc || truoc < 5) return null;
+  const pct = ((nay - truoc) / truoc) * 100;
+  return Math.abs(pct) > 500 ? null : pct;
 }
 const kpiCards = computed(() =>
   sapXepChiSo(data.value?.metrics ?? []).map((m: any) => {
@@ -206,8 +211,8 @@ const kpiCards = computed(() =>
       unit: donViHienThi(m.unit),
       icon: m.code,
       tone: KPI_TONE[m.code] || "brand",
-      series,
-      trend: xuHuong(series),
+      series: series || [],
+      trend: series ? xuHuong(series) : null,
     };
   }),
 );
@@ -414,7 +419,7 @@ function fmtDate(iso?: string): string {
         Theo dõi hồ sơ, tải việc, cảnh báo quá hạn và kiểm toán chuỗi dữ liệu của địa bàn.
       </p>
       <div class="mt-5 flex flex-wrap gap-2">
-        <button class="min-h-[44px] rounded bg-slate-800 px-4 py-2 text-white" @click="login()">Đăng nhập</button>
+        <button class="min-h-[44px] rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700" @click="login()">Đăng nhập</button>
         <a class="inline-flex min-h-[44px] items-center rounded border border-slate-300 px-4 py-2 text-sm" href="/">Về trang cấp phép</a>
         <a class="inline-flex min-h-[44px] items-center rounded border border-slate-300 px-4 py-2 text-sm" href="/kiem-tra/" target="_blank" rel="noopener">Tra cứu công khai</a>
       </div>
@@ -431,74 +436,62 @@ function fmtDate(iso?: string): string {
       Tài khoản không có vai trò lãnh đạo. Bảng điều hành chỉ đọc chỉ số.
     </p>
     <button
-      class="mt-4 rounded bg-slate-800 px-4 py-2 text-white"
+      class="mt-4 rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
       @click="logout()"
     >
       Đăng xuất
     </button>
   </div>
 
-  <main v-else id="bdh-main" class="space-y-4">
-    <header class="flex flex-wrap items-center justify-between gap-2">
-      <h1 class="text-xl font-semibold">Bảng điều hành lãnh đạo</h1>
-      <div class="flex flex-wrap items-center gap-2">
-        <button class="min-h-[44px] rounded border px-3 py-1 text-sm" :disabled="dangXuatTep" @click="xuatExcel">Xuất Excel</button>
-        <button class="min-h-[44px] rounded border px-3 py-1 text-sm" :disabled="dangXuatTep" @click="xuatPdf">Xuất PDF</button>
-        <button class="min-h-[44px] text-sm chu-phu underline" @click="doiGiaoDien()">
-          {{ cheDo === "toi" ? "Giao diện sáng" : "Giao diện tối" }}
-        </button>
-        <button class="min-h-[44px] text-sm chu-phu underline" @click="logout()">Đăng xuất</button>
+  <div v-else class="min-h-screen">
+    <div class="bg-amber-400 px-4 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-slate-900 shadow-sm">
+      Bản mô phỏng phục vụ cuộc thi OLP Tin học Sinh viên PMNM 2026 — Dữ liệu hu cấu (mẫu), giấy phép không có giá trị pháp lý
+    </div>
+    <header class="sticky top-0 z-30 bg-indigo-900 text-white shadow-md">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-indigo-500 bg-indigo-700 text-xl font-bold shadow">DX</div>
+          <div>
+            <h1 class="text-lg font-extrabold leading-tight tracking-tight">DX-OS OPEN-CORE</h1>
+            <p class="text-xs text-indigo-200">Bảng điều hành lãnh đạo (Tầng 2 - C3)</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" :disabled="dangXuatTep" @click="xuatExcel">Xuất Excel</button>
+          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" :disabled="dangXuatTep" @click="xuatPdf">Xuất PDF</button>
+          <a href="/" class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700">Về trang cấp phép</a>
+          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" @click="doiGiaoDien()">{{ cheDo === "toi" ? "Nền sáng" : "Nền tối" }}</button>
+          <button class="rounded-lg border border-indigo-600 bg-indigo-800 px-3 py-1.5 text-xs transition hover:bg-indigo-700" @click="logout()">Đăng xuất</button>
+        </div>
       </div>
+      <nav class="border-t border-indigo-800 bg-white" aria-label="Điều hướng bảng điều hành">
+        <div class="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4">
+          <button
+            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
+            :class="tab === 'chi-so' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+            @click="tab = 'chi-so'"
+          >Chỉ số</button>
+          <button
+            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
+            :class="tab === 'tro-ly' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+            @click="tab = 'tro-ly'"
+          >Trợ lý</button>
+          <button
+            v-if="laKiemToan"
+            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
+            :class="tab === 'kiem-toan' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+            @click="tab = 'kiem-toan'"
+          >Kiểm toán</button>
+          <button
+            v-if="laQuanTri"
+            class="whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold transition"
+            :class="tab === 'quan-tri' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+            @click="tab = 'quan-tri'"
+          >Quản trị</button>
+        </div>
+      </nav>
     </header>
-
-    <nav class="flex gap-2 border-b">
-      <button
-        class="px-3 py-2 text-sm"
-        :class="
-          tab === 'chi-so'
-            ? 'border-b-2 border-slate-800 font-semibold'
-            : 'chu-phu'
-        "
-        @click="tab = 'chi-so'"
-      >
-        Chỉ số
-      </button>
-      <button
-        class="px-3 py-2 text-sm"
-        :class="
-          tab === 'tro-ly'
-            ? 'border-b-2 border-slate-800 font-semibold'
-            : 'chu-phu'
-        "
-        @click="tab = 'tro-ly'"
-      >
-        Trợ lý
-      </button>
-      <button
-        v-if="laKiemToan"
-        class="px-3 py-2 text-sm"
-        :class="
-          tab === 'kiem-toan'
-            ? 'border-b-2 border-slate-800 font-semibold'
-            : 'chu-phu'
-        "
-        @click="tab = 'kiem-toan'"
-      >
-        Kiểm toán
-      </button>
-      <button
-        v-if="laQuanTri"
-        class="px-3 py-2 text-sm"
-        :class="
-          tab === 'quan-tri'
-            ? 'border-b-2 border-slate-800 font-semibold'
-            : 'chu-phu'
-        "
-        @click="tab = 'quan-tri'"
-      >
-        Quản trị
-      </button>
-    </nav>
+    <main id="bdh-main" class="mx-auto max-w-7xl space-y-4 p-4">
 
     <!-- Tab Chỉ số: dùng v-show để giữ trạng thái khi chuyển tab -->
     <section v-show="tab === 'chi-so'" class="space-y-4">
@@ -530,7 +523,7 @@ function fmtDate(iso?: string): string {
       <div v-else-if="loadError" class="rounded-lg kinh p-4 shadow">
         <p class="text-red-700">Không tải được số liệu: {{ loadError }}</p>
         <button
-          class="mt-2 rounded bg-slate-800 px-3 py-1 text-white"
+          class="mt-2 rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
           @click="loadMetrics()"
         >
           Thử lại
@@ -682,7 +675,7 @@ function fmtDate(iso?: string): string {
         <button
           type="submit"
           :disabled="asking"
-          class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50"
+          class="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {{ asking ? "Đang hỏi..." : "Hỏi" }}
         </button>
@@ -733,5 +726,6 @@ function fmtDate(iso?: string): string {
     <section v-if="laQuanTri" v-show="tab === 'quan-tri'">
       <TenantAdminPanel :vai-tro="vaiTro" />
     </section>
-  </main>
+    </main>
+  </div>
 </template>

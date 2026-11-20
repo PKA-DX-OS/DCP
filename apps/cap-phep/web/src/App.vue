@@ -173,7 +173,7 @@ onMounted(async () => {
     <button class="btn mt-4" @click="logout()">Đăng xuất</button>
   </div>
 
-  <div v-else class="mx-auto max-w-6xl space-y-4 p-4">
+  <div v-else class="min-h-screen">
     <Navbar
       :tab="tab"
       :tabs="TABS"
@@ -188,7 +188,7 @@ onMounted(async () => {
     />
 
     <!-- v-show giữ trạng thái màn hình khi chuyển tab -->
-    <main id="main">
+    <main id="main" class="mx-auto max-w-7xl space-y-4 p-4">
       <div v-for="f in FEATURES_HIEN" v-show="tab === f.ma" :key="f.ma"><component :is="f.component" /></div>
     </main>
   </div>

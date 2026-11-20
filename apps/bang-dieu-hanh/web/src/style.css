@@ -5,13 +5,13 @@
 :root {
   color-scheme: light;
   --mau-nen: #f8fafc;
-  --mau-chu: #0f172a;
+  --mau-chu: #1e293b;
   --mau-chu-phu: #475569;
-  --mau-mat-kinh: rgba(255, 255, 255, 0.72);
-  --mau-vien: rgba(15, 23, 42, 0.12);
-  --mau-nhan: #1e293b;
+  --mau-mat-kinh: #ffffff;
+  --mau-vien: #e2e8f0;
+  --mau-nhan: #4f46e5;
   --mau-nhan-chu: #ffffff;
-  --mau-tieu-diem: #2563eb;
+  --mau-tieu-diem: #4f46e5;
   --mau-canh-bao: #b91c1c;
 }
 
@@ -39,8 +39,12 @@ body {
   background: var(--mau-mat-kinh);
   border: 1px solid var(--mau-vien);
   border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+:root[data-theme="dark"] .kinh {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 16px 48px rgba(2, 6, 16, 0.35);
 }
 
 .chu-phu {

@@ -98,12 +98,9 @@ function kichThuoc(value?: number | null): string {
             </tbody>
           </table>
         </div>
-        <EmptyState
-          v-else
-          class="py-6"
-          :title="n.bat_buoc ? 'Chưa có bản vẽ bắt buộc' : 'Chưa có bản vẽ'"
-          :description="coTheSua ? 'Thêm bản vẽ ở nút phía trên.' : 'Chủ đầu tư chưa nộp bản vẽ cho bộ môn này.'"
-        />
+        <p v-else class="mt-2 rounded-lg border border-dashed border-ds-border bg-ds-surface-2/40 px-3 py-2 text-ds-xs text-ds-muted">
+          {{ coTheSua ? "Chưa có bản vẽ. Thêm bản vẽ ở nút phía trên." : "Chủ đầu tư chưa nộp bản vẽ cho bộ môn này." }}
+        </p>
       </section>
       <EmptyState v-if="!nhom.length" title="Chưa có bộ môn" description="Danh mục bộ môn chưa được nạp." />
     </template>
