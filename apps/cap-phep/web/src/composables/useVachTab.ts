@@ -43,30 +43,3 @@ export function useVachTab(nav: Ref<HTMLElement | null>, tabDangMo: Ref<unknown>
 
   return kieu;
 }
-
-/**
- * Tab đang chọn đồng bộ với tham số trên URL (mặc định `?tab=`): mở lại trang hoặc gửi liên kết
- * vẫn vào đúng tab; nút Quay lại/Tới của trình duyệt đổi tab theo.
- */
-export function useTabTrongUrl<T extends string>(cacTab: readonly T[], macDinh: T, thamSo = "tab"): Ref<T> {
-  const doc = (): T => {
-    const v = new URLSearchParams(window.location.search).get(thamSo) as T | null;
-    return v && cacTab.includes(v) ? v : macDinh;
-  };
-  const tab = ref(doc()) as Ref<T>;
-
-  watch(tab, (v) => {
-    const url = new URL(window.location.href);
-    if (v === macDinh) url.searchParams.delete(thamSo);
-    else url.searchParams.set(thamSo, v);
-    if (url.href !== window.location.href) window.history.pushState(window.history.state, "", url);
-  });
-
-  const khiQuayLai = () => {
-    tab.value = doc();
-  };
-  onMounted(() => window.addEventListener("popstate", khiQuayLai));
-  onBeforeUnmount(() => window.removeEventListener("popstate", khiQuayLai));
-
-  return tab;
-}

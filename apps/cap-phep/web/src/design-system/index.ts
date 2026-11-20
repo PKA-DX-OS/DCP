@@ -44,6 +44,3 @@ export type { StepItem } from "./components/Stepper.vue";
 export * from "./variants";
 export { checkFile, formatBytes, isoToVn, type FileRule } from "./files";
 export { chartColor } from "./components/charts/geometry";
-
-/** Trang demo chỉ có khi chạy dev hoặc build với VITE_DEMO_MODE=1. */
-export const DEMO_PAGE_ENABLED: boolean = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === "1";

@@ -38,13 +38,6 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const SESSION_EXPIRED = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
 const NETWORK_ERROR = "Không kết nối được máy chủ. Kiểm tra mạng và thử lại.";
 
-let unauthorizedHandler: (() => void) | null = null;
-
-/** Đăng ký hành động khi gặp 401 (ví dụ: xóa phiên, chuyển về đăng nhập). */
-export function onUnauthorized(handler: (() => void) | null): void {
-  unauthorizedHandler = handler;
-}
-
 /** Ghép đường dẫn tương đối ("/rest/...") với gốc API; giữ nguyên URL tuyệt đối. */
 export function apiUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
@@ -76,7 +69,6 @@ export async function apiRequest(path: string, opts: RequestOptions = {}): Promi
         await sleep(300 * 2 ** attempt);
         continue;
       }
-      if (resp.status === 401) unauthorizedHandler?.();
       return resp;
     } catch {
       if (attempt < retries) {
