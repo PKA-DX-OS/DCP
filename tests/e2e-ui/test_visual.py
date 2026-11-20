@@ -9,7 +9,7 @@ So ảnh chụp với ảnh nền trong tests/e2e-ui/baseline/<tên>.png.
 khác **≤ 2 %** (NGUONG_TY_LE). Vùng thay đổi theo dữ liệu (mã hồ sơ, giờ, số đếm, biểu đồ) được che
 trước khi chụp; hiệu ứng chuyển động tắt.
 
-- Chưa có ảnh nền: test tạo ảnh nền rồi skip, ghi rõ để commit ảnh.
+- Chưa có ảnh nền: test tạo ảnh nền, cảnh báo (không skip) để một lần chạy tạo đủ, ghi rõ để commit ảnh.
 - Cập nhật ảnh nền có chủ đích: `UPDATE_BASELINE=1 pytest tests/e2e-ui/test_visual.py`.
 - Ảnh chụp và ảnh khác biệt khi lỗi: E2E_OUT_DIR/visual (mặc định logs/e2e-ui/visual).
 
@@ -19,6 +19,7 @@ Cần stack đã `dx up` với DEMO_MODE=true và `python scripts/seed_hero.py`.
 
 import os
 import re
+import warnings
 from pathlib import Path
 
 import pytest
@@ -70,16 +71,24 @@ def ty_le_khac(a, b) -> float:
     return so_khac / (a.size[0] * a.size[1])
 
 
-def so_voi_nen(page, ten: str, che: list) -> None:
+def so_voi_nen(page, ten: str, che: list, vung=None) -> None:
+    """Chụp cả trang, hoặc chỉ một vùng (locator) khi phần xung quanh đổi theo dữ liệu, rồi so với ảnh nền.
+
+    Chưa có ảnh nền thì tạo và cảnh báo, không dừng test, để một lần chạy tạo đủ ảnh nền của mọi màn.
+    """
     OUT.mkdir(parents=True, exist_ok=True)
     page.wait_for_load_state("networkidle")
+    # Chờ khung tải biến mất và bố cục đứng yên để vùng che khớp vị trí khi chụp
+    page.wait_for_function("() => !document.querySelector('[aria-busy=\"true\"]')", timeout=CHO)
+    page.wait_for_timeout(300)
     anh = OUT / f"{ten}.png"
-    page.screenshot(path=str(anh), animations="disabled", caret="hide", mask=che, mask_color="#7f7f7f")
+    (vung or page).screenshot(path=str(anh), animations="disabled", caret="hide", mask=che, mask_color="#7f7f7f")
     nen = BASELINE / f"{ten}.png"
     if os.getenv("UPDATE_BASELINE") == "1" or not nen.exists():
         BASELINE.mkdir(parents=True, exist_ok=True)
         nen.write_bytes(anh.read_bytes())
-        pytest.skip(f"Đã tạo ảnh nền {nen.relative_to(ROOT)}; kiểm bằng mắt rồi commit ảnh này")
+        warnings.warn(f"Đã tạo ảnh nền {nen.relative_to(ROOT)}; kiểm bằng mắt rồi commit ảnh này")
+        return
     with Image.open(nen) as a, Image.open(anh) as b:
         tl = ty_le_khac(a, b)
         if tl > NGUONG_TY_LE:
@@ -112,7 +121,8 @@ def test_dashboard(page):
     _dang_nhap(page, "ld.hoa", "/dieu-hanh/")
     expect(page.get_by_text("Hồ sơ theo trạng thái")).to_be_visible(timeout=CHO)
     # Số liệu, biểu đồ và danh sách đổi theo dữ liệu: che, chỉ so bố cục và khung
-    che = [page.locator("svg"), page.locator("main ul"), page.locator("main table"), page.locator(".text-2xl")]
+    che = [page.locator("svg"), page.locator("main ul"), page.locator("main table"), page.locator(".text-2xl"),
+           page.locator("input[type='month']"), page.get_by_text(re.compile("^Thời điểm tính"))]
     so_voi_nen(page, "dashboard", che)
 
 
@@ -126,10 +136,9 @@ def test_ban_lam_viec_va_chi_tiet_ho_so(page):
     expect(dlg).to_be_visible(timeout=CHO)
     che = [dlg.locator("dd"), dlg.locator("li"), dlg.locator("td"), dlg.locator("h3"), dlg.locator("svg")]
     so_voi_nen(page, "chi-tiet-ho-so", che)
-    page.locator("#block-dossier-planning").scroll_into_view_if_needed()
-    so_voi_nen(page, "quy-hoach", che + [page.locator(".leaflet-container")])
-    page.locator("#block-dossier-acceptance").scroll_into_view_if_needed()
-    so_voi_nen(page, "nghiem-thu", che)
+    # Nhật ký xem hồ sơ dài thêm sau mỗi lần chạy nên chỉ chụp đúng phần cần so
+    so_voi_nen(page, "quy-hoach", che + [page.locator(".leaflet-container")], page.locator("#block-dossier-planning"))
+    so_voi_nen(page, "nghiem-thu", che, page.locator("#block-dossier-acceptance"))
 
 
 def test_tra_cuu(page):
@@ -149,4 +158,5 @@ def test_tham_dinh_thiet_ke(page):
     muc = page.locator("#muc-thiet-ke")
     muc.scroll_into_view_if_needed()
     expect(muc).to_be_visible(timeout=CHO)
-    so_voi_nen(page, "tham-dinh-thiet-ke", [dlg.locator("time"), dlg.locator("dd"), dlg.locator("td")])
+    # Chỉ chụp phần thẩm định thiết kế: nhật ký phía trên dài thêm sau mỗi lần mở hồ sơ
+    so_voi_nen(page, "tham-dinh-thiet-ke", [muc.locator("time"), muc.locator("td")], muc)
