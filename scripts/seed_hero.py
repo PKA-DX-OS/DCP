@@ -215,7 +215,14 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     res = subprocess.run(cmd, input=SQL, capture_output=True, text=True, encoding="utf-8")
     if res.returncode != 0:
-        print(res.stderr or res.stdout, file=sys.stderr)
+        loi = res.stderr or res.stdout
+        print(loi, file=sys.stderr)
+        if "does not exist" in loi:
+            print(
+                "[GỢI Ý] CSDL chưa có migration của app cap-phep. Chạy `.\\dx.ps1 app-install` "
+                "(hoặc `.\\dx.ps1 up`, gồm build lại image và cài app) rồi chạy lại.",
+                file=sys.stderr,
+            )
         return 1
     print("[PASS] Đã nạp hồ sơ hero: CP-HERO-2026-001 (5 tầng) và CP-HERO-ACC-2026-001 (nghiệm thu).")
     return 0
