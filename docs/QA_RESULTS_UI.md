@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Kết quả QA giao diện — B-TEST-01/02/03
 
 - **Ngày chạy:** 2026-11-20
@@ -78,7 +83,17 @@ Kết quả thô: `logs/qa-ui/performance.json`.
 Ngưỡng test hiện tại: FCP < 5 s, DOMContentLoaded < 10 s — đủ để bắt hồi quy lớn,
 không dùng làm cam kết SLA.
 
-## 7. Lệnh chạy lại
+## 7. Tổng hợp test toàn bộ
+
+| Bộ test | Kết quả |
+|---|---|
+| Unit (`tests/unit`) | 105 passed |
+| Integration (`tests/integration`) | 199 passed, 1 skipped; 1 lỗi kết nối tạm thời ở fixture TD01 (Windows/Docker `ReadError`), chạy riêng TD01: 5 passed |
+| E2E UI (`tests/e2e-ui`) | 25 passed |
+| Vitest cap-phep | 99 passed |
+| Vitest bảng điều hành | 17 passed |
+
+## 8. Lệnh chạy lại
 
 ```powershell
 cd D:\PMNM\DCP
@@ -88,9 +103,11 @@ cd apps\cap-phep\web; npm test; npm run build
 cd ..\bang-dieu-hanh\web; npm test; npm run build
 ```
 
-## 8. Hạn chế đã biết
+## 9. Hạn chế đã biết
 
 - Ảnh nền gắn với dữ liệu seed và viewport 1366×900; đổi seed lớn cần tạo lại baseline.
 - Test hồi quy ảnh cần thêm `Pillow` (`pip install pillow`) ngoài Playwright; nếu thiếu, test tự skip.
 - Hiệu năng mới đo trên máy cục bộ, chưa có Lighthouse/CI runner riêng.
 - Firefox cần ưu tiên IPv6 trên máy Windows có xung đột cổng 8080.
+- Lần chạy integration đầy đủ có thể gặp `WinError 10054` khi Docker/Windows đóng kết nối
+  giữa lúc fixture nộp hồ sơ; chạy lại test riêng đã pass. Đây là lỗi môi trường, không phải logic.
