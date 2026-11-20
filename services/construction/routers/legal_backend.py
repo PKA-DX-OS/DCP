@@ -6,6 +6,7 @@
 import json
 from datetime import date
 from typing import Any, Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -229,7 +230,11 @@ async def chia_se_du_lieu(body: ShareRequest, authorization: str = Header(...)):
 
 
 @router.get("/share/logs")
-async def nhat_ky_chia_se(limit: int = Query(default=100, ge=1, le=500), authorization: str = Header(...)):
+async def nhat_ky_chia_se(
+    limit: int = Query(default=100, ge=1, le=500),
+    ho_so_id: Optional[UUID] = Query(default=None, description="Chỉ lấy nhật ký của một hồ sơ"),
+    authorization: str = Header(...),
+):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     async with get_db_connection(claims) as conn:
@@ -239,10 +244,12 @@ async def nhat_ky_chia_se(limit: int = Query(default=100, ge=1, le=500), authori
                    can_cu_phap_ly, trang_thai, chi_tiet, created_by, created_at
             FROM app_construction.chia_se_du_lieu_log
             WHERE tenant = core.jwt_tenant()
+              AND ($2::uuid IS NULL OR ho_so_id = $2::uuid)
             ORDER BY created_at DESC
             LIMIT $1
             """,
             limit,
+            str(ho_so_id) if ho_so_id else None,
         )
     return [_row(r) for r in rows]
 
@@ -265,7 +272,10 @@ async def bang_phi(authorization: str = Header(...)):
 
 
 @router.get("/bien-lai")
-async def bien_lai(authorization: str = Header(...)):
+async def bien_lai(
+    ho_so_id: Optional[UUID] = Query(default=None, description="Chỉ lấy biên lai của một hồ sơ"),
+    authorization: str = Header(...),
+):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     async with get_db_connection(claims) as conn:
@@ -275,9 +285,11 @@ async def bien_lai(authorization: str = Header(...)):
                    ngay_thu, nguoi_thu, ma_tham_chieu, ghi_chu, created_at
             FROM app_construction.bien_lai_phi
             WHERE tenant = core.jwt_tenant()
+              AND ($1::uuid IS NULL OR ho_so_id = $1::uuid)
             ORDER BY created_at DESC
             LIMIT 500
-            """
+            """,
+            str(ho_so_id) if ho_so_id else None,
         )
     return [_row(r) for r in rows]
 
@@ -379,7 +391,10 @@ async def doi_trang_thai_bien_lai(bien_lai_id: str, body: ReceiptStatusRequest, 
 
 
 @router.get("/archive")
-async def danh_sach_luu_tru(authorization: str = Header(...)):
+async def danh_sach_luu_tru(
+    ho_so_id: Optional[UUID] = Query(default=None, description="Chỉ lấy bản ghi lưu trữ của một hồ sơ"),
+    authorization: str = Header(...),
+):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     async with get_db_connection(claims) as conn:
@@ -390,9 +405,11 @@ async def danh_sach_luu_tru(authorization: str = Header(...)):
             FROM app_construction.luu_tru_ho_so l
             LEFT JOIN app_cap_phep.ho_so h ON h.id = l.ho_so_id
             WHERE l.tenant = core.jwt_tenant()
+              AND ($1::uuid IS NULL OR l.ho_so_id = $1::uuid)
             ORDER BY l.created_at DESC
             LIMIT 500
-            """
+            """,
+            str(ho_so_id) if ho_so_id else None,
         )
     return [_row(r) for r in rows]
 

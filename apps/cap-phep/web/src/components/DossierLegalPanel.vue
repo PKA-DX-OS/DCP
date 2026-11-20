@@ -108,12 +108,13 @@ async function tai(): Promise<void> {
     const [a, f, r, ar, s] = await Promise.all([
       fetchDossierAuthority(props.token, props.dossier.id).catch(() => null),
       fetchFees(props.token).catch(() => []),
-      fetchReceipts(props.token).catch(() => []),
-      fetchArchive(props.token).catch(() => []),
-      fetchShareLogs(props.token).catch(() => []),
+      fetchReceipts(props.token, props.dossier.id).catch(() => []),
+      fetchArchive(props.token, props.dossier.id).catch(() => []),
+      fetchShareLogs(props.token, props.dossier.id).catch(() => []),
     ]);
     authority.value = a;
     fees.value = f;
+    // Máy chủ đã lọc theo hồ sơ; lọc lại phòng khi máy chủ cũ chưa hỗ trợ tham số ho_so_id
     receipts.value = (r || []).filter((x) => x.ho_so_id === props.dossier.id);
     archive.value = (ar || []).filter((x) => x.ho_so_id === props.dossier.id);
     shareLogs.value = (s || []).filter((x) => x.ho_so_id === props.dossier.id);
