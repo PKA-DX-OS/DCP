@@ -132,7 +132,9 @@ def test_dashboard(page):
 def test_ban_lam_viec_va_chi_tiet_ho_so(page):
     _dang_nhap(page, "mc.thu")
     page.locator("nav[aria-label='Điều hướng']").get_by_role("button", name="Bàn làm việc", exact=True).click()
-    page.locator("aside button").first.wait_for(timeout=CHO)
+    # Bàn làm việc không tự mở hồ sơ (mỗi lần mở được ghi nhật ký truy cập): chọn việc đầu tiên
+    page.locator("aside button").first.click(timeout=CHO)
+    page.get_by_role("button", name="Mở hồ sơ đầy đủ").first.wait_for(timeout=CHO)
     so_voi_nen(
         page,
         "ban-lam-viec",

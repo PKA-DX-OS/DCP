@@ -295,8 +295,8 @@ onMounted(async () => {
   const user = await getUser();
   const roles = readRoles(user?.access_token);
   nguoi.value = { sub: user?.profile?.sub as string | undefined, roles };
+  // Không tự mở hồ sơ: mo_ho_so ghi nhật ký truy cập dữ liệu cá nhân, nên chỉ mở khi cán bộ chọn việc
   await taiViec();
-  if (!selectedTask.value && danhSachLoc.value.length) await chonViec(danhSachLoc.value[0]);
 });
 
 defineExpose({ taiViec });
@@ -406,7 +406,7 @@ defineExpose({ taiViec });
           <Skeleton :lines="6" height="1.8rem" />
         </div>
         <div v-else-if="!selectedDossier" class="flex h-full min-h-[320px] items-center justify-center text-[13.5px] text-phu">
-          Chọn một việc ở cột bên trái để xem chi tiết.
+          Chọn một việc ở cột bên trái để mở hồ sơ. Mỗi lần mở được ghi vào nhật ký truy cập.
         </div>
         <template v-else>
           <div class="flex flex-wrap items-start justify-between gap-3 border-b border-vien-nhat pb-3">
