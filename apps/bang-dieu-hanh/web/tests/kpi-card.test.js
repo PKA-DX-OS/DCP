@@ -18,7 +18,7 @@ describe("KpiCard", () => {
     const w = mount(KpiCard, { props: { label: "Thời gian xử lý", value: null, unit: "ngày", series: [5] } });
     expect(w.text()).toContain("—");
     expect(w.text()).not.toContain("ngày");
-    expect(w.find("svg").exists()).toBe(false);
+    expect(w.find("svg[role='img']").exists()).toBe(false);
   });
   test("xu hướng tăng, giảm, đứng yên có mũi tên riêng", () => {
     expect(mount(KpiCard, { props: { label: "x", value: 1, trend: 12.34 } }).text()).toContain("▲ 12,3%");
@@ -27,7 +27,7 @@ describe("KpiCard", () => {
   });
   test("có từ hai điểm thì vẽ sparkline có nhãn cho trình đọc màn hình", () => {
     const w = mount(KpiCard, { props: { label: "x", value: 3, series: [1, 4, 2] } });
-    const svg = w.get("svg");
+    const svg = w.get("svg[role='img']");
     expect(svg.attributes("aria-label")).toBe("Xu hướng gần đây");
     expect(w.get("polyline").attributes("points").split(" ")).toHaveLength(3);
   });
@@ -35,5 +35,11 @@ describe("KpiCard", () => {
     const w = mount(KpiCard, { props: { label: "x", value: 3 } });
     await w.trigger("click");
     expect(w.emitted("select")).toHaveLength(1);
+  });
+  test("biểu tượng là hình nét SVG ẩn với trình đọc màn hình, không dùng emoji", () => {
+    const w = mount(KpiCard, { props: { label: "x", value: 1, icon: "ho_so_qua_han" } });
+    const icon = w.get("svg[aria-hidden='true']");
+    expect(icon.findAll("path").length).toBeGreaterThan(1);
+    expect(w.text()).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 });

@@ -4,6 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
 import { computed } from "vue";
+import KpiIcon from "./KpiIcon.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -16,7 +17,7 @@ const props = withDefaults(
     series?: number[];
     hint?: string;
   }>(),
-  { tone: "brand", icon: "•", series: () => [] },
+  { tone: "brand", icon: "", series: () => [] },
 );
 defineEmits<{ select: [] }>();
 
@@ -63,7 +64,7 @@ const shown = computed(() =>
   <button type="button" class="kinh flex w-full flex-col gap-2 p-4 text-left shadow hover:ring-2 hover:ring-slate-300" :title="hint" @click="$emit('select')">
     <div class="flex items-center justify-between gap-2">
       <span class="text-sm chu-phu">{{ label }}</span>
-      <span class="flex h-8 w-8 items-center justify-center rounded-full text-base" :class="tones[tone]" aria-hidden="true">{{ icon }}</span>
+      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="tones[tone]" aria-hidden="true"><KpiIcon :ten="icon" class="h-[18px] w-[18px]" /></span>
     </div>
     <div class="flex items-baseline gap-1">
       <span class="text-2xl font-semibold">{{ shown }}</span>
