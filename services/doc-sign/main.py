@@ -404,7 +404,7 @@ PUBLIC_PAGE_CSS = """
 --bong:0 16px 40px rgba(3,7,18,.5),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(2,6,16,.35);--em:cubic-bezier(.16,1,.3,1)}
 @media (prefers-color-scheme:light){:root{color-scheme:light;--nen:#e4eaf4;--g1:rgba(124,156,196,.55);--g2:rgba(228,184,99,.35);--g3:rgba(169,196,232,.5);
 --mat:rgba(255,255,255,.55);--mat-noi:rgba(255,255,255,.8);--vien:rgba(255,255,255,.75);--vien-noi:rgba(124,156,196,.6);--vien-nhat:rgba(11,19,34,.08);
---chu:#0b1322;--phu:#485d7c;--cham:#a0701e;--xanh:#187a4e;--xanh-nen:rgba(24,122,78,.1);--do:#be3c30;--do-nen:rgba(190,60,48,.1);
+--chu:#0b1322;--phu:#485d7c;--cham:#7a5312;--xanh:#11603c;--xanh-nen:rgba(24,122,78,.1);--do:#a3322a;--do-nen:rgba(190,60,48,.1);
 --bong:0 16px 40px rgba(28,46,78,.14),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(20,40,70,.08)}}
 *{box-sizing:border-box}html{background:var(--nen)}
 body{margin:0;min-height:100vh;color:var(--chu);font:14px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -421,6 +421,7 @@ animation:hien .7s var(--em) backwards;transition:border-color .5s var(--em),tra
 @keyframes hien{from{opacity:0;transform:translateY(16px) scale(.985)}}
 h1{font-size:24px;font-weight:600;line-height:1.3;margin:0 0 6px;letter-spacing:-.01em}h2{font-size:16px;font-weight:600;margin:0 0 4px}
 p{margin:0;color:var(--phu)}
+main a{color:var(--cham);text-underline-offset:2px}
 .tt{display:inline-flex;align-items:center;gap:6px;margin:20px 0 4px;padding:4px 12px;border-radius:999px;font-weight:500;font-size:13px;
 animation:hien .7s .25s var(--em) backwards}
 .tt::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor}

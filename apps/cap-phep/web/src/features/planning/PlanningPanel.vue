@@ -277,7 +277,7 @@ onMounted(taiDuLieu);
           <span class="mo">{{ soLoi }} lỗi · {{ soCanhBao }} cảnh báo</span>
           <span class="mo">Lúc {{ new Date(ketQuaHienTai.created_at || Date.now()).toLocaleString("vi-VN") }}</span>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Kết quả từng quy tắc quy hoạch">
           <table class="w-full text-[13px] border-collapse">
             <thead>
               <tr class="text-left border-b border-vien-nhat">
