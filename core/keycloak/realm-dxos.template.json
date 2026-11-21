@@ -30,6 +30,10 @@
       {
         "name": "dx:service",
         "description": "Tài khoản dịch vụ nội bộ hệ thống"
+      },
+      {
+        "name": "dx:data-steward",
+        "description": "Chủ quản dữ liệu (Data Steward)"
       }
     ]
   },
