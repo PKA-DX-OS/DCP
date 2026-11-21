@@ -126,3 +126,29 @@ def test_a11y_login_danh_sach_dashboard():
             finally:
                 ctx.close()
         browser.close()
+
+
+def test_a11y_link_panel_can_bo():
+    """H-LINK: tab Liên ngành chỉ dành cho cán bộ; kiểm axe sau khi mở panel."""
+    accounts = _tai_khoan()
+    if "mc.thu" not in accounts:
+        pytest.skip("Thiếu tài khoản demo mc.thu")
+    subprocess.run([sys.executable, "scripts/seed_hero.py"], cwd=ROOT, check=True)
+
+    with sync_api.sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN", bypass_csp=True)
+        page = ctx.new_page()
+        try:
+            _dang_nhap(page, "mc.thu", accounts["mc.thu"], f"{BASE_URL}/")
+            page.keyboard.press("Control+K")
+            o = page.get_by_label("Từ khóa tìm kiếm toàn cục")
+            o.fill("CP-HERO-2026-001")
+            page.get_by_role("button").filter(has_text="CP-HERO-2026-001").first.click()
+            page.locator("#btn-close-modal-detail").wait_for(timeout=20000)
+            page.get_by_role("button", name="Liên ngành", exact=True).click()
+            page.locator("#block-dossier-link").wait_for(timeout=20000)
+            assert _axe(page) == []
+        finally:
+            ctx.close()
+            browser.close()

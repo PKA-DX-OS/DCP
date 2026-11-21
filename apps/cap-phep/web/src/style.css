@@ -69,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   --c-lam: 37 78 138;
   --c-son: 159 42 32;
   --c-xanh: 15 92 58;
-  --c-vang: 145 82 8;
+  --c-vang: 128 70 4;          /* đủ tương phản 4.5:1 trên nền kính sáng */
 
   --mat: rgba(255, 255, 255, 0.55);
   --mat-2: rgba(255, 255, 255, 0.35);
