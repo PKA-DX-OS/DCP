@@ -354,6 +354,18 @@ async def install_app(app_code: str, tenant: Optional[str] = None, seed: bool = 
                     json.dumps(manifest.flow_policies),
                 )
 
+            for tpl in manifest.doc_templates or []:
+                await conn.execute(
+                    """
+                    INSERT INTO core.app_policies (app_code, policy_type, policy_key, policy_data)
+                    VALUES ($1, 'doc_templates', $2, $3::jsonb)
+                    ON CONFLICT (app_code, policy_type, policy_key) DO UPDATE SET policy_data = EXCLUDED.policy_data
+                    """,
+                    app_code,
+                    tpl.doc_type,
+                    json.dumps({"title": tpl.title}, ensure_ascii=False),
+                )
+
             for doc_type, signer_cfg in (manifest.doc_signers or {}).items():
                 await conn.execute(
                     """

@@ -471,6 +471,15 @@ def _not_found(is_html: bool):
     )
 
 
+def _nhan(row, khoa_nhan: str, khoa_ma: str) -> str:
+    """Tên hiển thị do ứng dụng đăng ký (tên đơn vị, tên loại văn bản); chưa có thì dùng mã."""
+    try:
+        ten = row[khoa_nhan]
+    except (KeyError, IndexError):
+        ten = None
+    return str(ten or row[khoa_ma])
+
+
 def _signature_type(row) -> str:
     return "pades" if (row["signature"] or "").startswith("pades") else "openbao"
 
@@ -509,8 +518,8 @@ def _result_body(row, ket_qua: str = "") -> str:
         f"<span class=\"tt {'ok' if is_valid else 'no'}\">{'Hợp lệ' if is_valid else 'Đã thu hồi'}</span>"
         "<dl>"
         f"<dt>Mã tra cứu</dt><dd id=\"val-public-code\">{code}</dd>"
-        f"<dt>Loại văn bản</dt><dd>{e(str(row['doc_type']))}</dd>"
-        f"<dt>Đơn vị ban hành</dt><dd>{e(str(row['tenant']))}</dd>"
+        f"<dt>Loại văn bản</dt><dd>{e(_nhan(row, 'ten_loai_van_ban', 'doc_type'))}</dd>"
+        f"<dt>Đơn vị ban hành</dt><dd>{e(_nhan(row, 'ten_don_vi', 'tenant'))}</dd>"
         f"<dt>Ngày ký</dt><dd>{e(issued_str)}</dd>{revoked}"
         f"<dt>Chữ ký số</dt><dd>{e(_algorithm_label(row))}</dd>"
         f"<dt>Mã băm SHA-256</dt><dd>{e(str(row['sha256']))}</dd>"
@@ -543,9 +552,15 @@ async def _fetch_public_row(public_code: str):
         for ma in dict.fromkeys(ung_vien):
             row = await conn.fetchrow(
                 """
-                SELECT public_code, doc_type, tenant, status, issued_at, revoked_at, sha256, signature, key_version, algorithm
-                FROM core.signed_docs
-                WHERE public_code = $1
+                SELECT d.public_code, d.doc_type, d.tenant, d.status, d.issued_at, d.revoked_at, d.sha256,
+                       d.signature, d.key_version, d.algorithm,
+                       nullif(t.ten, d.tenant) AS ten_don_vi,
+                       (SELECT p.policy_data->>'title' FROM core.app_policies p
+                        WHERE p.policy_type = 'doc_templates' AND p.policy_key = d.doc_type
+                        LIMIT 1) AS ten_loai_van_ban
+                FROM core.signed_docs d
+                LEFT JOIN core.tenants t ON t.tenant = d.tenant
+                WHERE d.public_code = $1
                 """,
                 ma,
             )
@@ -620,7 +635,9 @@ async def public_check(public_code: str, request: Request):
         content={
             "public_code": row["public_code"],
             "doc_type": row["doc_type"],
+            "ten_loai_van_ban": _nhan(row, "ten_loai_van_ban", "doc_type"),
             "tenant": row["tenant"],
+            "ten_don_vi": _nhan(row, "ten_don_vi", "tenant"),
             "trang_thai": "Hop_le" if is_valid else "Da_thu_hoi",
             "issued_at": issued.isoformat() if hasattr(issued, "isoformat") else str(issued),
             "revoked_at": row["revoked_at"].isoformat() if row["revoked_at"] is not None else None,
