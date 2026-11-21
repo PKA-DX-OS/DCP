@@ -22,6 +22,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Chất lượng dữ liệu (D-DQ-01 đến D-DQ-04):** 22 rule trong `core/postgres/22-data-quality.sql` (web_user không đọc được câu SQL của rule); `scripts/data_quality_worker.py` chạy từng rule trong giao dịch chỉ đọc có giới hạn thời gian, ghi lần chạy, kết quả, vấn đề (mở lại khi lỗi lại, tự đóng khi hết lỗi), `dx up` chạy một lần; API `/api/v1/data-quality/*` (điểm theo miền, rule, lần chạy, vấn đề, giao, đóng/bỏ qua) theo `contracts/dh/data-quality.yaml`.
 - **Phả hệ và chỉ số H (D-CAT-02, D-MART):** `/api/v1/lineage/{loại}/{id}` dựng đồ thị từ sự kiện có `facets.entity`, `/api/v1/lineage/jobs/{job}`; `/api/v1/automation/metrics?from=&to=` tính chỉ số H cùng định nghĩa `scripts/dh_baseline.py`, so với mốc trong `core.h_baseline` (`dh_baseline.py --save NHÃN`); thiếu dữ liệu trả null.
 - **Kiểm thử và ghi chú Gate 1 Track D (D-TEST-01):** `tests/unit/test_dh_gate1.py` (hàm thuần, migration, rule, route phủ đủ hợp đồng trừ OCR, lỗi sai vai), `tests/integration/test_dh_gate1_api.py` (qua APISIX, che CCCD, cách ly phường); `docs/data/gate-1.md` ghi phần đã có và phần để Gate sau.
+- **Gắn hồ sơ vào audit task (D-MET-00):** ghi `ho_so_id` và `process_instance_id` vào `detail` của `flow.task_completed`; `scripts/dh_baseline.py` tính thao tác task theo hồ sơ khi có trường này.
 
 ### Đã sửa (Fixed)
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.
