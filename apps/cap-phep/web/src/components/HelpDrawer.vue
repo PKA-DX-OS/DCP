@@ -41,6 +41,14 @@ const MAN_HINH = [
     moTa: "Tạo phiếu kiểm tra offline, chụp ảnh, lấy GPS, ký tay và đồng bộ khi có mạng.",
   },
   {
+    ten: "Thiết kế",
+    moTa: "Xem bản vẽ theo bộ môn, so sánh phiên bản, gửi/xử lý nhận xét và đánh giá thẩm định.",
+  },
+  {
+    ten: "Liên ngành",
+    moTa: "Đối chiếu dân cư, đất đai, thuế, PCCC cạnh hồ sơ; dữ liệu mẫu khi API liên ngành chưa sẵn sàng.",
+  },
+  {
     ten: "Bảng điều hành",
     moTa: "Chỉ số điều hành, hiệu quả vận hành, kiểm toán và quản trị địa bàn.",
   },

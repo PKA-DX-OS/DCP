@@ -19,6 +19,8 @@ describe("trợ giúp và tiếp cận", () => {
     expect(w.get("#tieu-de-tro-giup").text()).toContain("Trợ giúp");
     expect(w.text()).toContain("Ctrl / Cmd + K");
     expect(w.text()).toContain("F1");
+    expect(w.text()).toContain("Thiết kế");
+    expect(w.text()).toContain("Liên ngành");
     await nextTick();
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Đóng trợ giúp");
 
