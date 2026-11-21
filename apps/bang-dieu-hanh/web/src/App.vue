@@ -5,7 +5,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles, readTenant } from "./auth";
 import { ApiError, apiDownload, apiGet, apiPost, luuBlob } from "./api";
-import { donViHienThi, formatThoiDiem, nhanChiSo, sapXepChiSo } from "./utils/metrics";
+import { donViHienThi, formatThoiDiem, hienThiGiaTriChiSo, laThoiGianDuoiNgay, nhanChiSo, sapXepChiSo } from "./utils/metrics";
 import { renderMarkdown, tenNguon } from "./utils/markdown";
 import { useTheme } from "./composables/useTheme";
 import KpiCard from "./components/KpiCard.vue";
@@ -280,17 +280,26 @@ function xuHuong(series: number[]): number | null {
   const pct = ((nay - truoc) / truoc) * 100;
   return Math.abs(pct) > 500 ? null : pct;
 }
+/** Metric D trả 0.0 khi thời gian nộp → cấp trung bình dưới một ngày (dữ liệu demo rất gần nhau). */
+const coThoiGianDuoiNgay = computed(() => laThoiGianDuoiNgay(data.value?.metrics ?? []));
 const kpiCards = computed(() =>
   sapXepChiSo(data.value?.metrics ?? []).map((m: any) => {
     const series = seriesCho(m.code);
+    const duoiNgay = m.code === "thoi_gian_xu_ly_tb" && coThoiGianDuoiNgay.value;
     return {
       ...m,
+      value: hienThiGiaTriChiSo(m),
       label: nhanChiSo(m.code, m.name),
       unit: donViHienThi(m.unit),
       icon: m.code,
       tone: KPI_TONE[m.code] || "brand",
       series: series || [],
       trend: series ? xuHuong(series) : null,
+      hint: m.error
+        ? "Không có số liệu cho kỳ này"
+        : duoiNgay
+          ? "Trung bình dưới 1 ngày; dữ liệu demo có thời điểm nộp và cấp rất gần nhau"
+          : "Bấm để xem phả hệ chỉ số",
     };
   }),
 );
@@ -667,10 +676,14 @@ function fmtDate(iso?: string | null): string {
               :tone="m.tone"
               :trend="m.trend"
               :series="m.series"
-              :hint="m.error ? 'Không có số liệu cho kỳ này' : 'Bấm để xem phả hệ chỉ số'"
+              :hint="m.hint"
               @select="openLineage(m.code)"
             />
           </div>
+          <p v-if="coThoiGianDuoiNgay" class="m-0 border-t border-vien-nhat px-4 py-2 text-[12.5px] chu-phu">
+            Thời gian xử lý trung bình đang dưới 1 ngày. Chỉ số tính bằng ngày và làm tròn một chữ số thập phân;
+            bấm thẻ để xem phả hệ và điều kiện lọc.
+          </p>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">

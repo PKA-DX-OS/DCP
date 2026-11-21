@@ -9,6 +9,7 @@ import { uploadFile } from "../../api/files";
 import { notify } from "../../composables/useToast";
 import { Button, Skeleton } from "../../design-system";
 import ChonTep from "../../components/ChonTep.vue";
+import { tenKetQuaNghiemThu, tenLoaiMoc, tenSuKienNghiemThu } from "../../utils/labels";
 
 
 const props = defineProps<{
@@ -80,9 +81,7 @@ function mocClass(code: string): string {
 function mocNhan(code: string): string {
   const m = mocMoiNhat(code);
   if (!m) return "Chưa nghiệm thu";
-  if (m.ket_qua === "dat") return "Đạt";
-  if (m.ket_qua === "khong_dat") return "Không đạt";
-  return "Chờ nghiệm thu";
+  return tenKetQuaNghiemThu(m.ket_qua) || "Chờ nghiệm thu";
 }
 
 async function tai() {
@@ -129,7 +128,7 @@ async function batDauNghiemThu() {
       trang_thai_ho_so: props.dossier.trang_thai,
     });
     await new Promise((r) => setTimeout(r, 300));
-    await taiViec();
+    await tai();
     phatSuKienViec();
     notify("Đã tạo quy trình nghiệm thu trong Bàn làm việc", "ok");
   } catch (e) {
@@ -148,7 +147,7 @@ async function hoanThanhViecMoc(loaiMoc: string, ketQua: string, ghiChu: string)
     const vars: Record<string, any> = { ket_qua_nghiem_thu: ketQua, ghi_chu: ghiChu || null };
     if (loaiMoc === "mong") vars.mong_dat = ketQua === "dat";
     await completeTask(props.token, viec.id, vars);
-    await taiViec();
+    await tai();
     phatSuKienViec();
     notify(`Đã cập nhật việc ${viec.name || taskDef}`, "ok");
   } catch (e) {
@@ -292,7 +291,9 @@ onMounted(tai);
           <label class="block"><span class="nhan">Mốc áp dụng</span>
             <select class="o w-full" :value="selectedMoc?.id || ''" @change="selectedMoc = (duLieu?.milestones || []).find((m: any) => m.id === ($event.target as HTMLSelectElement).value) || null">
               <option value="">Chọn mốc</option>
-              <option v-for="m in duLieu?.milestones || []" :key="m.id" :value="m.id">{{ m.loai_moc }} — lần {{ m.version }} ({{ m.ket_qua }})</option>
+              <option v-for="m in duLieu?.milestones || []" :key="m.id" :value="m.id">
+                {{ tenLoaiMoc(m.loai_moc) }} — lần {{ m.version }} ({{ tenKetQuaNghiemThu(m.ket_qua) }})
+              </option>
             </select>
           </label>
           <label class="block mt-2"><span class="nhan">Số biên bản</span><input v-model="record.so_bien_ban" class="o w-full" /></label>
@@ -316,7 +317,7 @@ onMounted(tai);
         <ul v-if="duLieu?.as_built?.length" class="list-none m-0 p-0 mt-2 text-[13px]">
           <li v-for="a in duLieu.as_built" :key="a.id" class="flex justify-between gap-2 py-1 border-b border-vien-nhat">
             <span>Bản vẽ v{{ a.version }} — {{ new Date(a.ngay_nop).toLocaleString("vi-VN") }}</span>
-            <span class="tt tt-xam">{{ a.trang_thai }}</span>
+            <span class="tt tt-xam">{{ tenKetQuaNghiemThu(a.trang_thai) }}</span>
           </li>
         </ul>
         <p v-else class="text-phu text-[13px] mt-2 mb-0">Chưa có bản vẽ hoàn công.</p>
@@ -326,12 +327,15 @@ onMounted(tai);
         <h4 class="text-[13px] font-semibold m-0 mb-1">Lịch sử nghiệm thu</h4>
         <div class="the overflow-hidden">
           <table class="bang w-full text-[12.5px]">
-            <thead><tr><th>Loại</th><th>Sự kiện</th><th>Trạng thái</th><th>Nội dung</th><th>Thời điểm</th></tr></thead>
+            <thead><tr><th>Loại</th><th>Sự kiện</th><th>Kết quả / số BB</th><th>Nội dung</th><th>Thời điểm</th></tr></thead>
             <tbody>
               <tr v-for="h in lichSu" :key="`${h.loai}-${h.id}`">
                 <td class="whitespace-nowrap">{{ h.loai === "bien_ban" ? "Biên bản" : h.loai === "ban_ve" ? "Bản vẽ" : "Mốc" }}</td>
-                <td class="whitespace-nowrap">{{ h.su_kien }}</td>
-                <td class="whitespace-nowrap"><span class="tt tt-lam">{{ h.trang_thai }}</span></td>
+                <td class="whitespace-nowrap">{{ tenSuKienNghiemThu(h.su_kien) }}</td>
+                <td class="whitespace-nowrap">
+                  <span v-if="h.loai === 'bien_ban'" class="ma">{{ h.trang_thai }}</span>
+                  <span v-else class="tt tt-lam">{{ tenKetQuaNghiemThu(h.trang_thai) }}</span>
+                </td>
                 <td class="max-w-[260px]">{{ h.noi_dung || "—" }}</td>
                 <td class="whitespace-nowrap text-phu">{{ new Date(h.created_at).toLocaleString("vi-VN") }}</td>
               </tr>
@@ -345,7 +349,7 @@ onMounted(tai);
         <ul class="list-none m-0 p-0 text-[13px]">
           <template v-for="m in duLieu.milestones" :key="m.id">
             <li v-for="b in m.bien_ban" :key="b.id" class="py-1 border-b border-vien-nhat">
-              <span class="font-medium">{{ b.so_bien_ban }}</span> — {{ m.loai_moc }} lần {{ m.version }}: {{ b.ket_luan }}
+              <span class="font-medium">{{ b.so_bien_ban }}</span> — {{ tenLoaiMoc(m.loai_moc) }} lần {{ m.version }}: {{ b.ket_luan }}
             </li>
           </template>
         </ul>
