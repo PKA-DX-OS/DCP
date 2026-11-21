@@ -327,7 +327,6 @@ metrics:
     unit: hồ sơ
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.ho_so]
     dieu_kien_loc: "tenant = <tenant>; trạng thái không phải DA_CAP hoặc TU_CHOI"
   - code: ho_so_qua_han
@@ -335,7 +334,6 @@ metrics:
     unit: hồ sơ
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND (han_tong_at < now() OR qua_han = true) AND trang_thai NOT IN ('DA_CAP', 'TU_CHOI')"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.ho_so]
     dieu_kien_loc: "tenant = <tenant>; quá hạn tổng hoặc qua_han = true; chưa đóng"
   - code: thoi_gian_xu_ly_tb
@@ -343,7 +341,6 @@ metrics:
     unit: ngày
     query_type: hybrid
     sql: "SELECT round(avg(app_cap_phep.so_ngay_lam_viec(h.created_at, g.ngay_cap))::numeric, 1) FROM app_cap_phep.ho_so h JOIN app_cap_phep.giay_phep g ON g.ho_so_id = h.id WHERE h.tenant = $1 AND ($2::timestamptz IS NULL OR g.ngay_cap >= $2) AND ($3::timestamptz IS NULL OR g.ngay_cap < $3)"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.ho_so, app_cap_phep.giay_phep]
     dieu_kien_loc: "tenant = <tenant>; hồ sơ đã có giấy phép; trung bình số ngày làm việc từ nộp (created_at) đến ngày cấp (ngay_cap); ngay_cap trong tháng nếu có tham số thang; null khi chưa có giấy phép"
   - code: truy_cap_tu_choi
@@ -359,7 +356,6 @@ metrics:
     unit: phiếu
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.phieu_kiem_tra]
     dieu_kien_loc: "tenant = <tenant>"
   - code: canh_bao_cong_truong
@@ -375,7 +371,6 @@ metrics:
     unit: hồ sơ
     query_type: transactional
     sql: "SELECT count(DISTINCT ho_so_id) FROM app_construction.ket_qua_kiem_tra_quy_hoach WHERE tenant = $1 AND pass = false AND ho_so_id IS NOT NULL"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_construction.ket_qua_kiem_tra_quy_hoach]
     dieu_kien_loc: "tenant = <tenant>; pass = false"
   - code: ho_so_dang_nghiem_thu
@@ -383,7 +378,6 @@ metrics:
     unit: hồ sơ
     query_type: transactional
     sql: "SELECT count(DISTINCT ho_so_id) FROM app_construction.moc_nghiem_thu WHERE tenant = $1"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_construction.moc_nghiem_thu]
     dieu_kien_loc: "tenant = <tenant>"
   - code: ty_le_dung_han
@@ -391,7 +385,6 @@ metrics:
     unit: phần trăm
     query_type: transactional
     sql: "SELECT round(100.0 * count(*) FILTER (WHERE g.ngay_cap <= h.han_tong_at) / NULLIF(count(*), 0), 1) FROM app_cap_phep.ho_so h JOIN app_cap_phep.giay_phep g ON g.ho_so_id = h.id WHERE h.tenant = $1 AND ($2::timestamptz IS NULL OR g.ngay_cap >= $2) AND ($3::timestamptz IS NULL OR g.ngay_cap < $3)"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.ho_so, app_cap_phep.giay_phep]
     dieu_kien_loc: "tenant = <tenant>; hồ sơ đã có giấy phép; ngay_cap <= han_tong_at; ngay_cap trong tháng nếu có tham số thang; null khi chưa có giấy phép"
   - code: vi_pham
@@ -399,7 +392,6 @@ metrics:
     unit: vụ
     query_type: transactional
     sql: "SELECT count(*) FROM app_cap_phep.phieu_kiem_tra WHERE tenant = $1 AND ket_luan = 'Có vi phạm'"
-    lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.phieu_kiem_tra]
     dieu_kien_loc: "tenant = <tenant>; ket_luan = 'Có vi phạm'"
 

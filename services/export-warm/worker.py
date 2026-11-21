@@ -96,6 +96,18 @@ async def export_month(tenants: List[str], month: str, fetch: Fetch, write: Writ
         key = object_key(tenant, month)
         data = table_to_bytes(build_table(rows))
         write(key, data)
+        out_path = f"s3://{BUCKET}/{key}"
+        try:
+            from dxos_core.lineage import record_lineage_event
+
+            await record_lineage_event(
+                job="export_warm_lakehouse",
+                inputs=[{"name": "core.timeseries"}],
+                outputs=[{"name": out_path}],
+                facets={"tenant": tenant, "thang": month, "so_dong": len(rows)},
+            )
+        except Exception:
+            logger.warning(f"Không thể ghi nhận lineage cho {tenant} {month}", exc_info=True)
         report.append({"tenant": tenant, "thang": month, "key": key, "so_dong": len(rows)})
         logger.info(f"Đã xuất {tenant} {month}: {len(rows)} dòng -> {key}")
     return report

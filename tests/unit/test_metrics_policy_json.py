@@ -60,7 +60,7 @@ def test_dung_11_chi_so_dung_ma():
 
 def test_moi_chi_so_co_pha_he():
     for p in POLICIES:
-        assert p["lineage_job"] and p["bang_nguon"] and p["dieu_kien_loc"], p["code"]
+        assert p["bang_nguon"] and p["dieu_kien_loc"], p["code"]
 
 
 def test_loi_khong_giu_danh_sach_chi_so_nghiep_vu():
@@ -212,11 +212,34 @@ def test_pha_he_lay_tu_cau_hinh_va_404_khi_khong_co(monkeypatch):
     async def fake_hist(job, limit=10):
         return [{"job": job, "facets": {"tenant": "phuong-a"}}, {"job": job, "facets": {"tenant": "phuong-b"}}]
 
+    async def fake_by_sources(sources, tenant=None, limit=10):
+        return [{"job": "test_job", "inputs": [{"name": sources[0]}], "outputs": [], "facets": {"tenant": tenant}}]
+
     monkeypatch.setattr(m, "get_lineage_history", fake_hist)
+    monkeypatch.setattr(m, "get_lineage_by_sources", fake_by_sources)
     c = _client(monkeypatch, "phuong-a", _FakeConn(_rows()))
-    r = c.get("/api/v1/metrics/canh_bao_cong_truong/lineage", headers={"Authorization": "Bearer x"})
+
+    # Chỉ số lakehouse lấy theo lineage_job
+    r_lake = c.get("/api/v1/metrics/ho_so_moi/lineage", headers={"Authorization": "Bearer x"})
+    assert r_lake.status_code == 200
+    assert r_lake.json()["job"] == "export_warm_lakehouse"
+    assert len(r_lake.json()["lineage_events"]) == 1
+
+    # Chỉ số thông thường lấy theo bang_nguon
+    r = c.get("/api/v1/metrics/thoi_gian_xu_ly_tb/lineage", headers={"Authorization": "Bearer x"})
     assert r.status_code == 200
     body = r.json()
-    assert body["job"] == "iot_ingest" and body["bang_nguon"] == ["core.outbox"]
+    assert body["bang_nguon"] == ["app_cap_phep.ho_so", "app_cap_phep.giay_phep"]
     assert len(body["lineage_events"]) == 1
+
+    # Khi không có sự kiện phù hợp với bang_nguon thì trả danh sách rỗng
+    async def fake_empty(sources, tenant=None, limit=10):
+        return []
+
+    monkeypatch.setattr(m, "get_lineage_by_sources", fake_empty)
+    r_empty = c.get("/api/v1/metrics/thoi_gian_xu_ly_tb/lineage", headers={"Authorization": "Bearer x"})
+    assert r_empty.status_code == 200
+    assert r_empty.json()["lineage_events"] == []
+
+    # 404 khi không có chỉ số này
     assert c.get("/api/v1/metrics/khong_co/lineage", headers={"Authorization": "Bearer x"}).status_code == 404
