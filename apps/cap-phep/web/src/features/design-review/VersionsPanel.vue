@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <script setup lang="ts">
 import { computed } from "vue";
 import { Badge, Button, EmptyState } from "../../design-system";
+import { tenBoMon } from "../../utils/labels";
 import { moTaSoSanh, soSanhPhienBan } from "./compare";
 import type { MaBoMon, PhienBanDayDu } from "./types";
 
@@ -61,14 +62,14 @@ function ngay(value?: string | null): string {
       <div v-if="soSanh && hienTai && truoc" class="rounded-ds-sm border border-ds-border bg-ds-surface-2/60 p-3">
         <h4 class="m-0 text-ds-sm font-semibold text-ds-text">v{{ truoc.so_phien_ban }} → v{{ hienTai.so_phien_ban }}: {{ moTaSoSanh(soSanh) }}</h4>
         <ul class="mt-2 list-disc pl-5 text-ds-sm text-ds-text">
-          <li v-for="bv in soSanh.them" :key="'them-' + bv.id">Thêm: {{ bv.ten }} ({{ bv.bo_mon }})</li>
-          <li v-for="bv in soSanh.bo" :key="'bo-' + bv.id">Bỏ: {{ bv.ten }} ({{ bv.bo_mon }})</li>
+          <li v-for="bv in soSanh.them" :key="'them-' + bv.id">Thêm: {{ bv.ten }} ({{ tenBoMon(bv.bo_mon) }})</li>
+          <li v-for="bv in soSanh.bo" :key="'bo-' + bv.id">Bỏ: {{ bv.ten }} ({{ tenBoMon(bv.bo_mon) }})</li>
           <li v-for="d in soSanh.doi" :key="'doi-' + d.moi.id">
-            Đổi: {{ d.moi.ten }} ({{ d.moi.bo_mon }}), hash {{ d.cu.sha256.slice(0, 8) }}… → {{ d.moi.sha256.slice(0, 8) }}…
+            Đổi: {{ d.moi.ten }} ({{ tenBoMon(d.moi.bo_mon) }}), hash {{ d.cu.sha256.slice(0, 8) }}… → {{ d.moi.sha256.slice(0, 8) }}…
           </li>
         </ul>
         <p v-if="soSanh.thieuBoMon.length" class="mt-2 mb-0 text-ds-sm text-ds-danger">
-          Thiếu bộ môn bắt buộc: {{ soSanh.thieuBoMon.join(", ") }}
+          Thiếu bộ môn bắt buộc: {{ soSanh.thieuBoMon.map(tenBoMon).join(", ") }}
         </p>
         <p v-else class="mt-2 mb-0 text-ds-sm text-ds-success">Đủ bộ môn bắt buộc.</p>
       </div>

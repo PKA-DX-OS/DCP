@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { readRoles } from "../../auth";
+import { tenBoMon as tenBoMonMacDinh } from "../../utils/labels";
 import { downloadFile, uploadFile as taiTepLen } from "../../api/files";
 import { notify } from "../../composables/useToast";
 import { Badge, Button, FileUpload, Input, Modal, Select, Skeleton, Tabs, Textarea } from "../../design-system";
@@ -97,7 +98,7 @@ function toneKetLuan(value?: string): "success" | "danger" | "warning" | "neutra
   return value === "dat" ? "success" : value === "khong_dat" ? "danger" : value === "dang_tham_dinh" ? "warning" : "neutral";
 }
 function tenBoMon(ma: string): string {
-  return boMon.value.find((b) => b.ma === ma)?.ten || ma;
+  return boMon.value.find((b) => b.ma === ma)?.ten || tenBoMonMacDinh(ma);
 }
 
 async function taiTatCa() {

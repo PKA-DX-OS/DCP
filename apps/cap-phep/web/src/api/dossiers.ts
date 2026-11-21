@@ -8,6 +8,23 @@ export async function fetchHoSo(token: string): Promise<HoSo[]> {
   return apiJson<HoSo[]>("/rest/v_ho_so?order=created_at.desc&limit=100", { token }, "Lỗi tải danh sách hồ sơ");
 }
 
+/**
+ * Trạng thái sống của nhiều hồ sơ trong một lần gọi.
+ * Biến `trang_thai_ho_so` của Flowable chỉ là ảnh chụp lúc khởi động quy trình,
+ * nên hàng đợi phải ưu tiên trạng thái hiện tại trong `v_ho_so`.
+ */
+export async function fetchDossierStatuses(token: string, ids: string[]): Promise<Record<string, string>> {
+  const hopLe = Array.from(new Set(ids.filter(Boolean)));
+  if (!hopLe.length) return {};
+  const danhSach = hopLe.map((id) => encodeURIComponent(id)).join(",");
+  const rows = await apiJson<{ id: string; trang_thai: string }[]>(
+    `/rest/v_ho_so?select=id,trang_thai&id=in.(${danhSach})`,
+    { token },
+    "Lỗi tải trạng thái hồ sơ",
+  );
+  return Object.fromEntries((rows || []).map((r) => [r.id, r.trang_thai]));
+}
+
 /** Tệp đính kèm của một hồ sơ (mới nhất trước). */
 export async function fetchDossierFiles(token: string, hoSoId: string): Promise<any[]> {
   return apiJson<any[]>(

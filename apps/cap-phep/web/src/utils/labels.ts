@@ -210,3 +210,67 @@ export function tenChiSo(value: string | undefined | null): string {
   };
   return (value && ten[value]) || value || "Chỉ số";
 }
+
+const LOAI_MOC: Record<string, string> = {
+  mong: "Nghiệm thu móng",
+  ket_cau: "Nghiệm thu kết cấu",
+  hoan_thien: "Nghiệm thu hoàn thiện",
+  hoan_cong: "Hoàn công",
+};
+
+/** Tên mốc nghiệm thu từ mã trong app_construction.moc_nghiem_thu. */
+export function tenLoaiMoc(value: string | undefined | null): string {
+  return (value && LOAI_MOC[value]) || value || "";
+}
+
+const KET_QUA_NGHIEM_THU: Record<string, string> = {
+  dat: "Đạt",
+  khong_dat: "Không đạt",
+  cho_nghiem_thu: "Chờ nghiệm thu",
+  cho_kiem_tra: "Chờ kiểm tra",
+};
+
+/** Kết quả/trạng thái nghiệm thu hoặc bản vẽ hoàn công. */
+export function tenKetQuaNghiemThu(value: string | undefined | null): string {
+  return (value && KET_QUA_NGHIEM_THU[value]) || value || "";
+}
+
+const SU_KIEN_NGHIEM_THU: Record<string, string> = {
+  mong: "Mốc nghiệm thu móng",
+  ket_cau: "Mốc nghiệm thu kết cấu",
+  hoan_thien: "Mốc nghiệm thu hoàn thiện",
+  hoan_cong: "Mốc hoàn công",
+  bien_ban: "Biên bản nghiệm thu",
+  ban_ve_hoan_cong: "Bản vẽ hoàn công",
+};
+
+/** Tên sự kiện trong lịch sử nghiệm thu. */
+export function tenSuKienNghiemThu(value: string | undefined | null): string {
+  return (value && SU_KIEN_NGHIEM_THU[value]) || value || "";
+}
+
+const BO_MON: Record<string, string> = {
+  kien_truc: "Kiến trúc",
+  ket_cau: "Kết cấu",
+  mep: "MEP",
+  pccc: "PCCC",
+};
+
+/** Tên bộ môn thiết kế từ mã trong app_cap_phep.bo_mon_thiet_ke. */
+export function tenBoMon(value: string | undefined | null): string {
+  return (value && BO_MON[value]) || value || "";
+}
+
+const LOAI_VAN_BAN: Record<string, string> = {
+  "giay-phep-xay-dung": "Giấy phép xây dựng",
+  giay_phep: "Giấy phép xây dựng",
+  "nghi-dinh": "Nghị định",
+  "thong-tu": "Thông tư",
+  luat: "Luật",
+  "quyet-dinh": "Quyết định",
+};
+
+/** Tên loại văn bản từ mã doc_type của kho văn bản/chữ ký số. */
+export function tenLoaiVanBan(value: string | undefined | null): string {
+  return (value && LOAI_VAN_BAN[value]) || value || "";
+}

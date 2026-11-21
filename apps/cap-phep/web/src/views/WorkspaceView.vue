@@ -5,14 +5,14 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { getUser, getValidToken, readRoles } from "../auth";
 import { assignTask, completeTask, fetchEscalations, fetchOfficers, fetchTasks, remindTask } from "../api/flow";
-import { fetchDossierFiles, fetchDossierHistory, openHoSo, reviewDossierFile } from "../api/dossiers";
+import { fetchDossierFiles, fetchDossierHistory, fetchDossierStatuses, openHoSo, reviewDossierFile } from "../api/dossiers";
 import { useDossierActions, type NguoiDung } from "../composables/useDossierActions";
 import { notify } from "../composables/useToast";
 import { EmptyState, Skeleton } from "../design-system";
 import DossierActionBar from "../components/DossierActionBar.vue";
 import WorkflowAssistantPanel from "../components/workflow/WorkflowAssistantPanel.vue";
 import { formatStatus } from "../utils/formatters";
-import { cheCccd, ngayLamViecDaQua, tenBuoc, tenChiSo, tenHanhDong } from "../utils/labels";
+import { cheCccd, ngayLamViecDaQua, tenBuoc, tenChiSo, tenDonVi, tenHanhDong } from "../utils/labels";
 import {
   docBoLoc,
   luuBoLoc,
@@ -68,6 +68,8 @@ const tenBoLoc = ref("");
 const selectedTask = ref<FlowTask | null>(null);
 const selectedDossier = ref<any | null>(null);
 const accessToken = ref("");
+/** Trạng thái sống theo hồ sơ, thay cho biến Flowable chỉ chụp lúc khởi động quy trình. */
+const trangThaiSong = ref<Record<string, string>>({});
 const files = ref<any[]>([]);
 const audit = ref<any[]>([]);
 const loadingDetail = ref(false);
@@ -100,9 +102,25 @@ function thongTin(t: FlowTask): { id: string; ma: string; diaChi: string; trangT
     id,
     ma,
     diaChi: bien(t, "dia_chi_cong_trinh") || "",
-    trangThai: bien(t, "trang_thai_ho_so") || "",
+    trangThai: trangThaiSong.value[id] || bien(t, "trang_thai_ho_so") || "",
     uuTien: bien(t, "do_uu_tien") || "binh_thuong",
   };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Tải trạng thái hiện tại của các hồ sơ đang có việc; lỗi thì giữ ảnh chụp từ Flowable. */
+async function capNhatTrangThaiSong(ds: FlowTask[]): Promise<void> {
+  const ids = Array.from(new Set(ds.map((t) => thongTin(t).id).filter((id) => UUID_RE.test(id))));
+  if (!ids.length || !accessToken.value) {
+    trangThaiSong.value = {};
+    return;
+  }
+  try {
+    trangThaiSong.value = await fetchDossierStatuses(accessToken.value, ids);
+  } catch {
+    trangThaiSong.value = {};
+  }
 }
 
 function hanCuaViec(t: FlowTask): number | null {
@@ -360,6 +378,7 @@ async function taiViec(): Promise<void> {
     if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
     accessToken.value = t;
     tasks.value = await fetchTasks(t);
+    await capNhatTrangThaiSong(tasks.value);
     if (laQuanLy.value) {
       loadingEscalations.value = true;
       try {
@@ -906,7 +925,7 @@ defineExpose({ taiViec });
             </div>
             <div>
               <dt class="nhan-nho">Địa bàn</dt>
-              <dd class="m-0 text-chu">{{ selectedDossier.tenant || "—" }}</dd>
+              <dd class="m-0 text-chu">{{ selectedDossier.tenant ? tenDonVi(selectedDossier.tenant) : "—" }}</dd>
             </div>
             <div>
               <dt class="nhan-nho">Hạn xử lý</dt>

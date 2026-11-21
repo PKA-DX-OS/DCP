@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { Badge, Button, EmptyState, Select, Textarea } from "../../design-system";
+import { tenBoMon } from "../../utils/labels";
 import type { BanVe, MucDo, NhanXet } from "./types";
 
 const props = defineProps<{
@@ -44,7 +45,7 @@ watch(
 );
 
 const dsBanVe = computed(() =>
-  props.drawings.map((bv) => ({ value: bv.id, label: `${bv.ten} (${bv.bo_mon})` })),
+  props.drawings.map((bv) => ({ value: bv.id, label: `${bv.ten} (${tenBoMon(bv.bo_mon)})` })),
 );
 const mucDoOptions = [
   { value: "", label: "Tất cả mức độ" },
@@ -113,7 +114,7 @@ function gui() {
     <EmptyState v-else-if="!daLoc.length" title="Chưa có nhận xét" description="Nhận xét của thẩm định viên sẽ hiện ở đây." />
     <template v-else>
       <section v-for="[boMon, ds] in theoBoMon" :key="boMon" class="flex flex-col gap-2">
-        <h4 class="m-0 text-ds-sm font-semibold text-ds-text">{{ boMon }}</h4>
+        <h4 class="m-0 text-ds-sm font-semibold text-ds-text">{{ tenBoMon(boMon) }}</h4>
         <article v-for="nx in ds" :key="nx.id" class="rounded-ds-sm border border-ds-border p-3">
           <div class="flex flex-wrap items-center gap-2">
             <Badge :tone="toneMucDo(nx.muc_do)" size="sm">{{ nhanMucDo(nx.muc_do) }}</Badge>

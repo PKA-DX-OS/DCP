@@ -39,6 +39,25 @@ export function donViHienThi(unit) {
   return unit === "phần trăm" ? "%" : unit || "";
 }
 
+/**
+ * Chỉ số thời gian xử lý trung bình: API làm tròn 0.0 khi trung bình dưới một ngày.
+ * Hiển thị "< 1" thay vì "0" để không gây hiểu nhầm là chưa có dữ liệu.
+ */
+export function hienThiGiaTriChiSo(metric) {
+  if (!metric) return null;
+  if (metric.code === "thoi_gian_xu_ly_tb" && metric.value !== null && metric.value !== undefined && Number(metric.value) === 0) {
+    return "< 1";
+  }
+  return metric.value;
+}
+
+/** Có chỉ số thời gian xử lý trung bình đang dưới một ngày hay không. */
+export function laThoiGianDuoiNgay(metrics) {
+  return (metrics || []).some(
+    (m) => m.code === "thoi_gian_xu_ly_tb" && m.value !== null && m.value !== undefined && Number(m.value) === 0,
+  );
+}
+
 /** Số nguyên có dấu phân cách hàng nghìn kiểu Việt Nam. */
 export function formatSo(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";

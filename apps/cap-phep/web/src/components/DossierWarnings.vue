@@ -2,11 +2,16 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { confirmDossierWarnings, fetchDossierWarnings } from "../api/planning";
+import { readRoles } from "../auth";
 import { notify } from "../composables/useToast";
 
-const props = defineProps<{ dossier: any; token: string }>();
+const props = defineProps<{ dossier: any; token: string; vaiTro?: string[] }>();
+
+/** DB chỉ cho ba vai nghiệp vụ xác nhận; các vai khác chỉ được xem cảnh báo. */
+const VAI_XAC_NHAN = ["app:cap-phep:mot-cua", "app:cap-phep:tham-dinh", "app:cap-phep:lanh-dao"];
+const coTheXacNhan = computed(() => (props.vaiTro ?? readRoles(props.token)).some((r) => VAI_XAC_NHAN.includes(r)));
 
 const duLieu = ref<any>(null);
 const loading = ref(false);
@@ -60,7 +65,7 @@ onMounted(tai);
       <p v-if="duLieu.xac_nhan_at" class="text-[13px] mt-2 mb-0">
         Đã xác nhận lúc {{ new Date(duLieu.xac_nhan_at).toLocaleString("vi-VN") }}<template v-if="duLieu.ghi_chu"> — {{ duLieu.ghi_chu }}</template>
       </p>
-      <div v-else class="mt-2 flex flex-wrap items-end gap-2">
+      <div v-else-if="coTheXacNhan" class="mt-2 flex flex-wrap items-end gap-2">
         <label class="block flex-1 min-w-[220px]">
           <span class="nhan">Ghi chú xác nhận (không bắt buộc)</span>
           <input v-model="ghiChu" class="o w-full" maxlength="2000" />
@@ -69,6 +74,9 @@ onMounted(tai);
           {{ saving ? "Đang lưu…" : "Xác nhận cảnh báo" }}
         </button>
       </div>
+      <p v-else class="goi-y mt-2 mb-0">
+        Chỉ cán bộ một cửa, thẩm định hoặc lãnh đạo được xác nhận cảnh báo. Cảnh báo không chặn hồ sơ hợp pháp.
+      </p>
     </template>
   </section>
 </template>

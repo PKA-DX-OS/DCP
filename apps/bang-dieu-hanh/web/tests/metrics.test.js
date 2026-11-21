@@ -14,6 +14,8 @@ import {
   formatNgay,
   dinhDangGiaTri,
   formatThoiDiem,
+  hienThiGiaTriChiSo,
+  laThoiGianDuoiNgay,
 } from "../src/utils/metrics.js";
 
 test("mọi chỉ số khai báo trong app.yaml đều có nhãn tiếng Việt", () => {
@@ -67,4 +69,14 @@ test("formatThoiDiem trả thời điểm theo giờ Việt Nam và xử lý l�
   expect(formatThoiDiem(null)).toBe("—");
   expect(formatThoiDiem("không phải ngày")).toBe("—");
   expect(formatThoiDiem("2026-11-16T00:00:00Z")).not.toBe("—");
+});
+
+test("thời gian xử lý trung bình 0 ngày hiển thị là dưới 1 ngày", () => {
+  const chiSo = { code: "thoi_gian_xu_ly_tb", value: 0 };
+  expect(hienThiGiaTriChiSo(chiSo)).toBe("< 1");
+  expect(laThoiGianDuoiNgay([chiSo])).toBe(true);
+  expect(hienThiGiaTriChiSo({ code: "thoi_gian_xu_ly_tb", value: 2.5 })).toBe(2.5);
+  expect(hienThiGiaTriChiSo({ code: "ho_so_moi", value: 0 })).toBe(0);
+  expect(laThoiGianDuoiNgay([{ code: "ho_so_moi", value: 0 }])).toBe(false);
+  expect(laThoiGianDuoiNgay(null)).toBe(false);
 });

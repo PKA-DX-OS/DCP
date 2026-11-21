@@ -24,6 +24,11 @@ import {
   ngayNgan,
   tenBuoc,
   tenChiSo,
+  tenLoaiMoc,
+  tenKetQuaNghiemThu,
+  tenSuKienNghiemThu,
+  tenBoMon,
+  tenLoaiVanBan,
 } from "../src/utils/labels";
 
 const NGAY = 24 * 60 * 60 * 1000;
@@ -131,6 +136,28 @@ describe("nhãn tiếng Việt", () => {
     expect(tenBuoc(null)).toBe("");
     expect(tenYeuCauDuLieu("erase")).toBe("Xóa dữ liệu");
     expect(tenYeuCauDuLieu("rectify")).toBe("Chỉnh sửa dữ liệu");
+  });
+});
+
+describe("nhãn nghiệm thu, bộ môn và loại văn bản", () => {
+  test("mốc, kết quả và sự kiện nghiệm thu có nhãn tiếng Việt", () => {
+    expect(tenLoaiMoc("ket_cau")).toBe("Nghiệm thu kết cấu");
+    expect(tenLoaiMoc("hoan_cong")).toBe("Hoàn công");
+    expect(tenLoaiMoc("khac")).toBe("khac");
+    expect(tenKetQuaNghiemThu("dat")).toBe("Đạt");
+    expect(tenKetQuaNghiemThu("khong_dat")).toBe("Không đạt");
+    expect(tenKetQuaNghiemThu("cho_kiem_tra")).toBe("Chờ kiểm tra");
+    expect(tenSuKienNghiemThu("bien_ban")).toBe("Biên bản nghiệm thu");
+    expect(tenSuKienNghiemThu("ban_ve_hoan_cong")).toBe("Bản vẽ hoàn công");
+    expect(tenSuKienNghiemThu("mong")).toBe("Mốc nghiệm thu móng");
+  });
+
+  test("bộ môn thiết kế và loại văn bản không còn mã thô", () => {
+    expect(tenBoMon("mep")).toBe("MEP");
+    expect(tenBoMon("ket_cau")).toBe("Kết cấu");
+    expect(tenBoMon("pccc")).toBe("PCCC");
+    expect(tenLoaiVanBan("giay-phep-xay-dung")).toBe("Giấy phép xây dựng");
+    expect(tenLoaiVanBan("giay_phep")).toBe("Giấy phép xây dựng");
   });
 });
 
