@@ -44,10 +44,10 @@ Số liệu đo từ các cảm biến IoT lắp đặt tại công trường ph
 
 ---
 
-## 4. Thành Phần Hồ Sơ
+## 4. Thành Phần Hồ Sơ (giấy tờ phải nộp)
 
-1. **Bắt buộc:** Đơn xin cấp phép xây dựng; Giấy chứng nhận quyền sử dụng đất; Bản vẽ mặt bằng; Bản vẽ tầng; Bản vẽ móng; Cam kết an toàn và môi trường.
-2. **Kèm theo nếu có:** Giấy thẩm duyệt PCCC; Chứng chỉ năng lực nhà thầu; Biên lai lệ phí; Tài liệu phục vụ kiểm tra; Tài liệu bổ sung theo yêu cầu.
+1. **Giấy tờ bắt buộc:** Hồ sơ cấp giấy phép xây dựng nhà ở riêng lẻ gồm đơn đề nghị cấp giấy phép xây dựng (Mẫu số 01); một trong các giấy tờ hợp pháp về đất đai; bản vẽ mặt bằng công trình trên lô đất; bản vẽ mặt bằng các tầng, mặt đứng, mặt cắt; bản vẽ móng kèm sơ đồ đấu nối hạ tầng; bản cam kết bảo đảm an toàn công trình liền kề (Điều 60 Nghị định 217/2026/NĐ-CP).
+2. **Giấy tờ kèm theo nếu có:** Kết quả thẩm duyệt PCCC; chứng chỉ năng lực nhà thầu; biên lai lệ phí; báo cáo thẩm tra thiết kế; tài liệu bổ sung theo yêu cầu.
 
 ---
 
