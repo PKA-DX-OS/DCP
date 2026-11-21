@@ -26,6 +26,13 @@ EXCLUDED_PREFIXES = (
     "core/postgres/14-legal-backend-fix.sql",
     "core/postgres/15-fix-share-citation.sql",
     "core/postgres/17-nghiem-thu-trat-tu.sql",
+    # Track D (kế hoạch D & H, mục 5, 8.1): danh mục, dữ liệu chủ, rule DQ mô tả miền dữ liệu
+    # của gói xây dựng; route APISIX của API D trỏ dịch vụ construction.
+    "core/postgres/20-data-governance.sql",
+    "core/postgres/21-mdm.sql",
+    "core/postgres/22-data-quality.sql",
+    "core/postgres/23-catalog-lineage.sql",
+    "core/postgres/24-external-refs.sql",
     "services/construction/",
 )
 SUFFIXES = {".py", ".sql", ".yaml", ".yml", ".conf", ".sh", ".json", ".toml", ".ts", ".js"}

@@ -16,6 +16,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Kế hoạch D & H (D-P0-01):** `docs/data/ke-hoach-dh.md` bản chỉnh sau rà soát v1.1 và `OWNERSHIP.md` chia quyền sở hữu tệp giữa Track D và Track H.
 - **Đo mốc D & H (D-P0-02):** `scripts/dh_baseline.py` đo thao tác thủ công, chuyển tay, làm lại, tự phục vụ và chất lượng dữ liệu hồ sơ (chỉ đọc, không in dữ liệu định danh).
 - **Hợp đồng API D & H (D-P0-03):** `contracts/dh/` gồm 7 hợp đồng OpenAPI 3.1 (MDM và xem 360, tìm kiếm, chất lượng dữ liệu, danh mục, phả hệ, OCR, chỉ số hiệu quả) kèm mock và test kiểm mock khớp schema.
+- **Danh mục dữ liệu (D-GOV-01, D-GOV-02, D-CAT-01):** `core.data_owners`, `core.data_assets`, `core.data_asset_columns`, `core.data_contracts` (migration lõi 20, 23); 9 miền có chủ quản, tài sản lõi và tài sản cấp phép có phân loại, thời hạn lưu trữ, cột cá nhân (`24-dh-danh-muc.sql`); API `/api/v1/catalog/*` theo `contracts/dh/catalog.yaml`, route APISIX `dh.yaml` cho các API Track D, lỗi `{code, message, details}`.
 
 ### Đã sửa (Fixed)
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.
