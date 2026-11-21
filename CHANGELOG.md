@@ -24,6 +24,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Nhật ký hồ sơ và DSAR (FIX-V11-04):** nhãn tiếng Việt cho mã hành động, vai nghiệp vụ thay vai kỹ thuật, tên người yêu cầu thay UUID (view `v_ten_nguoi_dung`), đánh dấu quá hạn xác nhận.
 - **Bàn làm việc (FIX-V11-05):** nhãn lọc đi cùng ô chọn, lịch sử dùng nhãn tiếng Việt, che số CCCD; trang không quyền có nút đăng xuất và lối sang bảng điều hành; chuông hiện 99+.
 - **Trợ lý pháp lý (FIX-V11-06):** câu trả lời trích xuất ghép tối đa 3 câu trọn vẹn, bỏ ký hiệu markdown; nguồn hiện "Nghị định 217, Điều 54".
+- **Thời hạn giải quyết (FIX-V11-07):** hồ sơ mới có hạn 7 ngày làm việc theo Điều 54 NĐ 217/2026 thay vì 15; SLA từng bước, form nộp và thanh tiến độ khớp con số này (`app_cap_phep.so_ngay_giai_quyet()`).
 
 ---
 

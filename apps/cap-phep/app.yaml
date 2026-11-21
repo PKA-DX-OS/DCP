@@ -160,12 +160,14 @@ flow_policies:
     taskThamDinhBoMon: taskTongHopThietKe
     taskTongHopThietKe: taskBoSungThietKe
     taskBoSungThietKe: taskThamDinhBoMon
+  # Luồng cấp phép cộng lại đúng 7 ngày (Điều 54 NĐ 217/2026): kiểm tra 1, phân công 1, thẩm định 3,
+  # phê duyệt và cấp 2. Thẩm định nhanh (không thuộc khu quản lý kiến trúc) 2 ngày.
   sla:
-    taskKiemTraHopLe: P3D
-    taskPhanCong: P2D
-    taskThamDinh: P7D
-    taskThamDinhNhanh: P5D
-    taskDuyetCapPhep: P3D
+    taskKiemTraHopLe: P1D
+    taskPhanCong: P1D
+    taskThamDinh: P3D
+    taskThamDinhNhanh: P2D
+    taskDuyetCapPhep: P2D
     taskKiemTraQuyHoach: P2D
     taskXuLyQuyHoach: P7D
     taskPhanCongThamDinh: P1D

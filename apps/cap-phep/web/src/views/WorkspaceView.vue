@@ -253,11 +253,12 @@ async function sauKhiXuLy(d: any): Promise<void> {
   await taiChiTiet();
 }
 
+// Tổng 7 ngày làm việc (Điều 54 NĐ 217/2026), thẩm định 3 ngày; khớp app_cap_phep.so_ngay_giai_quyet()
 const STEPS = [
-  { key: "tiep_nhan", label: "Tiếp nhận", days: 3 },
-  { key: "phan_cong", label: "Phân công", days: 2 },
-  { key: "tham_dinh", label: "Thẩm định", days: 7 },
-  { key: "phe_duyet", label: "Phê duyệt", days: 2 },
+  { key: "tiep_nhan", label: "Tiếp nhận", days: 1 },
+  { key: "phan_cong", label: "Phân công", days: 1 },
+  { key: "tham_dinh", label: "Thẩm định", days: 3 },
+  { key: "phe_duyet", label: "Phê duyệt", days: 1 },
   { key: "hoan_thanh", label: "Cấp phép", days: 1 },
 ];
 
