@@ -19,6 +19,7 @@ service backend hay `contracts/dh/*` của Track D.
 | H-AUTO-01 | Điền nhanh từ hồ sơ cũ/tài khoản; không ghi đè dữ liệu đã nhập; cảnh báo trùng | Xong phần hồ sơ/tài khoản |
 | H-AUTO-02 | Kiểm tra CCCD, điện thoại, địa chỉ, thửa đất, số tầng, diện tích; tự lưu bản nháp | Xong |
 | H-OCR | Hàng chờ duyệt trích xuất, xem tệp gốc, sửa trường, xác nhận/từ chối | Xong UI + mock; chờ API D |
+| H-WORK-04 | Lưu bộ lọc, chọn nhiều, nhắc/phân công hàng loạt, xuất CSV | Xong |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
 
 Chưa làm trong lát cắt này: autofill từ OCR thật, PWA hiện trường, self-service,
@@ -99,7 +100,25 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 - Khi API chưa có: dùng dữ liệu mẫu theo `contracts/dh/ocr.yaml`, ghi rõ “Dữ liệu mẫu”;
   xác nhận/từ chối chỉ đổi trên trình duyệt, không tạo audit thật.
 
-## 6. File chính
+## 6. Bộ lọc đã lưu & thao tác hàng loạt
+
+### 6.1. Bộ lọc đã lưu
+
+- Lưu cặp “Hạn” + “Loại việc” theo tên vào `localStorage`, tối đa 10 bộ lọc.
+- Chọn lại để áp dụng, hoặc xóa bộ lọc đang chọn.
+- Chỉ lưu nhãn bộ lọc, không lưu hồ sơ, CCCD hay dữ liệu cá nhân.
+
+### 6.2. Thao tác hàng loạt
+
+- Chọn từng việc hoặc chọn tất cả việc đang lọc.
+- **Nhắc việc**: chỉ lãnh đạo/một cửa; có bước xác nhận; báo số thành công/thất bại.
+- **Phân công**: chọn nhóm cán bộ (thẩm định/một cửa/lãnh đạo/trật tự), chọn cán bộ, lý do; có xác nhận.
+- Việc lỗi được giữ chọn để thử lại; việc thành công được bỏ chọn.
+- **Xuất CSV** các việc đã chọn: mã hồ sơ, tên việc, địa chỉ, hạn, trạng thái, mức ưu tiên.
+- CSV tạo và tải trên máy, không gửi lên máy chủ; nhắc/phân công được ghi audit phía máy chủ.
+- API dùng: `fetchOfficers`, `assignTask`, `remindTask` (đã có).
+
+## 7. File chính
 
 | File | Vai trò |
 | :--- | :--- |
@@ -118,17 +137,22 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | `apps/cap-phep/web/src/utils/nop-ho-so.ts` | Form mặc định, bản nháp sessionStorage, điền từ hồ sơ cũ |
 | `apps/cap-phep/web/src/api/ocr.ts` | Client OCR, kiểu dữ liệu, mock có nhãn, idempotency |
 | `apps/cap-phep/web/src/features/ocr-review/*` | Tab Duyệt OCR: hàng chờ, chi tiết, xác nhận/từ chối |
+| `apps/cap-phep/web/src/views/WorkspaceView.vue` | Bộ lọc đã lưu, chọn nhiều, nhắc/phân công/CSV |
+| `apps/cap-phep/web/src/utils/workspace-filters.ts` | Đọc/ghi/xóa bộ lọc Bàn làm việc trong localStorage |
+| `apps/cap-phep/web/src/utils/csv.ts` | Tạo CSV có BOM và escape đúng |
 
-## 7. Phân quyền hiển thị
+## 8. Phân quyền hiển thị
 
 | Màn | Vai |
 | :--- | :--- |
 | Nút tìm kiếm + palette | Người đã đăng nhập |
 | 360 hồ sơ | Người đã đăng nhập; API quyết định dữ liệu trả về |
 | Duyệt OCR | `app:cap-phep:mot-cua`, `app:cap-phep:tham-dinh`, `app:cap-phep:lanh-dao` |
+| Nhắc/phân công hàng loạt | `app:cap-phep:lanh-dao`, `app:cap-phep:mot-cua` |
+| Chọn & xuất CSV | Cán bộ thấy Bàn làm việc |
 | Hiệu quả vận hành | `app:cap-phep:lanh-dao`, `dx:auditor`, `dx:tenant-admin`, `dx:platform-admin` |
 
-## 8. Kiểm thử
+## 9. Kiểm thử
 
 ```powershell
 cd apps/cap-phep/web
@@ -144,7 +168,7 @@ npm run build
 
 Kết quả tại lát cắt này:
 
-- Cấp phép: 22 tệp test, 159 test pass; type-check và build pass.
+- Cấp phép: 25 tệp test, 171 test pass; type-check và build pass.
 - Bảng điều hành: 5 tệp test, 26 test pass; type-check và build pass.
 - Test H-WORK: `tests/dh.test.js`, `tests/global-search.test.js`,
   `tests/dossier-360.test.js`, `tests/automation-panel.test.js`.
@@ -152,8 +176,10 @@ Kết quả tại lát cắt này:
   `tests/create-dossier-autofill.test.js`, `tests/create-dossier-validation.test.js`,
   `tests/create-dossier-draft.test.js`, `tests/supplement-validation.test.js`.
 - Test H-OCR: `tests/ocr-api.test.js`, `tests/ocr-review.test.js`.
+- Test H-WORK-04: `tests/workspace-filters.test.js`, `tests/csv.test.js`,
+  `tests/workspace-bulk.test.js`.
 
-## 9. Việc Gate 2
+## 10. Việc Gate 2
 
 1. Track D merge `GET /api/v1/mdm/dossiers/{id}/360`, `GET /api/v1/search`,
    `GET /api/v1/automation/metrics`, `/api/v1/ocr/*`.
@@ -161,12 +187,13 @@ Kết quả tại lát cắt này:
    “Dữ liệu MDM”, search chuyển nhãn “Dữ liệu tìm kiếm toàn cục”, metrics chuyển
    nhãn “Số đo thật”, OCR chuyển nhãn “API OCR”.
 3. Thêm E2E: mở hồ sơ → tab Tổng hợp; `Ctrl/Cmd+K` → tìm mã hồ sơ → mở đúng hồ sơ;
-   bảng điều hành → tab Hiệu quả vận hành; duyệt OCR → sửa trường → xác nhận.
+   bảng điều hành → tab Hiệu quả vận hành; duyệt OCR → sửa trường → xác nhận;
+   chọn nhiều việc → nhắc/phân công/CSV.
 4. Nối OCR thật: `POST /api/v1/ocr/extract` → review → điền tiếp vào form nộp hồ sơ.
 5. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
 6. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
 
-## 10. Giới hạn đã biết
+## 11. Giới hạn đã biết
 
 - Chưa có mock server `VITE_API_MOCK`; fallback hiện dùng dữ liệu hồ sơ/baseline có nhãn.
 - Fallback tìm kiếm chỉ lọc trong tối đa 100 hồ sơ gần nhất do `fetchHoSo` giới hạn
@@ -182,4 +209,8 @@ Kết quả tại lát cắt này:
   kết quả đã xác nhận vào autofill.
 - Xem tệp gốc phụ thuộc dịch vụ files và quyền của người dùng; PDF/ảnh lỗi MIME sẽ
   chỉ hiện nút tải tệp.
+- Bộ lọc đã lưu chỉ nằm trong trình duyệt hiện tại, không đồng bộ giữa thiết bị.
+- CSV xuất trên máy, không gửi máy chủ và không tạo audit; chỉ nhắc/phân công mới
+  được ghi audit.
+- Phân công hàng loạt chọn cán bộ theo nhóm vai, chưa tự cân bằng tải việc.
 - Chưa có PWA, self-service.
