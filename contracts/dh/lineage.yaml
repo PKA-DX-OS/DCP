@@ -1,0 +1,142 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-CAT-02 Phả hệ dữ liệu
+  version: 1.0.0
+  summary: Đồ thị phả hệ của một hồ sơ, giấy phép, công trình; lịch sử sự kiện của một job.
+  description: |
+    Dịch vụ `construction` phục vụ tại `/api/v1/lineage/*`, đọc `core.lineage_events` (OpenLineage tối giản:
+    job, run_id, inputs, outputs). D-CAT-02 bổ sung sự kiện cho nộp hồ sơ, kiểm tra quy hoạch, cấp giấy
+    phép, nghiệm thu, job metrics; sự kiện của một thực thể tìm theo `facets.entity`.
+
+    Vai: cán bộ `app:cap-phep:*` (trừ chủ đầu tư), `dx:auditor`, `dx:tenant-admin`, `dx:data-steward`.
+    Chỉ thấy sự kiện của phường mình.
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearer: []
+
+tags:
+  - name: lineage
+
+paths:
+  /api/v1/lineage/{entity_type}/{id}:
+    get:
+      tags: [lineage]
+      operationId: pha_he_thuc_the
+      summary: Đồ thị phả hệ của một thực thể
+      parameters:
+        - name: entity_type
+          in: path
+          required: true
+          schema: { type: string, enum: [ho_so, giay_phep, cong_trinh] }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: depth
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5, default: 2 }
+      responses:
+        "200":
+          description: Nút và cạnh; thực thể chưa có sự kiện thì hai mảng rỗng
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DoThiPhaHe" }
+        "404":
+          description: Không có thực thể
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+
+  /api/v1/lineage/jobs/{job}:
+    get:
+      tags: [lineage]
+      operationId: lich_su_job
+      summary: Các lần chạy gần nhất của một job
+      parameters:
+        - name: job
+          in: path
+          required: true
+          schema: { type: string, examples: [ingest.cam_bien, metrics.dashboard] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Sự kiện, mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SuKien" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+    Nut:
+      type: object
+      required: [id, kind, name]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [dataset, job, entity] }
+        name: { type: string }
+
+    Canh:
+      type: object
+      required: [from, to, job, run_id, event_time]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        job: { type: string }
+        run_id: { type: string }
+        event_time: { type: string, format: date-time }
+
+    DoThiPhaHe:
+      type: object
+      required: [entity_type, id, nodes, edges]
+      properties:
+        entity_type: { type: string }
+        id: { type: string, format: uuid }
+        nodes:
+          type: array
+          items: { $ref: "#/components/schemas/Nut" }
+        edges:
+          type: array
+          items: { $ref: "#/components/schemas/Canh" }
+
+    SuKien:
+      type: object
+      required: [id, event_time, job, run_id, inputs, outputs]
+      properties:
+        id: { type: string, format: uuid }
+        event_time: { type: string, format: date-time }
+        job: { type: string }
+        run_id: { type: string }
+        inputs:
+          type: array
+          items: { type: object }
+        outputs:
+          type: array
+          items: { type: object }
+        facets: { type: object }

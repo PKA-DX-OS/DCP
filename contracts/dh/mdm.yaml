@@ -1,0 +1,461 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-MDM Dữ liệu chủ và xem 360 hồ sơ
+  version: 1.0.0
+  summary: Liên kết chủ đầu tư, thửa đất, công trình, giấy phép với hồ sơ; xem 360; gộp bản ghi trùng.
+  description: |
+    Dịch vụ `construction` phục vụ tại `/api/v1/mdm/*` (route `core/apisix/routes/dh.yaml`).
+    Dữ liệu ở `core.mdm_*` (migration `core/postgres/21-mdm.sql`). MDM là lớp liên kết: không ghi đè
+    bảng nguồn của app; họ tên, điện thoại đọc từ hồ sơ nguồn qua view, CCCD chỉ lưu `cccd_hmac`.
+
+    ## Vai
+
+    | Thao tác | Vai |
+    |---|---|
+    | Đọc liên kết, 360, thực thể, ứng viên trùng | cán bộ `app:cap-phep:*` (trừ chủ đầu tư), `dx:auditor`, `dx:tenant-admin` |
+    | Tạo liên kết thủ công | cán bộ một cửa, thẩm định, `dx:tenant-admin`, `dx:data-steward` |
+    | Gộp, hoàn tác gộp | `dx:tenant-admin`, `dx:data-steward` |
+
+    Chủ đầu tư xem 360 hồ sơ của chính mình (cùng schema, phần `canh_bao` để trống).
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+    description: APISIX trên máy chạy stack
+
+security:
+  - bearer: []
+
+tags:
+  - name: mdm
+
+paths:
+  /api/v1/mdm/dossiers/{dossier_id}/links:
+    get:
+      tags: [mdm]
+      operationId: lay_lien_ket_ho_so
+      summary: Liên kết của một hồ sơ với chủ đầu tư, thửa đất, công trình, giấy phép
+      parameters:
+        - $ref: "#/components/parameters/DossierId"
+      responses:
+        "200":
+          description: Liên kết hiện có; thực thể chưa liên kết là null
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LienKetHoSo" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/dossiers/{dossier_id}/360:
+    get:
+      tags: [mdm]
+      operationId: xem_360_ho_so
+      summary: Xem 360 một hồ sơ (dùng cho panel 360 của bàn làm việc)
+      parameters:
+        - $ref: "#/components/parameters/DossierId"
+      responses:
+        "200":
+          description: Tổng hợp từ `v_dossier_360`; phần không có dữ liệu là null hoặc mảng rỗng
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HoSo360" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/search:
+    get:
+      tags: [mdm]
+      operationId: tim_thuc_the
+      summary: Tìm thực thể dữ liệu chủ theo loại (dùng khi tạo liên kết thủ công)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 100 }
+        - name: type
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/LoaiThucThe" }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Kết quả sắp theo độ khớp
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrangThucThe" }
+        "400": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/entities/{type}/{id}:
+    get:
+      tags: [mdm]
+      operationId: lay_thuc_the
+      summary: Chi tiết một thực thể và các hồ sơ liên kết
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/LoaiThucThe" }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Thực thể
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ThucThe" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/candidates:
+    get:
+      tags: [mdm]
+      operationId: ds_ung_vien_trung
+      summary: Ứng viên trùng của một thực thể (dưới ngưỡng tự liên kết, chờ người xét)
+      parameters:
+        - name: entity_type
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/LoaiThucThe" }
+        - name: entity_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Ứng viên, độ tin cậy giảm dần
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/UngVienTrung" }
+
+  /api/v1/mdm/links:
+    post:
+      tags: [mdm]
+      operationId: tao_lien_ket
+      summary: Tạo liên kết thủ công giữa hồ sơ và một thực thể
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaoLienKet" }
+      responses:
+        "201":
+          description: Liên kết đã tạo (gọi lại cùng khóa trả liên kết cũ)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LienKetHoSo" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+        "422": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/merge:
+    post:
+      tags: [mdm]
+      operationId: gop_thuc_the
+      summary: Gộp bản ghi trùng vào một bản ghi gốc (có hoàn tác)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GopThucThe" }
+      responses:
+        "200":
+          description: Đã gộp; bản ghi bị gộp có `merged_into` trỏ về bản gốc
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KetQuaGop" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/merge/{merge_id}/undo:
+    post:
+      tags: [mdm]
+      operationId: hoan_tac_gop
+      summary: Hoàn tác một lần gộp
+      parameters:
+        - name: merge_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Đã hoàn tác
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KetQuaGop" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    DossierId:
+      name: dossier_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+
+  responses:
+    Loi:
+      description: Lỗi
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Loi" }
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: [MDM_NOT_FOUND] }
+        message: { type: string }
+        details: { type: object }
+
+    LoaiThucThe:
+      type: string
+      enum: [subject, parcel, construction, permit, organization]
+
+    DoTinCay:
+      type: number
+      minimum: 0
+      maximum: 1
+
+    ThucTheTomTat:
+      type: object
+      required: [type, id, nhan, confidence]
+      properties:
+        type: { $ref: "#/components/schemas/LoaiThucThe" }
+        id: { type: string, format: uuid }
+        nhan: { type: string, description: "Nhãn hiển thị: họ tên, số thửa/tờ bản đồ, mã công trình, số giấy phép" }
+        ma: { type: [string, "null"], description: "Mã nghiệp vụ không nhạy cảm (mã công trình, số giấy phép, mã định danh địa điểm)" }
+        confidence: { $ref: "#/components/schemas/DoTinCay" }
+        source: { type: string, enum: [ho_so, ocr, import, thu_cong] }
+
+    LienKetHoSo:
+      type: object
+      required: [dossier_id, subject, parcel, construction, permit]
+      properties:
+        dossier_id: { type: string, format: uuid }
+        subject: { oneOf: [{ $ref: "#/components/schemas/ThucTheTomTat" }, { type: "null" }] }
+        parcel: { oneOf: [{ $ref: "#/components/schemas/ThucTheTomTat" }, { type: "null" }] }
+        construction: { oneOf: [{ $ref: "#/components/schemas/ThucTheTomTat" }, { type: "null" }] }
+        permit: { oneOf: [{ $ref: "#/components/schemas/ThucTheTomTat" }, { type: "null" }] }
+
+    CanhBao:
+      type: object
+      required: [nguon, code, severity, message]
+      properties:
+        nguon: { type: string, enum: [dq, mdm] }
+        code: { type: string, description: "Mã rule DQ hoặc mã cảnh báo MDM" }
+        severity: { type: string, enum: [info, warn, critical] }
+        message: { type: string }
+        field: { type: [string, "null"] }
+
+    HoSo360:
+      type: object
+      required: [ho_so, chu_dau_tu, thua_dat, cong_trinh, giay_phep, kiem_tra, tai_chinh, canh_bao, audit]
+      properties:
+        ho_so:
+          type: object
+          required: [id, ma_ho_so, trang_thai, buoc, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            ma_ho_so: { type: string }
+            trang_thai: { type: string }
+            buoc: { type: string }
+            created_at: { type: string, format: date-time }
+            han_tong_at: { type: [string, "null"], format: date-time }
+            qua_han: { type: boolean }
+        chu_dau_tu:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [subject_id, ho_ten, cccd_mask]
+              properties:
+                subject_id: { type: string, format: uuid }
+                ho_ten: { type: string }
+                cccd_mask: { type: string, pattern: "^[0-9]{4}\\*{6}[0-9]{2}$" }
+                dien_thoai_mask: { type: [string, "null"] }
+                so_ho_so_khac: { type: integer, minimum: 0, description: "Số hồ sơ khác cùng chủ đầu tư" }
+        thua_dat:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [parcel_id]
+              properties:
+                parcel_id: { type: string, format: uuid }
+                so_thua: { type: [string, "null"] }
+                to_ban_do: { type: [string, "null"] }
+                ma_dinh_danh_dia_diem: { type: [string, "null"], pattern: "^[0-9]{12}$" }
+                dien_tich_m2: { type: [number, "null"] }
+        cong_trinh:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [construction_id, ma_cong_trinh]
+              properties:
+                construction_id: { type: string, format: uuid }
+                ma_cong_trinh: { type: string }
+                dia_chi: { type: [string, "null"] }
+        giay_phep:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [permit_id, so_giay_phep, trang_thai]
+              properties:
+                permit_id: { type: string, format: uuid }
+                so_giay_phep: { type: string }
+                public_code: { type: [string, "null"] }
+                trang_thai: { type: string }
+                ngay_cap: { type: [string, "null"], format: date-time }
+        kiem_tra:
+          type: array
+          description: Kiểm tra quy hoạch, mốc nghiệm thu, phiếu kiểm tra hiện trường
+          items:
+            type: object
+            required: [loai, ket_qua, thoi_diem]
+            properties:
+              loai: { type: string, enum: [quy_hoach, nghiem_thu, hien_truong, thiet_ke] }
+              ket_qua: { type: string, enum: [dat, khong_dat, cho_xu_ly] }
+              thoi_diem: { type: string, format: date-time }
+              mo_ta: { type: [string, "null"] }
+        tai_chinh:
+          type: array
+          items:
+            type: object
+            required: [loai, so_tien, trang_thai]
+            properties:
+              loai: { type: string, description: "Lệ phí cấp phép, phí thẩm định" }
+              so_tien: { type: integer, minimum: 0, description: "VNĐ" }
+              trang_thai: { type: string, enum: [chua_thu, da_thu, mien] }
+        canh_bao:
+          type: array
+          items: { $ref: "#/components/schemas/CanhBao" }
+        audit:
+          type: object
+          required: [so_su_kien]
+          properties:
+            so_su_kien: { type: integer, minimum: 0 }
+            gan_nhat: { type: [string, "null"], format: date-time }
+
+    TrangThucThe:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ThucTheTomTat" }
+        page: { type: integer, minimum: 1 }
+        page_size: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+
+    ThucThe:
+      type: object
+      required: [type, id, nhan, confidence, merged_into, ho_so, external_refs]
+      properties:
+        type: { $ref: "#/components/schemas/LoaiThucThe" }
+        id: { type: string, format: uuid }
+        nhan: { type: string }
+        ma: { type: [string, "null"] }
+        confidence: { $ref: "#/components/schemas/DoTinCay" }
+        merged_into: { type: [string, "null"], format: uuid }
+        thuoc_tinh:
+          type: object
+          description: Thuộc tính theo loại; dữ liệu cá nhân ở dạng che
+        ho_so:
+          type: array
+          items:
+            type: object
+            required: [dossier_id, ma_ho_so, trang_thai]
+            properties:
+              dossier_id: { type: string, format: uuid }
+              ma_ho_so: { type: string }
+              trang_thai: { type: string }
+        external_refs:
+          type: array
+          items:
+            type: object
+            required: [system, external_id]
+            properties:
+              system: { type: string, examples: [csdl_dat_dai, csdl_dan_cu] }
+              external_id: { type: string }
+              confidence: { $ref: "#/components/schemas/DoTinCay" }
+              last_synced_at: { type: [string, "null"], format: date-time }
+
+    UngVienTrung:
+      type: object
+      required: [ung_vien, confidence, ly_do]
+      properties:
+        ung_vien: { $ref: "#/components/schemas/ThucTheTomTat" }
+        confidence: { $ref: "#/components/schemas/DoTinCay" }
+        ly_do:
+          type: array
+          items: { type: string, enum: [cccd, ho_ten, dien_thoai, dia_chi, thua_dat, ma_cong_trinh] }
+
+    TaoLienKet:
+      type: object
+      additionalProperties: false
+      required: [dossier_id, entity_type, entity_id]
+      properties:
+        dossier_id: { type: string, format: uuid }
+        entity_type: { type: string, enum: [subject, parcel, construction, permit] }
+        entity_id: { type: string, format: uuid }
+        ghi_chu: { type: string, maxLength: 500 }
+
+    GopThucThe:
+      type: object
+      additionalProperties: false
+      required: [entity_type, giu_id, gop_ids, ly_do]
+      properties:
+        entity_type: { $ref: "#/components/schemas/LoaiThucThe" }
+        giu_id: { type: string, format: uuid, description: "Bản ghi gốc được giữ" }
+        gop_ids:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: { type: string, format: uuid }
+        ly_do: { type: string, minLength: 5, maxLength: 500 }
+
+    KetQuaGop:
+      type: object
+      required: [merge_id, entity_type, giu_id, gop_ids, trang_thai, thuc_hien_luc]
+      properties:
+        merge_id: { type: string, format: uuid }
+        entity_type: { $ref: "#/components/schemas/LoaiThucThe" }
+        giu_id: { type: string, format: uuid }
+        gop_ids:
+          type: array
+          items: { type: string, format: uuid }
+        trang_thai: { type: string, enum: [da_gop, da_hoan_tac] }
+        thuc_hien_luc: { type: string, format: date-time }

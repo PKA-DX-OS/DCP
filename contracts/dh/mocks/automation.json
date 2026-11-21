@@ -1,0 +1,89 @@
+{
+  "chi_so_hieu_qua": {
+    "status": 200,
+    "body": {
+      "computed_at": "2026-11-20T09:00:00+07:00",
+      "period": {
+        "from": "2026-11-01",
+        "to": "2026-11-20"
+      },
+      "baseline_label": "v1.1",
+      "so_ho_so": 12,
+      "metrics": [
+        {
+          "key": "thao_tac_thu_cong_tb",
+          "label": "Thao tác thủ công / hồ sơ",
+          "unit": "",
+          "better": "lower",
+          "baseline": 14.0,
+          "current": 11.5,
+          "delta_pct": -17.9,
+          "source": "core.audit_log"
+        },
+        {
+          "key": "chuyen_tay_tb",
+          "label": "Lần chuyển tay / hồ sơ",
+          "unit": "",
+          "better": "lower",
+          "baseline": 4.0,
+          "current": 3.5,
+          "delta_pct": -12.5,
+          "source": "app_cap_phep.ho_so_lich_su"
+        },
+        {
+          "key": "ty_le_ho_so_phai_bo_sung_pct",
+          "label": "Hồ sơ phải bổ sung",
+          "unit": "%",
+          "better": "lower",
+          "baseline": 33.3,
+          "current": 25.0,
+          "delta_pct": -24.9,
+          "source": "core.audit_log"
+        },
+        {
+          "key": "thoi_gian_xu_ly_tb_ngay_lam_viec",
+          "label": "Thời gian nộp → ký",
+          "unit": "ngày làm việc",
+          "better": "lower",
+          "baseline": 5.2,
+          "current": 4.8,
+          "delta_pct": -7.7,
+          "source": "app_cap_phep.giay_phep"
+        },
+        {
+          "key": "ty_le_ky_dung_han_pct",
+          "label": "Ký đúng hạn",
+          "unit": "%",
+          "better": "higher",
+          "baseline": 83.3,
+          "current": 90.0,
+          "delta_pct": 8.0,
+          "source": "app_cap_phep.giay_phep"
+        },
+        {
+          "key": "ty_le_tu_phuc_vu_pct",
+          "label": "Thao tác do chủ đầu tư tự làm",
+          "unit": "%",
+          "better": "higher",
+          "baseline": 28.6,
+          "current": 35.0,
+          "delta_pct": 22.4,
+          "source": "core.audit_log"
+        },
+        {
+          "key": "trich_xuat_tu_dong",
+          "label": "Trích xuất tự động (OCR)",
+          "unit": "",
+          "better": "higher",
+          "baseline": 0,
+          "current": 6,
+          "delta_pct": null,
+          "source": "app_cap_phep.ocr_extractions"
+        }
+      ],
+      "ghi_chu": [
+        "Số liệu mẫu cho giao diện; không phải số đo."
+      ]
+    }
+  }
+}
