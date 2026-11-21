@@ -14,12 +14,14 @@ ENV TZ=Asia/Ho_Chi_Minh \
 
 WORKDIR /app
 
-# Cài đặt thư viện hệ thống tối thiểu
+# Cài đặt thư viện hệ thống tối thiểu và OCR Engine nếu được bật
+ARG OCR_ENGINE=0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     openssl \
     softhsm2 \
     opensc \
+    $( [ "$OCR_ENGINE" = "1" ] && echo "tesseract-ocr tesseract-ocr-vie" || true ) \
     && rm -rf /var/lib/apt/lists/*
 
 # Cài đặt các thư viện Python đã ghim phiên bản chính xác
