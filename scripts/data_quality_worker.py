@@ -22,6 +22,7 @@ Chạy:
 import argparse
 import asyncio
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -36,6 +37,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 ROOT = Path(__file__).resolve().parent.parent
 THOI_GIAN_TOI_DA = os.getenv("DQ_RULE_TIMEOUT", "15s")
 SO_MAU = 5
+logger = logging.getLogger("dxos.dq_worker")
 
 
 def _env(ten: str, mac_dinh: str = "") -> str:
@@ -189,6 +191,38 @@ async def chay(dsn: str, rule_code: Optional[str], domain: Optional[str], dry_ru
         await conn.close()
 
 
+async def _chay_lap(args) -> int:
+    """Chế độ dịch vụ nền (D-DQ-02): mỗi N giây chấm lại, lỗi một lượt chỉ ghi log, không thoát."""
+    logger.info("Khởi động worker chất lượng dữ liệu nền (lặp mỗi %d giây)", args.lap_giay)
+    while True:
+        try:
+            kq = await chay(
+                args.dsn or dsn_mac_dinh(),
+                args.rule,
+                args.domain,
+                args.dry_run,
+                "data_quality_worker_cron",
+            )
+            logger.info(
+                "Đã chấm xong DQ (lần chạy %s, status=%s, %d rule, %d lỗi)",
+                kq.get("run_id") or "(thử)",
+                kq.get("status"),
+                len(kq.get("rules", [])),
+                kq.get("rule_errors", 0),
+            )
+        except asyncio.CancelledError:
+            logger.info("Worker chất lượng dữ liệu nhận tín hiệu dừng.")
+            break
+        except Exception as exc:
+            logger.exception("Chạy worker chất lượng dữ liệu thất bại ở lượt này, thử lại ở lượt sau: %s", exc)
+        try:
+            await asyncio.sleep(args.lap_giay)
+        except asyncio.CancelledError:
+            logger.info("Worker chất lượng dữ liệu nhận tín hiệu dừng.")
+            break
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Chạy rule chất lượng dữ liệu")
     p.add_argument("--rule", help="Chỉ chạy một rule, ví dụ DQ-CD-01")
@@ -196,7 +230,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--dry-run", action="store_true", help="Chỉ đếm, không ghi lần chạy/vấn đề")
     p.add_argument("--json", action="store_true")
     p.add_argument("--dsn", default=None)
+    p.add_argument("--lap-giay", type=int, help="Chạy nền, mỗi N giây chấm lại rule DQ")
     a = p.parse_args(argv)
+    if a.lap_giay is not None:
+        if a.lap_giay < 1:
+            p.error("--lap-giay tối thiểu 1")
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        return asyncio.run(_chay_lap(a))
     kq = asyncio.run(chay(a.dsn or dsn_mac_dinh(), a.rule, a.domain, a.dry_run, "data_quality_worker"))
     if a.json:
         print(json.dumps(kq, ensure_ascii=False, indent=2))
