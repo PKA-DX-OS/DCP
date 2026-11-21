@@ -20,6 +20,7 @@ vi.mock("../src/api/flow", () => ({
   remindTask: vi.fn(),
   assignTask: vi.fn(),
   fetchOfficers: vi.fn(),
+  fetchWorkload: vi.fn(async () => []),
   completeTask: vi.fn(),
   invalidateTasks: vi.fn(),
 }));
