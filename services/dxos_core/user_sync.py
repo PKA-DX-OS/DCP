@@ -175,6 +175,63 @@ async def sync_clients(client: httpx.AsyncClient, base_url: str, admin_token: st
         logger.warning(f"Lỗi khi đồng bộ cấu hình client dxos-web: {e}")
 
 
+async def sync_realm_roles(client: httpx.AsyncClient, base_url: str, admin_token: str) -> None:
+    """Đảm bảo các vai chuẩn của realm tồn tại và gán vai mẫu nếu cần."""
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    roles_url = f"{base_url}/admin/realms/{settings.keycloak_realm}/roles"
+    try:
+        res = await client.get(roles_url, headers=headers)
+        existing = {}
+        if res.status_code == 200:
+            existing = {r.get("name"): r for r in res.json()}
+
+        steward_role_name = "dx:data-steward"
+        steward_role = existing.get(steward_role_name)
+        if not steward_role:
+            create_payload = {
+                "name": steward_role_name,
+                "description": "Chủ quản dữ liệu (Data Steward)",
+            }
+            c_res = await client.post(roles_url, json=create_payload, headers=headers)
+            if c_res.status_code in (201, 204):
+                logger.info("Đã tạo vai %s trên realm %s", steward_role_name, settings.keycloak_realm)
+                get_r = await client.get(f"{roles_url}/{steward_role_name}", headers=headers)
+                if get_r.status_code == 200:
+                    steward_role = get_r.json()
+            elif c_res.status_code == 409:
+                get_r = await client.get(f"{roles_url}/{steward_role_name}", headers=headers)
+                if get_r.status_code == 200:
+                    steward_role = get_r.json()
+            else:
+                logger.warning("Không tạo được vai %s: HTTP %s", steward_role_name, c_res.status_code)
+
+        # Gán vai cho tài khoản demo mc.thu nếu chưa có
+        if steward_role:
+            target_username = "mc.thu"
+            users_url = f"{base_url}/admin/realms/{settings.keycloak_realm}/users"
+            u_res = await client.get(f"{users_url}?username={target_username}", headers=headers)
+            if u_res.status_code == 200 and u_res.json():
+                matched_users = [u for u in u_res.json() if u.get("username") == target_username]
+                if matched_users:
+                    user_obj = matched_users[0]
+                    user_id = user_obj["id"]
+                    user_roles_url = f"{users_url}/{user_id}/role-mappings/realm"
+                    ur_res = await client.get(user_roles_url, headers=headers)
+                    if ur_res.status_code == 200:
+                        has_steward = any(r.get("name") == steward_role_name for r in ur_res.json())
+                        if not has_steward:
+                            assign_res = await client.post(user_roles_url, json=[steward_role], headers=headers)
+                            if assign_res.status_code in (200, 204):
+                                logger.info("Đã gán vai %s cho tài khoản demo %s", steward_role_name, target_username)
+                            else:
+                                logger.warning(
+                                    "Không gán được vai %s cho %s: HTTP %s",
+                                    steward_role_name, target_username, assign_res.status_code,
+                                )
+    except Exception as e:
+        logger.warning(f"Lỗi khi đồng bộ vai realm: {e}")
+
+
 async def sync_keycloak_users() -> dict:
     """Đồng bộ toàn bộ danh mục người dùng từ Keycloak IdP sang core.users_directory."""
     client, base_url, admin_token = await get_admin_client()
@@ -186,6 +243,7 @@ async def sync_keycloak_users() -> dict:
     try:
         realm_doi = await sync_realm_settings(client, base_url, admin_token)
         await sync_clients(client, base_url, admin_token)
+        await sync_realm_roles(client, base_url, admin_token)
         users_url = f"{base_url}/admin/realms/{settings.keycloak_realm}/users"
         headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
 

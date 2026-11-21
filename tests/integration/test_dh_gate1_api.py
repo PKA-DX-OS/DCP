@@ -56,11 +56,11 @@ def test_dh_360_ho_so_che_cccd_va_cach_ly_phuong(ho_so_moi):
 
 
 def test_dh_sai_vai_tra_loi_dung_hop_dong():
-    r = _get("/api/v1/catalog/assets", "mc.thu")
+    r = _get("/api/v1/catalog/assets", "tt.khanh")
     assert r.status_code == 403 and r.json()["code"] == "FORBIDDEN"
     r = _get("/api/v1/automation/metrics", "td.binh")
     assert r.status_code == 403
-    r = httpx.post(f"{GATEWAY_URL}/api/v1/mdm/merge", headers=_h("mc.thu", **{"Idempotency-Key": uuid.uuid4().hex}),
+    r = httpx.post(f"{GATEWAY_URL}/api/v1/mdm/merge", headers=_h("tt.khanh", **{"Idempotency-Key": uuid.uuid4().hex}),
                    json={"entity_type": "parcel", "giu_id": str(uuid.uuid4()), "gop_ids": [str(uuid.uuid4())], "ly_do": "thử quyền"},
                    timeout=20.0)
     assert r.status_code == 403
