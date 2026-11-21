@@ -25,7 +25,7 @@ service backend hay `contracts/dh/*` của Track D.
 | H-FLOW | Hỗ trợ xử lý: gợi ý phân công, cảnh báo SLA, nháp thông báo | Xong |
 | H-UX | Trợ giúp F1, phím tắt, ARIA/focus, kiểm tra axe | Xong phần component + axe tab Liên ngành |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
-| H-LINK | Đối chiếu liên ngành dân cư/đất đai/thuế/PCCC cạnh hồ sơ | Xong UI + mock; chờ API/audit D |
+| H-LINK | Đối chiếu liên ngành dân cư/đất đai/thuế/PCCC cạnh hồ sơ | Xong UI; liên kết MDM thật + audit, tra cứu liên ngành còn mock |
 
 Chưa làm trong lát cắt này: autofill từ OCR thật, đặt lịch/thanh toán trực tuyến,
 a11y/help đầy đủ ngoài các màn đã có test.
@@ -38,6 +38,8 @@ a11y/help đầy đủ ngoài các màn đã có test.
 | `GET /api/v1/search?q=&limit=` | `GlobalSearch.vue` | `contracts/dh/search.yaml` |
 | `GET /api/v1/automation/metrics?from=&to=` | `AutomationMetricsPanel.vue` | `contracts/dh/automation.yaml` |
 | `GET /api/v1/mdm/dossiers/{id}/links` | `features/link/ExternalLookupPanel.vue` | `contracts/dh/mdm.yaml` |
+| `GET /api/v1/mdm/search?q=&type=` | `features/link/ExternalLookupPanel.vue` | `contracts/dh/mdm.yaml` |
+| `POST /api/v1/mdm/links` | `features/link/ExternalLookupPanel.vue` | `contracts/dh/mdm.yaml` |
 
 Mọi lời gọi H dùng timeout ngắn và không thử lại để UI không bị treo khi Track D chưa
 triển khai endpoint:
@@ -323,8 +325,9 @@ Kết quả tại lát cắt này:
 - Phiếu hiện trường chỉ tóm tắt checklist/GPS/ghi chú vào `p_ghi_chu`; ảnh/chữ ký chưa
   tải lên máy chủ.
 - Xung đột dựa trên `created_at` của phiếu cùng công trình, chưa phải version chính thức.
-- H-LINK mới là adapter mock; chưa gọi CSDL liên ngành thật và chưa ghi audit.
-  Xác nhận chỉ nằm trong bộ nhớ phiên, không đồng bộ giữa thiết bị.
+- H-LINK: tra cứu liên ngành vẫn là adapter mock, chưa gọi CSDL liên ngành thật.
+  Liên kết dữ liệu chủ dùng API MDM thật và có audit `mdm.entity.linked`; xác nhận
+  tra cứu chỉ nằm trong bộ nhớ phiên, không đồng bộ giữa thiết bị.
 - PWA cache app shell; nếu phiên OIDC hết hạn khi offline, ứng dụng có thể yêu cầu đăng
   nhập lại trước khi mở tab.
 - Tự phục vụ chưa có đặt lịch/thanh toán; chưa gửi thông báo đẩy riêng.
@@ -345,6 +348,11 @@ Kết quả tại lát cắt này:
   tạo UUID giả lập; không đọc/ghi `localStorage` hay `sessionStorage`.
 - `api/mdm.ts` gọi `GET /api/v1/mdm/dossiers/{id}/links`; 404 thì hiện ghi chú
   “API liên kết MDM chưa sẵn sàng”, không chặn tra cứu.
+- Liên kết dữ liệu chủ thật: `GET /api/v1/mdm/search?q=&type=` và
+  `POST /api/v1/mdm/links` (Idempotency-Key). Backend ghi audit
+  `mdm.entity.linked`; chỉ `mot-cua`, `tham-dinh`, `dx:tenant-admin`,
+  `dx:data-steward` thấy nút liên kết.
 - Cán bộ xác nhận đối chiếu; trạng thái chỉ nằm trong bộ nhớ phiên.
 - Test: `tests/link-adapter.test.js`, `tests/external-lookup.test.js`,
-  `tests/mdm-api.test.js`, `tests/e2e-ui/test_B_link_ui.py`.
+  `tests/mdm-api.test.js`, `tests/e2e-ui/test_B_link_ui.py`,
+  `tests/e2e-ui/test_B_a11y.py`.

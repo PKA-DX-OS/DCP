@@ -4,7 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { fetchDossierLinks } from "../../api/mdm";
+import {
+  createMdmLink,
+  fetchDossierLinks,
+  searchMdmEntities,
+  type MdmEntitySummary,
+  type MdmLinkType,
+} from "../../api/mdm";
 import { readRoles } from "../../auth";
 import { notify } from "../../composables/useToast";
 import { Badge, Button, Skeleton } from "../../design-system";
@@ -26,6 +32,21 @@ const VAI_XAC_NHAN = [
 const vaiTro = computed(() => props.vaiTro ?? readRoles(props.userToken));
 const coTheXacNhan = computed(() => vaiTro.value.some((r) => VAI_XAC_NHAN.includes(r)));
 
+const VAI_LIEN_KET = [
+  "app:cap-phep:mot-cua",
+  "app:cap-phep:tham-dinh",
+  "dx:tenant-admin",
+  "dx:data-steward",
+];
+const coTheLienKet = computed(() => vaiTro.value.some((r) => VAI_LIEN_KET.includes(r)));
+
+const LOAI_LIEN_KET: { value: MdmLinkType; label: string }[] = [
+  { value: "parcel", label: "Thửa đất" },
+  { value: "construction", label: "Công trình" },
+  { value: "permit", label: "Giấy phép" },
+  { value: "subject", label: "Chủ đầu tư" },
+];
+
 const nguon = ref<NguonLienNganh>("dan_cu");
 const truyVan = ref(giaTriMacDinh(props.dossier, nguon.value));
 const dangTra = ref(false);
@@ -36,6 +57,14 @@ const daXacNhan = ref<Partial<Record<NguonLienNganh, boolean>>>({});
 const lienKet = ref<LienKetMDM | null>(null);
 const nguonLienKet = ref<"api" | "khong_co">("khong_co");
 const dangTaiLienKet = ref(false);
+
+const loaiLienKet = ref<MdmLinkType>("parcel");
+const tuKhoaLienKet = ref("");
+const dsThucThe = ref<MdmEntitySummary[]>([]);
+const dangTimThucThe = ref(false);
+const dangLienKetId = ref<string | null>(null);
+const loiLienKet = ref("");
+const thongBaoLienKet = ref("");
 
 const soNguonDaXacNhan = computed(() => Object.values(daXacNhan.value).filter(Boolean).length);
 
@@ -87,6 +116,49 @@ async function taiLienKet(): Promise<void> {
   }
 }
 
+async function timThucThe(): Promise<void> {
+  const q = tuKhoaLienKet.value.trim();
+  loiLienKet.value = "";
+  thongBaoLienKet.value = "";
+  dsThucThe.value = [];
+  if (!coTheLienKet.value || !props.userToken) return;
+  if (q.length < 2) {
+    loiLienKet.value = "Nhập ít nhất 2 ký tự để tìm dữ liệu chủ.";
+    return;
+  }
+  dangTimThucThe.value = true;
+  try {
+    const kq = await searchMdmEntities(props.userToken, q, loaiLienKet.value);
+    dsThucThe.value = kq.items;
+    if (!kq.items.length) loiLienKet.value = "Không tìm thấy thực thể phù hợp trong địa bàn.";
+  } catch (e) {
+    loiLienKet.value = e instanceof Error ? e.message : "Không tìm được dữ liệu chủ";
+  } finally {
+    dangTimThucThe.value = false;
+  }
+}
+
+async function lienKetThucThe(t: MdmEntitySummary): Promise<void> {
+  if (!coTheLienKet.value || !props.userToken || dangLienKetId.value) return;
+  dangLienKetId.value = t.id;
+  loiLienKet.value = "";
+  thongBaoLienKet.value = "";
+  try {
+    await createMdmLink(props.userToken, {
+      dossier_id: props.dossier.id,
+      entity_type: t.type as MdmLinkType,
+      entity_id: t.id,
+    });
+    thongBaoLienKet.value = `Đã liên kết ${t.nhan} và ghi audit mdm.entity.linked.`;
+    notify("Đã liên kết dữ liệu chủ và ghi audit", "ok");
+    await taiLienKet();
+  } catch (e) {
+    loiLienKet.value = e instanceof Error ? e.message : "Không liên kết được dữ liệu chủ";
+  } finally {
+    dangLienKetId.value = null;
+  }
+}
+
 async function traCuu(): Promise<void> {
   const q = truyVan.value.trim();
   if (!q) {
@@ -113,7 +185,7 @@ function xacNhan(): void {
     return;
   }
   daXacNhan.value = { ...daXacNhan.value, [nguon.value]: true };
-  notify("Đã ghi nhận đối chiếu trên phiên này. Chưa ghi audit thật vì API D chưa sẵn sàng.", "ok");
+  notify("Đã ghi nhận đối chiếu trên phiên này (tra cứu liên ngành vẫn là dữ liệu mẫu).", "ok");
 }
 
 watch(nguon, (moi) => {
@@ -157,8 +229,8 @@ onMounted(taiLienKet);
     </div>
 
     <div class="thong-bao-vang mb-3 text-[12.5px]" role="note">
-      API liên ngành chưa sẵn sàng. Kết quả dưới đây là dữ liệu mẫu; xác nhận chỉ có hiệu lực trên phiên này và
-      <b>chưa ghi audit thật</b>.
+      API tra cứu liên ngành chưa sẵn sàng. Kết quả tra cứu là dữ liệu mẫu; xác nhận chỉ có hiệu lực trên phiên này.
+      Liên kết dữ liệu chủ bên dưới dùng API MDM thật và <b>có ghi audit</b>.
     </div>
 
     <div class="grid gap-3 md:grid-cols-2">
@@ -247,11 +319,66 @@ onMounted(taiLienKet);
         </li>
       </ul>
       <p v-else class="text-[13px] text-phu mt-2 mb-0">Chưa có liên kết MDM cho hồ sơ này.</p>
+
+      <div v-if="coTheLienKet" class="mt-3 border-t border-vien-nhat pt-3">
+        <h5 class="m-0 text-[13px] font-semibold">Liên kết thủ công với dữ liệu chủ</h5>
+        <p class="goi-y mt-1 mb-0">
+          Tìm thực thể đã có trong MDM rồi liên kết với hồ sơ. Mỗi liên kết được ghi audit
+          <code>mdm.entity.linked</code>.
+        </p>
+        <div class="mt-2 flex flex-wrap items-end gap-2">
+          <label class="block">
+            <span class="nhan">Loại thực thể</span>
+            <select v-model="loaiLienKet" class="o w-auto" aria-label="Loại thực thể cần liên kết">
+              <option v-for="l in LOAI_LIEN_KET" :key="l.value" :value="l.value">{{ l.label }}</option>
+            </select>
+          </label>
+          <label class="block min-w-[220px] flex-1">
+            <span class="nhan">Từ khóa</span>
+            <input
+              v-model="tuKhoaLienKet"
+              class="o w-full"
+              maxlength="100"
+              placeholder="Mã thửa, mã công trình, số giấy phép…"
+              aria-label="Từ khóa tìm dữ liệu chủ"
+              @keydown.enter.prevent="timThucThe"
+            />
+          </label>
+          <Button size="sm" :disabled="dangTimThucThe" @click="timThucThe">
+            {{ dangTimThucThe ? "Đang tìm…" : "Tìm" }}
+          </Button>
+        </div>
+        <p v-if="loiLienKet" class="canh-bao mt-2 mb-0 text-[12.5px]" role="alert">{{ loiLienKet }}</p>
+        <p v-if="thongBaoLienKet" class="mt-2 mb-0 text-[12.5px] text-xanh" role="status">{{ thongBaoLienKet }}</p>
+        <ul v-if="dsThucThe.length" class="list-none m-0 p-0 mt-2 text-[13px]" aria-label="Kết quả tìm dữ liệu chủ">
+          <li v-for="t in dsThucThe" :key="t.id" class="flex flex-wrap items-center justify-between gap-2 py-1.5 border-b border-vien-nhat last:border-0">
+            <span class="min-w-0">
+              <b>{{ t.nhan }}</b>
+              <span v-if="t.ma" class="goi-y"> · {{ t.ma }}</span>
+              <span v-if="t.confidence !== undefined" class="goi-y"> · {{ phanTram(t.confidence) }}</span>
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              :disabled="dangLienKetId === t.id"
+              @click="lienKetThucThe(t)"
+            >
+              {{ dangLienKetId === t.id ? "Đang liên kết…" : "Liên kết" }}
+            </Button>
+          </li>
+        </ul>
+      </div>
+      <p v-else class="goi-y mt-3 mb-0">
+        Chỉ cán bộ một cửa, thẩm định hoặc quản trị dữ liệu được tạo liên kết dữ liệu chủ.
+      </p>
     </div>
 
     <div class="mt-3 rounded-[14px] border border-vien-nhat bg-mat-2 p-3 text-[12.5px] text-phu">
-      <p class="m-0"><b class="text-chu">Đã xác nhận {{ soNguonDaXacNhan }}/{{ NGUON_OPTIONS.length }} nguồn trên phiên này.</b></p>
-      <p class="m-0 mt-1">Không lưu PII vào localStorage/sessionStorage. Khi D triển khai API liên kết/audit, tab này sẽ ghi nhận thật.</p>
+      <p class="m-0"><b class="text-chu">Đã xác nhận {{ soNguonDaXacNhan }}/{{ NGUON_OPTIONS.length }} nguồn tra cứu trên phiên này.</b></p>
+      <p class="m-0 mt-1">
+        Không lưu PII vào localStorage/sessionStorage. Tra cứu liên ngành là dữ liệu mẫu; liên kết dữ liệu chủ ở trên
+        dùng API MDM và đã ghi audit.
+      </p>
     </div>
   </section>
 </template>
