@@ -48,9 +48,10 @@ def test_V11_08_phieu_lap_tay_vao_hang_doi_va_ghi_ket_luan():
         bien = {v["name"]: v["value"] for v in task.get("variables", [])}
         assert bien.get("site_id") == site_id, "Việc phải mang mã công trình để hiện trong hàng đợi"
 
-        r = complete_task(token, task["id"], {"ketLuan": "vi_pham", "ghi_chu": "Ồn quá giờ"})
+        r = complete_task(token, task["id"], {"ketLuan": "vi_pham", "ghiChu": "Ồn quá giờ"})
         assert r.status_code == 200, r.text
         assert _phieu(phieu_id)[1:] == ["DANG_KIEM_TRA", "Có vi phạm"]
+        assert run_sql(f"SELECT ghi_chu FROM app_cap_phep.phieu_kiem_tra WHERE id = '{phieu_id}';") == "Ồn quá giờ"
 
         task2 = wait_task(token, proc_id, "taskXuLyViPham")
         assert complete_task(token, task2["id"], {}).status_code == 200

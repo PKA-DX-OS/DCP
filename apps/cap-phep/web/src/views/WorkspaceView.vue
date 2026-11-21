@@ -221,7 +221,8 @@ async function ketLuanHauKiem(t: FlowTask, ketLuan: "dat" | "vi_pham" | null): P
     if (!token) throw new Error("Hết phiên, vui lòng đăng nhập lại");
     const bienGui: Record<string, string> = {};
     if (ketLuan) bienGui.ketLuan = ketLuan;
-    if (ghiChuHauKiem.value.trim()) bienGui.ghi_chu = ghiChuHauKiem.value.trim();
+    // sync_flow_state đọc ghiChu khi ghi kết luận vào phiếu
+    if (ghiChuHauKiem.value.trim()) bienGui.ghiChu = ghiChuHauKiem.value.trim();
     await completeTask(token, t.id, bienGui);
     notify(
       ketLuan === "dat" ? "Đã ghi kết luận đạt" : ketLuan === "vi_pham" ? "Đã ghi vi phạm, việc khắc phục đã tạo" : "Đã ghi khắc phục xong",

@@ -106,8 +106,8 @@ flow_policies:
     taskPheDuyet: [pheDuyet, dongYCapPhep, yKienPheDuyet]
     taskPheDuyetTruyCapKhan: [quyetDinh, lyDoTuChoi, p_ho_so_id, ho_so_id]
     taskChoBoSung: [noiDungBoSung, taiLieuBoSung]
-    taskKiemTraHienTruong: [ketLuan, ghi_chu]
-    taskXuLyViPham: [ghi_chu]
+    taskKiemTraHienTruong: [ketLuan, ghiChu]
+    taskXuLyViPham: [ghiChu]
   submitter_tasks: ["taskChoBoSung", "taskBoSungThietKe"]
   variable_roles:
     ketLuan: ["app:cap-phep:trat-tu-xd"]
@@ -186,8 +186,7 @@ flow_policies:
     tham-dinh-thiet-ke:
       bo_mon_can_tham_dinh: ["kien_truc", "ket_cau", "mep", "pccc"]
   on_timer: app_cap_phep_private.ghi_qua_han
-  # Hồ sơ (sync_flow_state) và kết luận phiếu hậu kiểm
-  sync_state_sql: app_cap_phep_private.sync_trang_thai
+  sync_state_sql: app_cap_phep_private.sync_flow_state
   sync_state_sql_by_process:
     cap-phep: app_cap_phep_private.sync_flow_state
     quy-hoach: app_cap_phep_private.sync_quy_hoach_state

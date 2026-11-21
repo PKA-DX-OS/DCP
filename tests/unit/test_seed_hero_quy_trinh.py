@@ -40,12 +40,16 @@ class FlowableGia:
         self.buoc[proc_id] = {"taskKiemTraHopLe": "taskPhanCong", "taskPhanCong": "taskThamDinh"}[buoc]
 
 
-def _chay(monkeypatch, fl, proc_cu=""):
+def _chay(monkeypatch, fl, proc_cu="", da_phan_cong=True):
     sql_da_chay = []
 
     def psql(_cmd, sql):
         sql_da_chay.append(sql)
-        return f"{HS}|{proc_cu}|{CDT}|{TD}" if sql.startswith("SELECT") else ""
+        if sql.startswith("SELECT h.id"):
+            return f"{HS}|{proc_cu}|{CDT}|{TD}"
+        if "core.assignments" in sql:
+            return "1" if da_phan_cong else "0"
+        return ""
 
     monkeypatch.setenv("FLOWABLE_PASSWORD", "x")
     monkeypatch.setattr(sh, "Flowable", lambda *a: fl)
@@ -60,13 +64,24 @@ def test_mo_quy_trinh_moi_toi_tham_dinh_giao_td_binh(monkeypatch):
     assert fl.bien_mo["ho_so_id"] == HS and fl.bien_mo["dien_tich_san_m2"] == 600.0
     assert fl.bien_hoan_thanh == [("taskKiemTraHopLe", {"hoSoHopLe": True}), ("taskPhanCong", {"nguoiThamDinh": TD})]
     assert any("process_instance_id = 'P-MOI'" in s for s in sql)
+    dong_bo = [s for s in sql if "sync_flow_state" in s]
+    assert len(dong_bo) == 2 and "'taskKiemTraHopLe'" in dong_bo[0] and "'taskPhanCong'" in dong_bo[1]
+    assert TD in dong_bo[1], "Bước phân công phải ghi thẩm định viên để có core.assignments"
 
 
 def test_da_o_tham_dinh_thi_giu_nguyen(monkeypatch):
     fl = FlowableGia(proc_cu_buoc="taskThamDinh")
     kq, sql = _chay(monkeypatch, fl, proc_cu="P-CU")
     assert kq.startswith("[PASS]") and not fl.da_xoa and fl.bien_mo is None
-    assert not any(s.startswith("UPDATE") for s in sql)
+    assert not any(s.startswith("UPDATE") or "sync_flow_state" in s for s in sql)
+
+
+def test_da_o_tham_dinh_thieu_phan_cong_thi_bo_sung(monkeypatch):
+    fl = FlowableGia(proc_cu_buoc="taskThamDinh")
+    kq, sql = _chay(monkeypatch, fl, proc_cu="P-CU", da_phan_cong=False)
+    assert "bổ sung phân công" in kq and fl.bien_mo is None
+    dong_bo = [s for s in sql if "sync_flow_state" in s]
+    assert len(dong_bo) == 1 and "'P-CU', 'taskPhanCong'" in dong_bo[0]
 
 
 def test_quy_trinh_cu_da_di_tiep_thi_lam_lai(monkeypatch):
