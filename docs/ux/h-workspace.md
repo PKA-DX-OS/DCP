@@ -20,10 +20,11 @@ service backend hay `contracts/dh/*` của Track D.
 | H-AUTO-02 | Kiểm tra CCCD, điện thoại, địa chỉ, thửa đất, số tầng, diện tích; tự lưu bản nháp | Xong |
 | H-OCR | Hàng chờ duyệt trích xuất, xem tệp gốc, sửa trường, xác nhận/từ chối | Xong UI + mock; chờ API D |
 | H-WORK-04 | Lưu bộ lọc, chọn nhiều, nhắc/phân công hàng loạt, xuất CSV | Xong |
+| H-FIELD | PWA hiện trường: nháp offline, ảnh, GPS, checklist, ký tay, đồng bộ | Xong phần UI + lưu máy |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
 
-Chưa làm trong lát cắt này: autofill từ OCR thật, PWA hiện trường, self-service,
-external lookup, workflow assistance, a11y/help đầy đủ.
+Chưa làm trong lát cắt này: autofill từ OCR thật, self-service, external lookup,
+workflow assistance, a11y/help đầy đủ.
 
 ## 2. API tiêu thụ
 
@@ -118,7 +119,37 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 - CSV tạo và tải trên máy, không gửi lên máy chủ; nhắc/phân công được ghi audit phía máy chủ.
 - API dùng: `fetchOfficers`, `assignTask`, `remindTask` (đã có).
 
-## 7. File chính
+## 7. PWA hiện trường
+
+### 7.1. PWA
+
+- `manifest.webmanifest`: standalone, icon 192/512, shortcut “Phiếu hiện trường”.
+- `sw.js`: cache app shell và tài nguyên tĩnh; network-first cho điều hướng; không cache
+  `/api/`, `/auth/`, `/files/`, `/realms/`.
+- `offline.html` dự phòng; đăng ký service worker chỉ ở bản build.
+- Nút “Cài ứng dụng” khi trình duyệt phát `beforeinstallprompt`.
+
+### 7.2. Phiếu nháp trên thiết bị
+
+- Tab “Hiện trường” cho `app:cap-phep:trat-tu-xd` và `app:cap-phep:lanh-dao`.
+- Chọn công trình; danh sách công trình được cache để dùng offline.
+- Checklist 6 mục, ghi chú, GPS hiện tại.
+- Tối đa 6 ảnh, mỗi ảnh ≤ 8 MB; xem thumbnail và xóa trước khi gửi.
+- Ký tay bằng canvas; lưu data URL.
+- Nháp, ảnh và chữ ký lưu trong IndexedDB; fallback bộ nhớ tab nếu trình duyệt chặn.
+- Tự lưu sau 600 ms; mở lại trang vẫn còn nháp.
+
+### 7.3. Đồng bộ & xung đột
+
+- Chặn gửi khi đang ngoại tuyến; phiếu vẫn nằm trên thiết bị.
+- Gửi qua `lap_phieu_kiem_tra` hiện có; checklist/GPS/ghi chú được tóm tắt vào `p_ghi_chu`.
+- Ảnh và chữ ký **chưa tải lên** vì API phiếu kiểm tra chưa nhận tệp đính kèm.
+- Phát hiện phiếu trên máy chủ lập sau bản nháp cho cùng công trình; cảnh báo và cho
+  phép “Vẫn gửi”.
+- Gửi lỗi thì giữ trạng thái “Lỗi đồng bộ” để thử lại; gửi thành công lưu mã phiếu.
+- “Gửi tất cả” chỉ gửi phiếu hợp lệ và không xung đột; phiếu xung đột phải xác nhận riêng.
+
+## 8. File chính
 
 | File | Vai trò |
 | :--- | :--- |
@@ -140,8 +171,12 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | `apps/cap-phep/web/src/views/WorkspaceView.vue` | Bộ lọc đã lưu, chọn nhiều, nhắc/phân công/CSV |
 | `apps/cap-phep/web/src/utils/workspace-filters.ts` | Đọc/ghi/xóa bộ lọc Bàn làm việc trong localStorage |
 | `apps/cap-phep/web/src/utils/csv.ts` | Tạo CSV có BOM và escape đúng |
+| `apps/cap-phep/web/src/features/hien-truong/*` | Tab hiện trường, ký tay, nháp/đồng bộ |
+| `apps/cap-phep/web/src/utils/field-inspection.ts` | Kiểu phiếu, checklist, tóm tắt ghi chú, xung đột |
+| `apps/cap-phep/web/src/utils/field-drafts.ts` | IndexedDB/fallback lưu nháp, ảnh, cache công trình |
+| `apps/cap-phep/web/public/{manifest.webmanifest,sw.js,offline.html,icon-*.png}` | PWA shell |
 
-## 8. Phân quyền hiển thị
+## 9. Phân quyền hiển thị
 
 | Màn | Vai |
 | :--- | :--- |
@@ -150,9 +185,10 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | Duyệt OCR | `app:cap-phep:mot-cua`, `app:cap-phep:tham-dinh`, `app:cap-phep:lanh-dao` |
 | Nhắc/phân công hàng loạt | `app:cap-phep:lanh-dao`, `app:cap-phep:mot-cua` |
 | Chọn & xuất CSV | Cán bộ thấy Bàn làm việc |
+| Hiện trường / PWA | `app:cap-phep:trat-tu-xd`, `app:cap-phep:lanh-dao` |
 | Hiệu quả vận hành | `app:cap-phep:lanh-dao`, `dx:auditor`, `dx:tenant-admin`, `dx:platform-admin` |
 
-## 9. Kiểm thử
+## 10. Kiểm thử
 
 ```powershell
 cd apps/cap-phep/web
@@ -168,7 +204,7 @@ npm run build
 
 Kết quả tại lát cắt này:
 
-- Cấp phép: 25 tệp test, 171 test pass; type-check và build pass.
+- Cấp phép: 28 tệp test, 181 test pass; type-check và build pass.
 - Bảng điều hành: 5 tệp test, 26 test pass; type-check và build pass.
 - Test H-WORK: `tests/dh.test.js`, `tests/global-search.test.js`,
   `tests/dossier-360.test.js`, `tests/automation-panel.test.js`.
@@ -178,8 +214,10 @@ Kết quả tại lát cắt này:
 - Test H-OCR: `tests/ocr-api.test.js`, `tests/ocr-review.test.js`.
 - Test H-WORK-04: `tests/workspace-filters.test.js`, `tests/csv.test.js`,
   `tests/workspace-bulk.test.js`.
+- Test H-FIELD: `tests/field-inspection.test.js`, `tests/field-drafts.test.js`,
+  `tests/field-pwa.test.js`.
 
-## 10. Việc Gate 2
+## 11. Việc Gate 2
 
 1. Track D merge `GET /api/v1/mdm/dossiers/{id}/360`, `GET /api/v1/search`,
    `GET /api/v1/automation/metrics`, `/api/v1/ocr/*`.
@@ -188,12 +226,13 @@ Kết quả tại lát cắt này:
    nhãn “Số đo thật”, OCR chuyển nhãn “API OCR”.
 3. Thêm E2E: mở hồ sơ → tab Tổng hợp; `Ctrl/Cmd+K` → tìm mã hồ sơ → mở đúng hồ sơ;
    bảng điều hành → tab Hiệu quả vận hành; duyệt OCR → sửa trường → xác nhận;
-   chọn nhiều việc → nhắc/phân công/CSV.
+   chọn nhiều việc → nhắc/phân công/CSV; PWA hiện trường → tạo nháp offline → sync.
 4. Nối OCR thật: `POST /api/v1/ocr/extract` → review → điền tiếp vào form nộp hồ sơ.
-5. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
-6. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
+5. Bổ sung API nhận ảnh/chữ ký/GPS của phiếu hiện trường; hiện chỉ tóm tắt vào ghi chú.
+6. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
+7. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
 
-## 11. Giới hạn đã biết
+## 12. Giới hạn đã biết
 
 - Chưa có mock server `VITE_API_MOCK`; fallback hiện dùng dữ liệu hồ sơ/baseline có nhãn.
 - Fallback tìm kiếm chỉ lọc trong tối đa 100 hồ sơ gần nhất do `fetchHoSo` giới hạn
@@ -213,4 +252,9 @@ Kết quả tại lát cắt này:
 - CSV xuất trên máy, không gửi máy chủ và không tạo audit; chỉ nhắc/phân công mới
   được ghi audit.
 - Phân công hàng loạt chọn cán bộ theo nhóm vai, chưa tự cân bằng tải việc.
-- Chưa có PWA, self-service.
+- Phiếu hiện trường chỉ tóm tắt checklist/GPS/ghi chú vào `p_ghi_chu`; ảnh/chữ ký chưa
+  tải lên máy chủ.
+- Xung đột dựa trên `created_at` của phiếu cùng công trình, chưa phải version chính thức.
+- PWA cache app shell; nếu phiên OIDC hết hạn khi offline, ứng dụng có thể yêu cầu đăng
+  nhập lại trước khi mở tab.
+- Chưa có self-service.
