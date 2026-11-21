@@ -182,6 +182,10 @@ flow_policies:
     taskThamDinhBoMon: P5D
     taskTongHopThietKe: P2D
     taskBoSungThietKe: P7D
+    # Hậu kiểm: kiểm tra hiện trường 2 ngày từ lúc lập phiếu (khớp han_xu_ly_at của phiếu,
+    # migration 22), khắc phục vi phạm 7 ngày như khắc phục nghiệm thu.
+    taskKiemTraHienTruong: P2D
+    taskXuLyViPham: P7D
   default_process_variables:
     tham-dinh-thiet-ke:
       bo_mon_can_tham_dinh: ["kien_truc", "ket_cau", "mep", "pccc"]

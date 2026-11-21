@@ -39,6 +39,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Trang tra cứu công khai (FIX-V11-19):** `/kiem-tra/{mã}` hiện tên loại văn bản (theo `doc_templates` của ứng dụng) và tên đơn vị ban hành (`core.tenants`) thay vì mã; JSON thêm `ten_loai_van_ban`, `ten_don_vi`, giữ nguyên trường mã.
 - **Chỉ số thời gian xử lý (FIX-V11-20):** `thoi_gian_xu_ly_tb` tính số ngày làm việc từ nộp đến ngày cấp giấy phép (hàm `so_ngay_lam_viec`, migration 21), trả null khi chưa có giấy phép; `ty_le_dung_han` so ngày cấp với hạn; `/api/v1/metrics?thang=YYYY-MM` lọc các chỉ số khai báo đầu/cuối kỳ.
 - **Ngưỡng liên quan của trợ lý (FIX-V11-21):** câu hỏi có âm tiết nội dung không xuất hiện trong kho tri thức (ví dụ "kết hôn", "căn cước", "mật độ") trả "không tìm thấy căn cứ" thay vì ghép đoạn trùng cụm chung như "giấy tờ", "thời hạn".
+- **Hạn hậu kiểm (FIX-V11-22):** phiếu kiểm tra có cột `han_xu_ly_at` (2 ngày từ lúc lập, tự điền khi lập phiếu, điền lại cho phiếu cũ; migration 22); việc kiểm tra hiện trường (P2D) và khắc phục vi phạm (P7D) có SLA nên hiện hạn trong hàng đợi.
 
 ---
 
