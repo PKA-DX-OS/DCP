@@ -133,6 +133,8 @@ function Invoke-Up {
     Invoke-Step $pyMigrate @("scripts/migrate.py")
     Write-Host "--> Cai/nang cap goi ung dung cap-phep..."
     Invoke-Tools @("scripts/app_manager.py", "install", "cap-phep")
+    Write-Host "--> Nap kho van ban phap luat (chay lai khong tao trung)..."
+    Invoke-Step $pyMigrate @("scripts/seed_legal.py")
     if ((-not (Test-Path "secrets\demo-accounts.txt")) -and (Test-Demo)) {
         Write-Host "--> Nap tai khoan va du lieu mau..."
         Invoke-Tools @("apps/cap-phep/seed/seed.py")

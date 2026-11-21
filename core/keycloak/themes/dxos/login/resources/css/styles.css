@@ -181,3 +181,14 @@ a,
     transition: none !important;
   }
 }
+
+/* Trang đăng nhập cùng nguồn với hai ứng dụng web: cũng bật chuyển trang mượt, để trình duyệt không
+   hủy hiệu ứng (và báo lỗi "ViewTransition opt-in disabled") khi đi từ ứng dụng sang đăng nhập. */
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
