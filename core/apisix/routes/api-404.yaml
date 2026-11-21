@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# FIX-V11-09: đường dẫn /api/ không khớp route nào trả 404 JSON thay vì trang HTML của web cấp phép.
+# Route tiền tố nông nhất nên mọi route /api/v1/... cụ thể hơn vẫn được chọn trước.
+# Cùng cách với route_auth_block: response-rewrite thay thân và mã trả về; upstream main-web chỉ
+# để route hợp lệ, phản hồi của nó bị bỏ.
+
+routes:
+  - id: route_api_khong_thay
+    uri: /api/*
+    priority: 2
+    plugins:
+      response-rewrite:
+        status_code: 404
+        body: '{"detail":{"loi":"Không có API ở đường dẫn này","ma_loi":"NOT_FOUND"}}'
+        headers:
+          set:
+            Content-Type: "application/json; charset=utf-8"
+    upstream:
+      type: roundrobin
+      nodes:
+        "main-web:80": 1
