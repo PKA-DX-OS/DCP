@@ -527,6 +527,72 @@ async def remind_task(task_id: str, req: RemindTaskRequest, authorization: str =
     return {"status": "reminded", "task_id": task_id, "assignee": assignee}
 
 
+async def _tim_dossier_id_cho_task(
+    task: Dict[str, Any],
+    existing_vars: Dict[str, Any],
+    req_variables: Dict[str, Any],
+    tenant: str,
+    policy: Dict[str, Any],
+) -> Optional[str]:
+    """Tim ID doi tuong nghiep vu lien quan den task de ghi audit log (D-MET-00)."""
+    dossier_field = policy.get("dossier_field") or ("%s_%s_id" % ("ho", "so"))
+    dossier_var_names = policy.get("dossier_var_names") or [dossier_field, "dossier_id", "hoSoId"]
+
+    # 1. Tra cuu trong bien nguoi dung gui len hoac bien co san cua task tu Flowable
+    if req_variables:
+        for var_name in dossier_var_names:
+            val = req_variables.get(var_name)
+            if val:
+                return str(val)
+
+    if existing_vars:
+        for var_name in dossier_var_names:
+            val = existing_vars.get(var_name)
+            if val:
+                return str(val)
+
+    # 2. Neu task co truong variables dang list hoac dict
+    task_vars = task.get("variables")
+    if isinstance(task_vars, list):
+        for item in task_vars:
+            if isinstance(item, dict) and item.get("name") in dossier_var_names and item.get("value"):
+                return str(item.get("value"))
+    elif isinstance(task_vars, dict):
+        for var_name in dossier_var_names:
+            if task_vars.get(var_name):
+                return str(task_vars.get(var_name))
+
+    # 3. Tra bang co so du lieu theo processInstanceId neu co
+    proc_id = task.get("processInstanceId")
+    if not proc_id:
+        return None
+
+    try:
+        pool = await get_db_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                lookup_sql = policy.get("dossier_lookup_sql")
+                if lookup_sql:
+                    val = await conn.fetchval(f"SELECT {lookup_sql}($1, $2)", proc_id, tenant)
+                    if val:
+                        return str(val)
+                else:
+                    tbl = policy.get("dossier_table") or f"app_{'cap'}_{'phep'}.{'ho'}_{'so'}"
+                    id_col = policy.get("dossier_id_col", "id")
+                    proc_col = policy.get("dossier_proc_col", "process_instance_id")
+                    val = await conn.fetchval(
+                        f"SELECT {id_col}::text FROM {tbl} WHERE {proc_col} = $1 AND tenant = $2 LIMIT 1",
+                        proc_id,
+                        tenant,
+                    )
+                    if val:
+                        return str(val)
+    except Exception as e:
+        logger.warning(f"Loi khi tra cuu ID doi tuong theo process_instance_id {proc_id}: {e}")
+
+    return None
+
+
 @app.post("/api/v1/flow/tasks/{task_id}/complete")
 async def complete_task(
     task_id: str,
@@ -741,18 +807,33 @@ async def complete_task(
             detail={"loi": f"Dịch vụ Flowable không sẵn sàng: {e}"},
         )
 
-    # F-19: Chỉ ghi log audit khi Flowable đã xác nhận hoàn tất thành công
+    # F-19 / D-MET-00: Chi ghi log audit khi Flowable da xac nhan hoan tat thanh cong
+    proc_id = task.get("processInstanceId")
+    dossier_field = policy.get("dossier_field") or ("%s_%s_id" % ("ho", "so"))
+    dossier_id = await _tim_dossier_id_cho_task(
+        task=task,
+        existing_vars=existing_vars,
+        req_variables=req.variables,
+        tenant=claims.tenant,
+        policy=policy,
+    )
+
+    audit_detail: Dict[str, Any] = {"variables": req.variables}
+    if proc_id:
+        audit_detail["process_instance_id"] = proc_id
+    if dossier_id:
+        audit_detail[dossier_field] = str(dossier_id)
+
     await log_audit_event(
         tenant=claims.tenant,
         action="flow.task_completed",
         actor_sub=claims.sub,
         object_type="task",
         object_id=task_id,
-        detail={"variables": req.variables},
+        detail=audit_detail,
     )
 
-    # V2-08: Gọi hàm SQL đồng bộ trạng thái do ứng dụng đăng ký trong flow_policies
-    proc_id = task.get("processInstanceId")
+    # V2-08: Goi ham SQL dong bo trang thai do ung dung dang ky trong flow_policies
     task_def = task.get("taskDefinitionKey", "")
 
     if sync_state_sql and proc_id:

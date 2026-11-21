@@ -74,6 +74,12 @@ tt AS (
     FROM core.audit_log a
     WHERE a.tenant = :'tenant' AND a.actor_type = 'user' AND a.actor_sub IS NOT NULL
       AND a.object_type = 'ho_so'
+    UNION ALL
+    SELECT (a.detail->>'ho_so_id')::text AS object_id, a.actor_sub, a.action
+    FROM core.audit_log a
+    WHERE a.tenant = :'tenant' AND a.actor_type = 'user' AND a.actor_sub IS NOT NULL
+      AND a.action = 'flow.task_completed'
+      AND NULLIF(a.detail->>'ho_so_id', '') IS NOT NULL
 ),
 tt_hs AS (
     SELECT h.id, count(t.object_id) AS n
@@ -106,6 +112,9 @@ SELECT json_build_object(
     'thao_tac_nguoi_dung', (SELECT count(*) FROM tt JOIN hs ON hs.id::text = tt.object_id),
     'task_hoan_thanh', (SELECT count(*) FROM core.audit_log WHERE tenant = :'tenant'
                         AND action = 'flow.task_completed' AND actor_type = 'user'),
+    'task_hoan_thanh_chua_gan_ho_so', (SELECT count(*) FROM core.audit_log WHERE tenant = :'tenant'
+                        AND action = 'flow.task_completed' AND actor_type = 'user'
+                        AND NULLIF(detail->>'ho_so_id', '') IS NULL),
     'ho_so_phai_bo_sung', (SELECT count(*) FROM bs),
     'vong_bo_sung', (SELECT coalesce(sum(n), 0) FROM bs),
     'ocr_trich_xuat', {ocr},
@@ -158,7 +167,11 @@ def tinh(raw: Dict[str, Any], tac_dong: Optional[Dict[str, Any]] = None) -> Dict
                 round(so("vong_bo_sung") / so("ho_so_phai_bo_sung"), 2) if so("ho_so_phai_bo_sung") else None
             ),
             "ty_le_tu_phuc_vu_pct": _pct(so("thao_tac_chu_dau_tu"), nguoi),
-            "task_hoan_thanh_chua_gan_ho_so": so("task_hoan_thanh"),
+            "task_hoan_thanh_chua_gan_ho_so": (
+                so("task_hoan_thanh_chua_gan_ho_so")
+                if "task_hoan_thanh_chua_gan_ho_so" in raw
+                else so("task_hoan_thanh")
+            ),
             "trich_xuat_tu_dong": so("ocr_trich_xuat"),
             "thoi_gian_xu_ly_tb_ngay_lam_viec": d.get("thoi_gian_xu_ly_tb_ngay_lam_viec"),
             "ty_le_ky_dung_han_pct": d.get("ty_le_ky_dung_han_pct"),
