@@ -5,6 +5,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { assignTask, completeTask, fetchOfficers, fetchTasks } from "../api/flow";
 import { openHoSo } from "../api/dossiers";
+import { createMilestone } from "../api/acceptance";
 import { notify } from "../composables/useToast";
 
 const props = defineProps<{
@@ -57,6 +58,14 @@ const roles = computed<string[]>(() => {
   }
 });
 const laQuanLy = computed(() => roles.value.some((r) => ["app:cap-phep:lanh-dao", "app:cap-phep:mot-cua", "dx:tenant-admin", "dx:platform-admin"].includes(r)));
+
+// Việc nghiệm thu ứng với mốc trong app_construction.moc_nghiem_thu (giống AcceptancePanel)
+const MOC_THEO_VIEC: Record<string, string> = {
+  taskNghiemThuMong: "mong",
+  taskNghiemThuKetCau: "ket_cau",
+  taskNghiemThuHoanThien: "hoan_thien",
+  taskHoanCong: "hoan_cong",
+};
 
 function bien(task: any, ten: string): any {
   return ((task?.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value;
@@ -179,6 +188,17 @@ async function gui() {
   }
   dangGui.value = true;
   try {
+    const loaiMoc = MOC_THEO_VIEC[t.taskDefinitionKey || ""];
+    const ketQua = variables.ket_qua_nghiem_thu;
+    if (loaiMoc && (ketQua === "dat" || ketQua === "khong_dat")) {
+      // Ghi mốc trước để lịch sử nghiệm thu có từng lần (không đạt rồi đạt), sau đó mới chuyển bước
+      await createMilestone(props.token, props.dossier.id, {
+        loai_moc: loaiMoc,
+        ket_qua: ketQua,
+        ngay_nghiem_thu: new Date().toISOString().slice(0, 10),
+        ghi_chu: variables.ghi_chu || null,
+      });
+    }
     await completeTask(props.token, t.id, variables);
     notify("Đã cập nhật hồ sơ", "ok");
     hanhDongChon.value = null;
