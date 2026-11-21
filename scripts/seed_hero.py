@@ -9,7 +9,8 @@ Nạp hồ sơ "hero" phục vụ demo Track A (A-PLAN-08, A-ACC-05).
 - CP-HERO-ACC-2026-001: hồ sơ đã cấp phép, có mốc móng fail → khắc phục → đạt.
 - Idempotent theo mã hồ sơ; không xóa dữ liệu khác.
 - CP-HERO-2026-001 có quy trình cap-phep thật đang ở bước thẩm định, giao td.binh, để hồ sơ
-  hiện trong Bàn làm việc của thẩm định viên (FIX-V11-08). Cần Flowable ở 127.0.0.1:8082
+  hiện trong Bàn làm việc của thẩm định viên (FIX-V11-08), có phân công và trạng thái như luồng
+  thật nhờ chạy sync_flow_state cho các bước đã qua (FIX-V11-10). Cần Flowable ở 127.0.0.1:8082
   (FLOWABLE_HOST_URL) và FLOWABLE_PASSWORD trong môi trường hoặc .env; thiếu thì chỉ cảnh báo.
 
 Chạy:
@@ -261,6 +262,23 @@ def psql_gia_tri(base_cmd: list[str], sql: str) -> str:
     return res.stdout.strip()
 
 
+def dong_bo_buoc(base_cmd: list[str], proc_id: str, buoc: str, bien: dict[str, Any]) -> None:
+    """Chạy hàm đồng bộ của app như dịch vụ flow làm khi hoàn thành việc (trạng thái, phân công, thông báo)."""
+    payload = json.dumps(bien, ensure_ascii=False).replace("'", "''")
+    psql_gia_tri(
+        base_cmd,
+        f"SELECT app_cap_phep_private.sync_flow_state('{proc_id}', '{buoc}', '{payload}'::jsonb)",
+    )
+
+
+def da_phan_cong(base_cmd: list[str], ho_so_id: str, td_sub: str) -> bool:
+    return psql_gia_tri(
+        base_cmd,
+        "SELECT count(*) FROM core.assignments WHERE object_type = 'ho_so' AND active "
+        f"AND object_id = '{ho_so_id}' AND user_sub = '{td_sub}' AND role = 'tham-dinh'",
+    ) not in ("", "0")
+
+
 def gan_quy_trinh_hero(base_cmd: list[str]) -> str:
     """Đưa hồ sơ hero vào bước taskThamDinh giao td.binh; trả về thông điệp kết quả."""
     env = doc_env(ROOT / ".env")
@@ -290,6 +308,10 @@ def gan_quy_trinh_hero(base_cmd: list[str]) -> str:
         if proc_cu:
             viec = fl.viec_dang_mo(proc_cu)
             if any(v.get("taskDefinitionKey") == "taskThamDinh" for v in viec):
+                if not da_phan_cong(base_cmd, ho_so_id, td_sub):
+                    # Bản seed trước FIX-V11-10 không chạy đồng bộ nên thiếu phân công
+                    dong_bo_buoc(base_cmd, proc_cu, "taskPhanCong", {"ma_ho_so": HERO_MA, "ho_so_id": ho_so_id, "nguoiThamDinh": td_sub})
+                    return f"[PASS] {HERO_MA} đã có việc thẩm định; bổ sung phân công {THAM_DINH_VIEN}."
                 return f"[PASS] {HERO_MA} đã có việc thẩm định của {THAM_DINH_VIEN}."
             # Quy trình cũ đã đi tiếp (sau một lần demo): bỏ để làm lại từ bước thẩm định
             fl.goi("DELETE", f"/service/runtime/process-instances/{proc_cu}?deleteReason=seed_hero")
@@ -327,6 +349,9 @@ def gan_quy_trinh_hero(base_cmd: list[str]) -> str:
             base_cmd,
             f"UPDATE app_cap_phep.ho_so SET process_instance_id = '{proc_id}' WHERE ma_ho_so = '{HERO_MA}'",
         )
+        goc = {"ma_ho_so": HERO_MA, "ho_so_id": ho_so_id}
+        dong_bo_buoc(base_cmd, proc_id, "taskKiemTraHopLe", {**goc, "hoSoHopLe": True})
+        dong_bo_buoc(base_cmd, proc_id, "taskPhanCong", {**goc, "nguoiThamDinh": td_sub})
     except (urllib.error.URLError, OSError, RuntimeError) as e:
         return f"[CẢNH BÁO] Không gắn được quy trình cho {HERO_MA}: {e}"
     return f"[PASS] {HERO_MA} ở bước thẩm định, giao {THAM_DINH_VIEN}."

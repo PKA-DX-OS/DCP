@@ -27,6 +27,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Thời hạn giải quyết (FIX-V11-07):** hồ sơ mới có hạn 7 ngày làm việc theo Điều 54 NĐ 217/2026 thay vì 15; SLA từng bước, form nộp và thanh tiến độ khớp con số này (`app_cap_phep.so_ngay_giai_quyet()`).
 - **404 cho API (FIX-V11-09):** đường dẫn `/api/` không có route trả 404 JSON (`ma_loi` `NOT_FOUND`) thay vì trang HTML của web cấp phép.
 - **Hàng đợi hậu kiểm và hồ sơ hero (FIX-V11-08):** phiếu kiểm tra (lập tay hoặc từ cảm biến) có việc trong Bàn làm việc của trật tự xây dựng, kết luận Đạt/Vi phạm được ghi vào phiếu; `seed_hero.py` đưa `CP-HERO-2026-001` tới bước thẩm định giao `td.binh`.
+- **Hồ sơ hero và kết luận hậu kiểm (FIX-V11-10):** `seed_hero.py` tạo phân công thẩm định cho `td.binh` nên chi tiết hồ sơ mở được; kết luận phiếu dùng lại `sync_flow_state` (ghi "Đạt tiêu chuẩn", người kiểm tra, ghi chú).
 
 ---
 
