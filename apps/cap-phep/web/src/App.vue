@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { getUser, getValidToken, handleCallbackIfNeeded, login, logout, readRoles, readTenant } from "./auth";
 import { useNotifications } from "./composables/useNotifications";
 import { useCongDan } from "./composables/useCongDan";
@@ -18,6 +18,7 @@ import DetailDossierModal from "./components/DetailDossierModal.vue";
 import SupplementModal from "./components/SupplementModal.vue";
 import Forbidden403Modal from "./components/Forbidden403Modal.vue";
 import BreakGlassModal from "./components/BreakGlassModal.vue";
+import GlobalSearch from "./components/GlobalSearch.vue";
 import { tabsChoVai } from "./features/registry";
 import { provideFeatureContext } from "./features/context";
 import { laCanBo as coVaiCanBo, laChuDauTu as coVaiChuDauTu } from "./features/roles";
@@ -67,6 +68,7 @@ const hoSoChiTiet = ref<HoSo | null>(null);
 const hoSoBoSung = ref<HoSo | null>(null);
 const biChan = ref<{ id: string; ma: string } | null>(null);
 const xinKhan = ref<{ id: string; ma: string } | null>(null);
+const moTimKiem = ref(false);
 
 async function moNopHoSo(): Promise<void> {
   moNop.value = true;
@@ -94,6 +96,22 @@ async function moHoSo(idHoacMa: string, ma = ""): Promise<void> {
 function moBoSung(d: HoSo): void {
   hoSoChiTiet.value = null;
   hoSoBoSung.value = d;
+}
+
+async function moHoSoTuTimKiem(id: string): Promise<void> {
+  moTimKiem.value = false;
+  // Đóng hộp thoại cũ trước để các panel (360, cảnh báo, nhật ký) nạp lại theo hồ sơ mới.
+  hoSoChiTiet.value = null;
+  await nextTick();
+  await moHoSo(id);
+}
+
+function onPhimTat(e: KeyboardEvent): void {
+  if (trang.value !== "ok") return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    moTimKiem.value = !moTimKiem.value;
+  }
 }
 
 function chuyenSangXinKhan(): void {
@@ -131,6 +149,9 @@ onMounted(async () => {
   thongBao.batDau();
   if (laChuDauTu.value) await cd.taiHoSo();
 });
+
+onMounted(() => document.addEventListener("keydown", onPhimTat));
+onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
 </script>
 
 <template>
@@ -153,6 +174,7 @@ onMounted(async () => {
       @chuyen-tab="(ma: string) => (tab = ma)"
       @da-doc="thongBao.danhDauDaDoc()"
       @doc-mot="thongBao.danhDauMot"
+      @mo-tim-kiem="moTimKiem = true"
       @dang-xuat="logout()"
       @dang-nhap="login()"
     />
@@ -250,5 +272,11 @@ onMounted(async () => {
     :submitting="cd.dangGui.value"
     @close="xinKhan = null"
     @confirm="guiXinKhan"
+  />
+  <GlobalSearch
+    v-if="moTimKiem"
+    :token="accessToken || ''"
+    @close="moTimKiem = false"
+    @mo-ho-so="moHoSoTuTimKiem"
   />
 </template>

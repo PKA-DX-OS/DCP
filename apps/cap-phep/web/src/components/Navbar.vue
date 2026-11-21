@@ -28,6 +28,7 @@ const emit = defineEmits<{
   (e: "dang-nhap"): void;
   (e: "da-doc"): void;
   (e: "doc-mot", id: string): void;
+  (e: "mo-tim-kiem"): void;
 }>();
 
 const { theme, toggle } = useTheme();
@@ -90,6 +91,21 @@ onUnmounted(() => {
       <span class="hidden text-[12px] text-phu lg:inline">
         {{ trangThaiKetNoi === "da_ket_noi" ? "Trực tuyến" : trangThaiKetNoi === "mat_ket_noi" ? "Mất kết nối" : "Đang kết nối" }}
       </span>
+
+      <button
+        v-if="daDangNhap"
+        id="btn-global-search"
+        type="button"
+        class="nut-tren"
+        aria-label="Tìm kiếm toàn cục"
+        title="Tìm kiếm toàn cục (Ctrl+K)"
+        @click="emit('mo-tim-kiem')"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m16 16 4.5 4.5" />
+        </svg>
+      </button>
 
       <button
         type="button"

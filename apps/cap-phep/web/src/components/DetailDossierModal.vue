@@ -59,6 +59,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           </div>
         </div>
 
+        <Dossier360Panel
+          v-if="userToken"
+          :dossier="dossier"
+          :token="userToken"
+          :class="mobileMuc('block-dossier-360')"
+        />
+
         <section v-if="dossier.trang_thai === 'DA_CAP' || permitInfo" id="block-giay-phep-signature" class="mt-5 p-4 rounded-[10px] border border-vien bg-mat" :class="mobileMuc('muc-thong-tin')">
           <div class="flex items-center justify-between gap-3 mb-3">
             <h3 class="text-[14px] font-semibold m-0">Giấy phép và chữ ký số</h3>
@@ -249,6 +256,7 @@ import AcceptancePanel from "../features/acceptance/AcceptancePanel.vue";
 import DossierActionBar from "./DossierActionBar.vue";
 import DossierWarnings from "./DossierWarnings.vue";
 import DossierLegalPanel from "./DossierLegalPanel.vue";
+import Dossier360Panel from "./Dossier360Panel.vue";
 import { readRoles } from "../auth";
 import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo, reviewDossierFile } from "../api";
 import { revokeSignedDocument } from "../api/legal";
@@ -278,6 +286,7 @@ useModal(hop, () => emit("close"));
 /** Thanh tab chuyển nhanh tới từng phần; mọi phần vẫn hiển thị để đọc liền một mạch. */
 const MUC_CO_BAN = [
   { id: "muc-thong-tin", ten: "Thông tin" },
+  { id: "block-dossier-360", ten: "Tổng hợp" },
   { id: "block-dossier-files", ten: "Giấy tờ" },
   { id: "block-dossier-planning", ten: "Quy hoạch" },
   { id: "block-dossier-acceptance", ten: "Nghiệm thu" },
@@ -308,10 +317,11 @@ const tabMoRong = computed(() => dossierTabsChoVai(featureCtx?.vaiTro.value ?? [
 const MUC = computed(() =>
   MUC_CO_BAN.filter(
     (m) =>
-      laCanBo.value ||
-      (m.id !== "block-dossier-planning" &&
-        m.id !== "block-dossier-acceptance" &&
-        m.id !== "block-dossier-legal"),
+      (m.id !== "block-dossier-360" || Boolean(props.userToken)) &&
+      (laCanBo.value ||
+        (m.id !== "block-dossier-planning" &&
+          m.id !== "block-dossier-acceptance" &&
+          m.id !== "block-dossier-legal")),
   ),
 );
 const mucHien = computed(() => [...MUC.value, ...tabMoRong.value.map((t) => ({ id: `muc-${t.ma}`, ten: t.ten }))]);
