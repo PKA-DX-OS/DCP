@@ -2,9 +2,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { getUser, getValidToken, readRoles } from "../auth";
-import { fetchEscalations, fetchTasks, remindTask } from "../api/flow";
+import { assignTask, fetchEscalations, fetchOfficers, fetchTasks, remindTask } from "../api/flow";
 import { fetchDossierFiles, fetchDossierHistory, openHoSo, reviewDossierFile } from "../api/dossiers";
 import { useDossierActions, type NguoiDung } from "../composables/useDossierActions";
 import { notify } from "../composables/useToast";
@@ -12,10 +12,19 @@ import { EmptyState, Skeleton } from "../design-system";
 import DossierActionBar from "../components/DossierActionBar.vue";
 import { formatStatus } from "../utils/formatters";
 import { cheCccd, ngayLamViecDaQua, tenBuoc, tenHanhDong } from "../utils/labels";
+import {
+  docBoLoc,
+  luuBoLoc,
+  xoaBoLoc,
+  type BoLocDaLuu,
+  type LocHan,
+  type LocLoaiViec,
+} from "../utils/workspace-filters";
+import { taiCsv } from "../utils/csv";
 import type { FlowTask } from "../types";
 
-type BoLoc = "tat-ca" | "qua-han" | "sap-han";
-type LoaiViec = "tat-ca" | "tiep-nhan" | "tham-dinh" | "phe-duyet" | "nghiem-thu" | "khac";
+type BoLoc = LocHan;
+type LoaiViec = LocLoaiViec;
 
 const nguoi = ref<NguoiDung | null>(null);
 const tasks = ref<FlowTask[]>([]);
@@ -27,6 +36,30 @@ const dangLam = ref<string | null>(null);
 const dangNhac = ref<string | null>(null);
 const escalations = ref<any[]>([]);
 const loadingEscalations = ref(false);
+
+// Chọn nhiều việc và thao tác hàng loạt
+const daChon = ref<string[]>([]);
+const xacNhanNhom = ref<"" | "nhac" | "phan-cong">("");
+const dangChayNhom = ref(false);
+const canBo = ref<any[]>([]);
+const dangTaiCanBo = ref(false);
+const loiCanBo = ref("");
+const vaiCanBo = ref("tham-dinh");
+const canBoChon = ref("");
+const lyDoPhanCong = ref("");
+
+// Bộ lọc đã lưu trong trình duyệt (không chứa PII)
+const luuTruLoc: Storage | null = (() => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+})();
+const dsBoLoc = ref<BoLocDaLuu[]>([]);
+const boLocDangChon = ref("");
+const hienLuuLoc = ref(false);
+const tenBoLoc = ref("");
 
 const selectedTask = ref<FlowTask | null>(null);
 const selectedDossier = ref<any | null>(null);
@@ -94,6 +127,201 @@ const danhSachLoc = computed(() => {
     return true;
   });
 });
+
+const daChonSet = computed(() => new Set(daChon.value));
+const soChon = computed(() => daChon.value.length);
+const chonTatCa = computed(
+  () => danhSachLoc.value.length > 0 && daChon.value.length === danhSachLoc.value.length,
+);
+const dsDangChon = computed(() => danhSachLoc.value.filter((t) => daChonSet.value.has(t.id)));
+
+function laChon(t: FlowTask): boolean {
+  return daChonSet.value.has(t.id);
+}
+
+function batTatChon(t: FlowTask): void {
+  daChon.value = laChon(t)
+    ? daChon.value.filter((id) => id !== t.id)
+    : [...daChon.value, t.id];
+}
+
+function chonTatCaHienTai(): void {
+  daChon.value = chonTatCa.value ? [] : danhSachLoc.value.map((t) => t.id);
+}
+
+function boChon(): void {
+  daChon.value = [];
+  xacNhanNhom.value = "";
+}
+
+watch(danhSachLoc, (ds) => {
+  const ids = new Set(ds.map((t) => t.id));
+  const conLai = daChon.value.filter((id) => ids.has(id));
+  if (conLai.length !== daChon.value.length) daChon.value = conLai;
+});
+
+function apDungBoLoc(): void {
+  const x = dsBoLoc.value.find((b) => b.ten === boLocDangChon.value);
+  if (!x) return;
+  boLoc.value = x.boLoc;
+  loaiViec.value = x.loaiViec;
+}
+
+function luuBoLocHienTai(): void {
+  const ten = tenBoLoc.value.trim();
+  if (!ten) {
+    notify("Nhập tên bộ lọc trước khi lưu", "canh_bao");
+    return;
+  }
+  dsBoLoc.value = luuBoLoc(luuTruLoc, dsBoLoc.value, ten, boLoc.value, loaiViec.value);
+  boLocDangChon.value = ten;
+  tenBoLoc.value = "";
+  hienLuuLoc.value = false;
+  notify(`Đã lưu bộ lọc “${ten}” trên trình duyệt này`, "ok");
+}
+
+function xoaBoLocHienTai(): void {
+  const ten = boLocDangChon.value;
+  if (!ten) return;
+  dsBoLoc.value = xoaBoLoc(luuTruLoc, dsBoLoc.value, ten);
+  boLocDangChon.value = "";
+  notify(`Đã xóa bộ lọc “${ten}”`, "ok");
+}
+
+watch([boLoc, loaiViec], () => {
+  xacNhanNhom.value = "";
+  const x = dsBoLoc.value.find((b) => b.ten === boLocDangChon.value);
+  if (!x || x.boLoc !== boLoc.value || x.loaiViec !== loaiViec.value) boLocDangChon.value = "";
+});
+
+function moNhacNhom(): void {
+  if (!laQuanLy.value || !soChon.value) return;
+  xacNhanNhom.value = "nhac";
+}
+
+async function taiCanBo(): Promise<void> {
+  dangTaiCanBo.value = true;
+  loiCanBo.value = "";
+  try {
+    const t = await getValidToken();
+    if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
+    const kq = await fetchOfficers(t, vaiCanBo.value);
+    canBo.value = Array.isArray(kq) ? kq : Array.isArray((kq as any)?.items) ? (kq as any).items : [];
+    canBoChon.value = "";
+    if (!canBo.value.length) loiCanBo.value = "Chưa có cán bộ phù hợp trong địa bàn.";
+  } catch (e) {
+    loiCanBo.value = e instanceof Error ? e.message : "Không tải được danh sách cán bộ";
+  } finally {
+    dangTaiCanBo.value = false;
+  }
+}
+
+async function moPhanCongNhom(): Promise<void> {
+  if (!laQuanLy.value || !soChon.value) return;
+  xacNhanNhom.value = "phan-cong";
+  if (!canBo.value.length) await taiCanBo();
+}
+
+watch(vaiCanBo, () => {
+  canBo.value = [];
+  canBoChon.value = "";
+  if (xacNhanNhom.value === "phan-cong") void taiCanBo();
+});
+
+async function thucHienNhacNhom(): Promise<void> {
+  const ds = dsDangChon.value.slice();
+  if (!ds.length) return;
+  dangChayNhom.value = true;
+  try {
+    const t = await getValidToken();
+    if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
+    const thatBai: string[] = [];
+    let loiDau = "";
+    for (const task of ds) {
+      try {
+        await remindTask(t, task.id);
+      } catch (e) {
+        thatBai.push(task.id);
+        if (!loiDau) loiDau = e instanceof Error ? e.message : "Lỗi không xác định";
+      }
+    }
+    const thanhCong = ds.length - thatBai.length;
+    daChon.value = thatBai;
+    xacNhanNhom.value = "";
+    const muc = thatBai.length === 0 ? "ok" : thanhCong === 0 ? "loi" : "canh_bao";
+    notify(
+      `Đã gửi nhắc ${thanhCong}/${ds.length} việc${thatBai.length ? `; ${thatBai.length} lỗi${loiDau ? `: ${loiDau}` : ""}` : ""}`,
+      muc,
+    );
+    await taiViec();
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không gửi được nhắc việc hàng loạt", "loi");
+  } finally {
+    dangChayNhom.value = false;
+  }
+}
+
+async function thucHienPhanCongNhom(): Promise<void> {
+  const ds = dsDangChon.value.slice();
+  if (!ds.length) return;
+  if (!canBoChon.value) {
+    notify("Chọn cán bộ trước khi phân công", "canh_bao");
+    return;
+  }
+  dangChayNhom.value = true;
+  try {
+    const t = await getValidToken();
+    if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
+    const lyDo = lyDoPhanCong.value.trim();
+    const thatBai: string[] = [];
+    let loiDau = "";
+    for (const task of ds) {
+      try {
+        await assignTask(t, task.id, canBoChon.value, lyDo);
+      } catch (e) {
+        thatBai.push(task.id);
+        if (!loiDau) loiDau = e instanceof Error ? e.message : "Lỗi không xác định";
+      }
+    }
+    const thanhCong = ds.length - thatBai.length;
+    daChon.value = thatBai;
+    xacNhanNhom.value = "";
+    lyDoPhanCong.value = "";
+    const muc = thatBai.length === 0 ? "ok" : thanhCong === 0 ? "loi" : "canh_bao";
+    notify(
+      `Đã phân công ${thanhCong}/${ds.length} việc${thatBai.length ? `; ${thatBai.length} lỗi${loiDau ? `: ${loiDau}` : ""}` : ""}`,
+      muc,
+    );
+    await taiViec();
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không phân công được hàng loạt", "loi");
+  } finally {
+    dangChayNhom.value = false;
+  }
+}
+
+function xuatCsvNhom(): void {
+  const ds = dsDangChon.value;
+  if (!ds.length) return;
+  try {
+    const headers = ["Mã hồ sơ", "Tên việc", "Địa chỉ", "Hạn xử lý", "Trạng thái", "Mức ưu tiên"];
+    const rows = ds.map((t) => {
+      const info = thongTin(t);
+      return [
+        info.ma,
+        t.name || t.taskDefinitionKey || "Nhiệm vụ",
+        info.diaChi,
+        dinhDangHan(t),
+        formatStatus(info.trangThai),
+        mucUuTien(t).nhan,
+      ];
+    });
+    taiCsv(`viec-da-chon-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    notify(`Đã xuất ${ds.length} việc ra CSV trên máy này`, "ok");
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không xuất được CSV", "loi");
+  }
+}
 
 function mucUuTien(t: FlowTask): { nhan: string; lop: string } {
   const info = thongTin(t);
@@ -292,6 +520,7 @@ function moHoSoDayDu(): void {
 }
 
 onMounted(async () => {
+  dsBoLoc.value = docBoLoc(luuTruLoc);
   const user = await getUser();
   const roles = readRoles(user?.access_token);
   nguoi.value = { sub: user?.profile?.sub as string | undefined, roles };
@@ -331,6 +560,41 @@ defineExpose({ taiViec });
         </select>
       </div>
       <button class="btn" @click="taiViec()">Làm mới</button>
+      <div class="flex flex-wrap items-center gap-2">
+        <select
+          v-if="dsBoLoc.length"
+          v-model="boLocDangChon"
+          class="o w-auto min-w-[180px]"
+          aria-label="Bộ lọc đã lưu"
+          @change="apDungBoLoc"
+        >
+          <option value="">Bộ lọc đã lưu</option>
+          <option v-for="b in dsBoLoc" :key="b.ten" :value="b.ten">{{ b.ten }}</option>
+        </select>
+        <button
+          v-if="boLocDangChon"
+          type="button"
+          class="btn btn-sm text-son"
+          @click="xoaBoLocHienTai"
+        >Xóa bộ lọc</button>
+        <button type="button" class="btn" @click="hienLuuLoc = !hienLuuLoc">
+          {{ hienLuuLoc ? "Đóng lưu bộ lọc" : "Lưu bộ lọc" }}
+        </button>
+      </div>
+      <div v-if="hienLuuLoc" class="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+        <label class="block">
+          <span class="nhan">Tên bộ lọc</span>
+          <input
+            v-model="tenBoLoc"
+            class="o sm:w-64"
+            maxlength="50"
+            placeholder="Ví dụ: Quá hạn thẩm định"
+            aria-label="Tên bộ lọc"
+            @keydown.enter.prevent="luuBoLocHienTai"
+          />
+        </label>
+        <button type="button" class="btn btn-sm btn-chinh" @click="luuBoLocHienTai">Lưu</button>
+      </div>
     </div>
 
     <section v-if="laQuanLy && !dangTai && escalations.length" class="the p-4" aria-labelledby="tieu-de-qua-han">
@@ -375,32 +639,114 @@ defineExpose({ taiViec });
           <h2 class="nhan-nho m-0">Hàng đợi công việc</h2>
           <span class="tt tt-xam">{{ danhSachLoc.length }}</span>
         </div>
+
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
+          <label class="inline-flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              class="h-4 w-4 accent-[rgb(var(--c-cham))]"
+              :checked="chonTatCa"
+              aria-label="Chọn tất cả việc đang lọc"
+              @change="chonTatCaHienTai"
+            />
+            Chọn tất cả
+          </label>
+          <span v-if="soChon" class="text-phu">Đã chọn {{ soChon }} việc</span>
+        </div>
+
+        <div v-if="soChon" class="mb-2 rounded-[14px] border border-vien-nhat bg-mat-2 p-2" role="region" aria-label="Thao tác hàng loạt">
+          <div class="flex flex-wrap gap-1.5">
+            <button v-if="laQuanLy" type="button" class="btn btn-sm" :disabled="dangChayNhom" @click="moNhacNhom">Nhắc việc</button>
+            <button v-if="laQuanLy" type="button" class="btn btn-sm" :disabled="dangChayNhom" @click="moPhanCongNhom">Phân công</button>
+            <button type="button" class="btn btn-sm" :disabled="dangChayNhom" @click="xuatCsvNhom">Xuất CSV</button>
+            <button type="button" class="btn btn-sm ml-auto" :disabled="dangChayNhom" @click="boChon">Bỏ chọn</button>
+          </div>
+          <p class="m-0 mt-2 text-[11.5px] text-phu">
+            Nhắc/phân công được ghi nhật ký phía máy chủ. CSV chỉ tải trên máy, không gửi dữ liệu đi.
+          </p>
+        </div>
+
+        <div v-if="xacNhanNhom === 'nhac'" class="mb-2 rounded-[14px] border border-vien-nhat bg-mat-2 p-3 text-[13px]" role="alert">
+          <p class="m-0 font-semibold">Gửi nhắc {{ soChon }} việc đã chọn?</p>
+          <p class="m-0 mt-1 text-phu">Việc chưa có cán bộ xử lý sẽ báo lỗi và được giữ chọn để thử lại.</p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-chinh" :disabled="dangChayNhom" @click="thucHienNhacNhom">
+              {{ dangChayNhom ? "Đang gửi…" : "Xác nhận nhắc" }}
+            </button>
+            <button type="button" class="btn btn-sm" :disabled="dangChayNhom" @click="xacNhanNhom = ''">Hủy</button>
+          </div>
+        </div>
+
+        <div v-if="xacNhanNhom === 'phan-cong'" class="mb-2 rounded-[14px] border border-vien-nhat bg-mat-2 p-3 text-[13px]" role="alert">
+          <p class="m-0 font-semibold">Phân công {{ soChon }} việc đã chọn</p>
+          <p v-if="dangTaiCanBo" class="m-0 mt-1 text-phu" role="status">Đang tải cán bộ…</p>
+          <div v-else-if="loiCanBo" class="mt-1">
+            <p class="m-0 text-son">{{ loiCanBo }}</p>
+            <button type="button" class="btn btn-sm mt-2" @click="taiCanBo">Thử lại</button>
+          </div>
+          <label class="mt-2 block">
+            <span class="nhan">Nhóm cán bộ</span>
+            <select v-model="vaiCanBo" class="o w-full" aria-label="Nhóm cán bộ phân công">
+              <option value="tham-dinh">Thẩm định</option>
+              <option value="mot-cua">Một cửa</option>
+              <option value="lanh-dao">Lãnh đạo</option>
+              <option value="trat-tu-xd">Trật tự xây dựng</option>
+            </select>
+          </label>
+          <label v-if="!dangTaiCanBo && !loiCanBo" class="mt-2 block">
+            <span class="nhan">Cán bộ</span>
+            <select v-model="canBoChon" class="o w-full" aria-label="Cán bộ được phân công">
+              <option value="">Chọn cán bộ</option>
+              <option v-for="c in canBo" :key="c.sub" :value="c.sub">
+                {{ c.ho_ten || c.username || c.sub }}
+              </option>
+            </select>
+          </label>
+          <label class="mt-2 block">
+            <span class="nhan">Lý do (không bắt buộc)</span>
+            <input v-model="lyDoPhanCong" class="o w-full" maxlength="500" aria-label="Lý do phân công" placeholder="Ví dụ: cân bằng tải việc" />
+          </label>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-chinh" :disabled="dangChayNhom || dangTaiCanBo || !canBoChon" @click="thucHienPhanCongNhom">
+              {{ dangChayNhom ? "Đang phân công…" : "Xác nhận phân công" }}
+            </button>
+            <button type="button" class="btn btn-sm" :disabled="dangChayNhom" @click="xacNhanNhom = ''">Hủy</button>
+          </div>
+        </div>
+
         <div class="flex-1 space-y-2 overflow-y-auto pr-1">
-          <button
-            v-for="t in danhSachLoc"
-            :key="t.id"
-            type="button"
-            class="w-full rounded-[18px] border p-3 text-left transition"
-            :class="
-              selectedTask?.id === t.id
-                ? 'border-[rgb(var(--c-cham))] bg-mat-2'
-                : 'border-vien-nhat bg-transparent hover:bg-mat-2'
-            "
-            @click="chonViec(t)"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <span class="min-w-0">
-                <span class="block text-[14px] font-semibold leading-tight text-chu">{{ t.name || t.taskDefinitionKey || "Nhiệm vụ" }}</span>
-                <span class="ma mt-0.5 block text-[12.5px]">{{ thongTin(t).ma }}</span>
-                <span v-if="thongTin(t).diaChi" class="mt-0.5 block truncate text-[12px] text-phu">{{ thongTin(t).diaChi }}</span>
-              </span>
-              <span :class="mucUuTien(t).lop">{{ mucUuTien(t).nhan }}</span>
-            </div>
-            <div class="mt-2 flex items-center justify-between gap-2 text-[11.5px] text-phu">
-              <span>Hạn: {{ dinhDangHan(t) }}</span>
-              <span>{{ formatStatus(thongTin(t).trangThai) }}</span>
-            </div>
-          </button>
+          <div v-for="t in danhSachLoc" :key="t.id" class="flex items-start gap-1.5">
+            <input
+              type="checkbox"
+              class="mt-4 ml-1 h-4 w-4 shrink-0 accent-[rgb(var(--c-cham))]"
+              :checked="laChon(t)"
+              :aria-label="`Chọn việc ${thongTin(t).ma || t.name || t.id}`"
+              @change="batTatChon(t)"
+            />
+            <button
+              type="button"
+              class="min-w-0 flex-1 rounded-[18px] border p-3 text-left transition"
+              :class="
+                selectedTask?.id === t.id
+                  ? 'border-[rgb(var(--c-cham))] bg-mat-2'
+                  : 'border-vien-nhat bg-transparent hover:bg-mat-2'
+              "
+              @click="chonViec(t)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <span class="min-w-0">
+                  <span class="block text-[14px] font-semibold leading-tight text-chu">{{ t.name || t.taskDefinitionKey || "Nhiệm vụ" }}</span>
+                  <span class="ma mt-0.5 block text-[12.5px]">{{ thongTin(t).ma }}</span>
+                  <span v-if="thongTin(t).diaChi" class="mt-0.5 block truncate text-[12px] text-phu">{{ thongTin(t).diaChi }}</span>
+                </span>
+                <span :class="mucUuTien(t).lop">{{ mucUuTien(t).nhan }}</span>
+              </div>
+              <div class="mt-2 flex items-center justify-between gap-2 text-[11.5px] text-phu">
+                <span>Hạn: {{ dinhDangHan(t) }}</span>
+                <span>{{ formatStatus(thongTin(t).trangThai) }}</span>
+              </div>
+            </button>
+          </div>
         </div>
       </aside>
 
