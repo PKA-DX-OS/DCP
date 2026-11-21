@@ -10,7 +10,7 @@ const CDT = "app:cap-phep:chu-dau-tu";
 
 describe("tab theo vai", () => {
   test.each([
-    [[CDT], ["ho-so", "du-lieu"]],
+    [[CDT], ["ho-so", "tu-phuc-vu", "du-lieu"]],
     [["app:cap-phep:mot-cua"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat"]],
     [["app:cap-phep:tham-dinh"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat"]],
     [["app:cap-phep:trat-tu-xd"], ["ban-lam-viec", "hien-truong", "cong-trinh", "phap-luat"]],
