@@ -11,7 +11,7 @@ import { notify } from "../composables/useToast";
 import { EmptyState, Skeleton } from "../design-system";
 import DossierActionBar from "../components/DossierActionBar.vue";
 import { formatStatus } from "../utils/formatters";
-import { ngayLamViecDaQua, tenBuoc } from "../utils/labels";
+import { cheCccd, ngayLamViecDaQua, tenBuoc, tenHanhDong } from "../utils/labels";
 import type { FlowTask } from "../types";
 
 type BoLoc = "tat-ca" | "qua-han" | "sap-han";
@@ -310,21 +310,26 @@ defineExpose({ taiViec });
         <p class="mt-2 text-[16px] text-phu">Hàng đợi công việc, chi tiết hồ sơ và thao tác xử lý trong một màn hình.</p>
       </div>
       <div class="flex-1"></div>
-      <label class="nhan" for="loc-viec">Hạn</label>
-      <select id="loc-viec" v-model="boLoc" class="o w-auto">
-        <option value="tat-ca">Tất cả</option>
-        <option value="qua-han">Quá hạn</option>
-        <option value="sap-han">Sắp đến hạn (24 giờ)</option>
-      </select>
-      <label class="nhan" for="loc-loai-viec">Loại việc</label>
-      <select id="loc-loai-viec" v-model="loaiViec" class="o w-auto">
-        <option value="tat-ca">Tất cả</option>
-        <option value="tiep-nhan">Tiếp nhận</option>
-        <option value="tham-dinh">Thẩm định / quy hoạch</option>
-        <option value="phe-duyet">Phê duyệt</option>
-        <option value="nghiem-thu">Nghiệm thu</option>
-        <option value="khac">Khác</option>
-      </select>
+      <!-- Nhãn và ô chọn đi cùng một khối để khi hàng xuống dòng nhãn không tách khỏi ô của nó -->
+      <div class="flex items-center gap-2">
+        <label class="nhan mb-0" for="loc-viec">Hạn</label>
+        <select id="loc-viec" v-model="boLoc" class="o w-auto">
+          <option value="tat-ca">Tất cả</option>
+          <option value="qua-han">Quá hạn</option>
+          <option value="sap-han">Sắp đến hạn (24 giờ)</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="nhan mb-0" for="loc-loai-viec">Loại việc</label>
+        <select id="loc-loai-viec" v-model="loaiViec" class="o w-auto">
+          <option value="tat-ca">Tất cả</option>
+          <option value="tiep-nhan">Tiếp nhận</option>
+          <option value="tham-dinh">Thẩm định / quy hoạch</option>
+          <option value="phe-duyet">Phê duyệt</option>
+          <option value="nghiem-thu">Nghiệm thu</option>
+          <option value="khac">Khác</option>
+        </select>
+      </div>
       <button class="btn" @click="taiViec()">Làm mới</button>
     </div>
 
@@ -454,7 +459,7 @@ defineExpose({ taiViec });
             </div>
             <div>
               <dt class="nhan-nho">CCCD / Điện thoại</dt>
-              <dd class="m-0 text-chu">{{ selectedDossier.cccd || "—" }} / {{ selectedDossier.dien_thoai || "—" }}</dd>
+              <dd class="m-0 text-chu">{{ cheCccd(selectedDossier.cccd) || "—" }} / {{ selectedDossier.dien_thoai || "—" }}</dd>
             </div>
             <div class="sm:col-span-2">
               <dt class="nhan-nho">Địa chỉ xây dựng</dt>
@@ -527,7 +532,7 @@ defineExpose({ taiViec });
             <ul v-else tabindex="0" aria-label="Lịch sử xử lý gần đây" class="m-0 max-h-48 list-none space-y-1.5 overflow-y-auto p-0">
               <li v-for="(a, idx) in audit.slice(0, 8)" :key="idx" class="rounded-[14px] border border-vien-nhat bg-mat-2 p-2 text-[12px]">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="font-semibold text-chu">{{ a.action || a.hanh_dong || "Thao tác" }}</span>
+                  <span class="font-semibold text-chu">{{ tenHanhDong(a.action || a.hanh_dong || "") }}</span>
                   <span class="text-[10.5px] text-phu">{{ ngayGio(a.at || a.created_at) }}</span>
                 </div>
                 <p class="m-0 mt-0.5 text-[11.5px] text-phu">{{ a.actor_name || a.actor_sub || "Hệ thống" }}</p>

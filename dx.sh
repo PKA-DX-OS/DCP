@@ -105,6 +105,15 @@ openbao_ready() {
   fi
 }
 
+# Script dùng `docker exec` vào dxos-postgres nên chạy bằng Python trên máy (chỉ cần thư viện chuẩn).
+host_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    run python3 "$@"
+  else
+    echo "  [WARN] Không có python3 trên máy; bỏ qua $1, chạy tay sau: python3 $*"
+  fi
+}
+
 cmd_up() {
   need_env
   is_demo && echo "[CẢNH BÁO] DEMO_MODE=true: chỉ dùng thử nghiệm, không dùng cho môi trường thật."
@@ -119,8 +128,12 @@ cmd_up() {
   run "${COMPOSE[@]}" restart postgrest
   echo "--> Kiểm tra OpenBao..."
   openbao_ready
+  echo "--> Chạy migration PostgreSQL lõi..."
+  host_python scripts/migrate.py
   echo "--> Cài/nâng cấp gói ứng dụng cap-phep..."
   run "${TOOLS[@]}" scripts/app_manager.py install cap-phep
+  echo "--> Nạp kho văn bản pháp luật (chạy lại không tạo trùng)..."
+  host_python scripts/seed_legal.py
   if [ ! -f secrets/demo-accounts.txt ] && is_demo; then
     echo "--> Nạp tài khoản và dữ liệu mẫu..."
     run "${TOOLS[@]}" apps/cap-phep/seed/seed.py

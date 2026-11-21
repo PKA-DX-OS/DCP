@@ -199,7 +199,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               <span>
                 <b class="font-medium">{{ tenHanhDong(item.action) }}</b>
                 <span class="block" :class="isBreakGlass(item) ? '' : 'text-phu'">
-                  {{ item.actor_name || item.actor_sub || "Hệ thống" }}<template v-if="item.actor_roles && item.actor_roles.length">, {{ tenVai(item.actor_roles[0]) }}</template>
+                  {{ item.actor_name || item.actor_sub || "Hệ thống" }}<template v-if="vaiNghiepVu(item.actor_roles)">, {{ vaiNghiepVu(item.actor_roles) }}</template>
                 </span>
                 <span v-if="getAuditReason(item)" class="block">Lý do: {{ getAuditReason(item) }}</span>
               </span>
@@ -253,7 +253,7 @@ import { readRoles } from "../auth";
 import { downloadFile, fetchDossierFiles, fetchDossierHistory, fetchPermitInfo, reviewDossierFile } from "../api";
 import { revokeSignedDocument } from "../api/legal";
 import { API_BASE } from "../config";
-import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, tenVai, ngayNgan, ngayGio } from "../utils/labels";
+import { cheCccd, tenDonVi, tenBuoc, tenHanhDong, vaiNghiepVu, ngayNgan, ngayGio } from "../utils/labels";
 import type { HoSo } from "../types";
 import { formatStatus, getStatusBadgeClass, formatNumberVi } from "../utils/formatters";
 import { dossierTabsChoVai } from "../features/registry";

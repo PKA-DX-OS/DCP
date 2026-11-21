@@ -67,8 +67,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               <td class="whitespace-nowrap" :data-loai="req.type">{{ tenYeuCauDuLieu(req.type) }}</td>
               <td class="whitespace-nowrap"><span class="tt tt-lam">{{ trangThai(req.status) }}</span></td>
               <td class="whitespace-nowrap">{{ ngayNgan(req.received_at) }}</td>
-              <td class="whitespace-nowrap text-phu">{{ ngayNgan(req.ack_due_at) }}</td>
-              <td class="whitespace-nowrap">{{ ngayNgan(req.due_at) }}</td>
+              <td class="whitespace-nowrap text-phu">
+                {{ ngayNgan(req.ack_due_at) }}
+                <span v-if="req.status === 'received' && daQua(req.ack_due_at)" class="block text-[12px] text-son">Phường chưa xác nhận, đã quá hạn</span>
+              </td>
+              <td class="whitespace-nowrap">
+                {{ ngayNgan(req.due_at) }}
+                <span v-if="!req.closed_at && daQua(req.due_at)" class="block text-[12px] text-son">Đã quá hạn</span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -81,6 +87,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 import { computed, ref, watch } from "vue";
 import { SOURCE_URL } from "../config";
 import { ngayNgan, tenYeuCauDuLieu } from "../utils/labels";
+
+function daQua(iso: string | null | undefined): boolean {
+  return !!iso && new Date(iso).getTime() < Date.now();
+}
 
 const props = defineProps<{
   dsarList: any[];

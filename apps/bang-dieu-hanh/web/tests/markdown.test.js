@@ -20,6 +20,13 @@ test("render tiêu đề, danh sách và code", () => {
 });
 
 test("tên nguồn không lộ file.md", () => {
-  expect(tenNguon("legal-pdf/ND-278.pdf#p3")).toBe("ND 278.pdf");
-  expect(tenNguon("legal-analysis/quy-dinh.md#c1")).toBe("quy dinh");
+  expect(tenNguon("legal-pdf/ND-278.pdf#p3")).toBe("Nghị định 278");
+  expect(tenNguon("legal-analysis/quy-dinh.md#c1")).toBe("Quy dinh");
+  expect(tenNguon("quy-dinh-cap-phep.md#2")).toBe("Quy định cấp phép của địa bàn");
+});
+
+test("mã trích dẫn pháp lý đọc được", () => {
+  expect(tenNguon("legal/ND217-D54")).toBe("Nghị định 217, Điều 54");
+  expect(tenNguon("legal/ND217-D53-K1")).toBe("Nghị định 217, Điều 53, khoản 1");
+  expect(tenNguon("legal/LXD135-TOANVAN")).toBe("Luật Xây dựng số 135, toàn văn");
 });

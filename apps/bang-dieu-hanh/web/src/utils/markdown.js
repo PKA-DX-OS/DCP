@@ -70,9 +70,35 @@ export function renderMarkdown(text) {
   return out.join("\n");
 }
 
-/** Bỏ tiền tố/đuôi tệp kỹ thuật để không hiện raw `file.md:` trên UI. */
+const LOAI_VAN_BAN = {
+  ND: "Nghị định",
+  TT: "Thông tư",
+  LXD: "Luật Xây dựng",
+  LQH: "Luật Quy hoạch",
+  LBDLCN: "Luật Bảo vệ dữ liệu cá nhân",
+  LLT: "Luật Lưu trữ",
+  LP: "Luật Phí và lệ phí",
+  LTCQ: "Luật Tổ chức chính quyền địa phương",
+};
+const TEN_TEP = { "quy-dinh-cap-phep": "Quy định cấp phép của địa bàn" };
+
+/**
+ * Tên nguồn trích dẫn cho người đọc: mã trích dẫn pháp lý (`legal/ND217-D53-K1`) thành
+ * "Nghị định 217, Điều 53, khoản 1"; tệp tri thức bỏ đuôi `.md`/`.pdf` và đường dẫn.
+ */
 export function tenNguon(nguon) {
   const s = String(nguon ?? "");
   const base = s.split("#")[0].split("/").pop() || s;
-  return base.replace(/\.md$/i, "").replace(/[-_]/g, " ");
+  const ma = base.replace(/\.(md|pdf)$/i, "");
+  const m = /^([A-Z]+?)-?(\d+)(?:-D(\d+))?(?:-K(\d+))?(-TOANVAN)?$/.exec(ma);
+  if (m && LOAI_VAN_BAN[m[1]]) {
+    const phan = [m[1].startsWith("L") ? `${LOAI_VAN_BAN[m[1]]} số ${m[2]}` : `${LOAI_VAN_BAN[m[1]]} ${m[2]}`];
+    if (m[3]) phan.push(`Điều ${m[3]}`);
+    if (m[4]) phan.push(`khoản ${m[4]}`);
+    if (m[5]) phan.push("toàn văn");
+    return phan.join(", ");
+  }
+  if (TEN_TEP[ma]) return TEN_TEP[ma];
+  const chu = ma.replace(/[-_]/g, " ").trim();
+  return chu.charAt(0).toUpperCase() + chu.slice(1);
 }

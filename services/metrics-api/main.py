@@ -25,6 +25,7 @@ from dxos_core.middleware import setup_standard_service
 from dxos_core.jwt import verify_jwt_token
 from dxos_core.db import get_db_connection
 from dxos_core.lineage import get_lineage_history
+from dxos_core.xem_dia_ban import ngu_canh_tong_hop
 
 app = FastAPI(title="DX-OS Executive Metrics & Lineage API", version="1.0.0")
 setup_standard_service(app, "metrics-api")
@@ -89,12 +90,16 @@ async def _load_policies(conn) -> List[Dict[str, Any]]:
 
 
 @app.get("/api/v1/metrics")
-async def get_executive_metrics(authorization: str = Header(...)):
+async def get_executive_metrics(
+    tenant: Optional[str] = None,
+    authorization: str = Header(...),
+):
     claims = verify_jwt_token(authorization)
-    tenant = claims.tenant
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    tenant = ctx.tenant
     computed_at = datetime.now(timezone.utc).isoformat()
 
-    async with get_db_connection(claims) as conn:
+    async with get_db_connection(ctx) as conn:
         policies = await _load_policies(conn)
         results: List[Dict[str, Any]] = []
         for policy in policies:

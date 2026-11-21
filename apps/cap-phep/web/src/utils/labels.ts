@@ -35,6 +35,12 @@ export function vaiChinh(roles: string[] | undefined): string {
   return r ? VAI[r] : "Người dùng";
 }
 
+/** Như vaiChinh nhưng trả chuỗi rỗng khi không có vai nghiệp vụ (dùng trong nhật ký). */
+export function vaiNghiepVu(roles: string[] | undefined | null): string {
+  const r = (roles || []).find((x) => VAI[x]);
+  return r ? VAI[r] : "";
+}
+
 const HANH_DONG: Record<string, string> = {
   "ho_so.nop": "Nộp hồ sơ",
   "ho_so.insert": "Tạo hồ sơ",
@@ -55,10 +61,56 @@ const HANH_DONG: Record<string, string> = {
   "access.denied": "Bị từ chối truy cập",
   "access.granted": "Xem hồ sơ",
   "sla.qua_han": "Quá hạn xử lý",
+  "ho_so.kiem_tra_tham_quyen": "Kiểm tra thẩm quyền",
+  "ho_so.authority_guard_checked": "Kiểm tra thẩm quyền",
+  "ho_so.dinh_danh_dia_diem": "Gắn mã định danh địa điểm",
+  "ho_so_tep.dinh_kem": "Đính kèm giấy tờ",
+  "ho_so_tep.danh_gia": "Đánh giá giấy tờ",
+  "file.uploaded": "Tải tệp lên",
+  "file.infected": "Chặn tệp nhiễm mã độc",
+  "doc.revoked": "Thu hồi giấy phép",
+  "planning.checked": "Kiểm tra quy hoạch",
+  "location.lookup": "Tra cứu địa điểm",
+  "location.attached": "Gắn địa điểm",
+  "fee.created": "Tạo khoản phí",
+  "receipt.created": "Lập biên lai",
+  "receipt.status_changed": "Cập nhật biên lai",
+  "archive.created": "Lập hồ sơ lưu trữ",
+  "archive.status_changed": "Cập nhật lưu trữ",
+  "data.share_payload_created": "Chuẩn bị dữ liệu chia sẻ",
+  "data.share_export": "Chia sẻ dữ liệu",
+  "acceptance.milestone_created": "Tạo mốc nghiệm thu",
+  "acceptance.record_submitted": "Nộp biên bản nghiệm thu",
+  "acceptance.as_built_submitted": "Nộp hồ sơ hoàn công",
+  "phieu_kiem_tra.created": "Lập phiếu kiểm tra",
+  "phieu_kiem_tra.completed": "Hoàn thành kiểm tra hiện trường",
+  "phieu_kiem_tra.xu_ly_vi_pham": "Xử lý vi phạm",
+  "task.reminded": "Nhắc việc",
+  "task.reassigned": "Chuyển người xử lý",
+  "sod.violation_prevented": "Chặn vi phạm phân tách nhiệm vụ",
+  "flow.hook_failed": "Lỗi đồng bộ quy trình",
+  "flow.hook_retry": "Thử lại đồng bộ quy trình",
+  "flow.hook_retry_denied": "Từ chối thử lại đồng bộ",
+  "flow.hook_complete_denied": "Từ chối hoàn thành bước",
+  "export.audit": "Xuất nhật ký kiểm toán",
+  "export.dossiers": "Xuất danh sách hồ sơ",
+  "export.metrics": "Xuất chỉ số",
+  "user.role_changed": "Đổi vai người dùng",
+  "tenant.created": "Tạo địa bàn",
+  "alert.unmatched_site": "Cảnh báo không khớp công trình",
+  "alert.dead_letter": "Cảnh báo không xử lý được",
+  "ingest.tenant_mismatch": "Dữ liệu cảm biến sai địa bàn",
 };
 
+const THAO_TAC_BANG: Record<string, string> = { insert: "Tạo", update: "Cập nhật", delete: "Xóa" };
+
+/** Tên hành động audit cho người đọc; mã chưa có trong danh mục thì đọc từ dạng `<bảng>.<thao tác>`. */
 export function tenHanhDong(action: string): string {
-  return HANH_DONG[action] || action;
+  if (!action) return "Thao tác";
+  if (HANH_DONG[action]) return HANH_DONG[action];
+  const m = /^([a-z_]+)\.(insert|update|delete)$/.exec(action);
+  if (m) return `${THAO_TAC_BANG[m[2]]} ${m[1].replace(/_/g, " ")}`;
+  return action;
 }
 
 const NHIEM_VU: Record<string, string> = {

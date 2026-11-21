@@ -192,6 +192,11 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
+      # Theme dxos mount từ repo: không cache theme trong bộ nhớ để sửa theme có hiệu lực ngay khi
+      # `dx up` (không cần khởi động lại Keycloak); trình duyệt chỉ cache CSS/ảnh của theme 1 giờ.
+      KC_SPI_THEME_CACHE_THEMES: "false"
+      KC_SPI_THEME_CACHE_TEMPLATES: "false"
+      KC_SPI_THEME_STATIC_MAX_AGE: "3600"
     volumes:
       - ./secrets/realm-dxos.json:/opt/keycloak/data/import/realm-dxos.json:ro
       - ./core/keycloak/themes:/opt/keycloak/themes:ro

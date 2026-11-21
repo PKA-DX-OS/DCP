@@ -31,6 +31,9 @@ const accessToken = ref<string | undefined>(undefined);
 const tenant = ref("");
 const donVi = computed(() => tenDonVi(tenant.value) || "Hệ thống cấp phép");
 
+const coBangDieuHanh = computed(() =>
+  vaiTro.value.some((r) => ["dx:auditor", "dx:tenant-admin", "dx:platform-admin", "dx:dpo"].includes(r)),
+);
 const laCanBo = computed(() => coVaiCanBo(vaiTro.value));
 const laChuDauTu = computed(() => coVaiChuDauTu(vaiTro.value));
 
@@ -114,11 +117,12 @@ onMounted(async () => {
     return;
   }
   vaiTro.value = readRoles(user.access_token);
+  // Đặt tên trước khi kiểm vai: thanh trên cùng hiện "Đăng xuất" cả khi tài khoản không có vai cấp phép
+  tenNguoiDung.value = (user.profile?.name as string) || (user.profile?.preferred_username as string) || "";
   if (!laCanBo.value && !laChuDauTu.value) {
     trang.value = "khong_quyen";
     return;
   }
-  tenNguoiDung.value = (user.profile?.name as string) || (user.profile?.preferred_username as string) || "";
   subNguoiDung.value = user.profile?.sub as string | undefined;
   accessToken.value = user.access_token;
   tenant.value = readTenant(user.access_token);
@@ -192,7 +196,11 @@ onMounted(async () => {
       <section class="the p-8 sm:p-10">
         <h1 class="tieu-de-trang">Không có quyền</h1>
         <p class="mt-2 text-phu">Tài khoản không có vai trò chủ đầu tư hoặc cán bộ cấp phép.</p>
-        <button class="btn mt-4" @click="logout()">Đăng xuất</button>
+        <p v-if="coBangDieuHanh" class="mt-2 text-phu">Vai của bạn làm việc trên bảng điều hành (chỉ số, kiểm toán, quản trị).</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <a v-if="coBangDieuHanh" class="btn btn-chinh" href="/dieu-hanh/">Mở bảng điều hành</a>
+          <button class="btn" @click="logout()">Đăng xuất</button>
+        </div>
       </section>
     </main>
 

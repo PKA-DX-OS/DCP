@@ -14,6 +14,7 @@ FROM nginx:1.27.4-alpine
 RUN sed -i -e '/^user /d' -e 's#^pid .*#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf \
     && chown -R nginx:nginx /var/cache/nginx /usr/share/nginx/html
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 USER nginx
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

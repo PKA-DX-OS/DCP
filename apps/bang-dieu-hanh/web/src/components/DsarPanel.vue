@@ -43,9 +43,8 @@ const TRANG_THAI: Record<string, string> = {
 };
 
 const dsLoc = computed(() => ds.value.filter((x) => !locTrangThai.value || x.status === locTrangThai.value));
-const soQuaHan = computed(() =>
-  ds.value.filter((x) => !x.closed_at && new Date(x.due_at).getTime() < Date.now()).length,
-);
+const tenNguoi = ref<Record<string, string>>({});
+const soQuaHan = computed(() => ds.value.filter((x) => quaHan(x) || quaHanXacNhan(x)).length);
 
 function nhanLoai(value: string): string {
   return LOAI[value] || value;
@@ -59,6 +58,10 @@ function ngay(value: string | null): string {
 function quaHan(x: DsarRequest): boolean {
   return !x.closed_at && new Date(x.due_at).getTime() < Date.now();
 }
+/** Chưa nhận xử lý mà đã qua hạn xác nhận (ack_due_at). */
+function quaHanXacNhan(x: DsarRequest): boolean {
+  return x.status === "received" && !!x.ack_due_at && new Date(x.ack_due_at).getTime() < Date.now();
+}
 function lopTrangThai(value: string): string {
   if (value === "completed") return "tt-xanh";
   if (value === "rejected") return "tt-do";
@@ -71,6 +74,12 @@ async function tai(): Promise<void> {
   error.value = "";
   try {
     ds.value = await apiGet<DsarRequest[]>("/rest/dsar_requests?order=received_at.desc");
+    try {
+      const ten = await apiGet<{ sub: string; full_name: string }[]>("/rest/v_ten_nguoi_dung?select=sub,full_name");
+      tenNguoi.value = Object.fromEntries(ten.map((x) => [x.sub, x.full_name]));
+    } catch {
+      tenNguoi.value = {};
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Không tải được yêu cầu dữ liệu cá nhân";
   } finally {
@@ -174,13 +183,14 @@ onMounted(tai);
         <tbody>
           <tr v-for="x in dsLoc" :key="x.id" class="border-b align-top">
             <td class="px-3 py-2">
-              <span class="block font-medium">{{ x.subject_sub }}</span>
-              <span class="block text-xs chu-phu">{{ x.tenant }} · {{ x.id.slice(0, 8) }}…</span>
+              <span class="block font-medium">{{ tenNguoi[x.subject_sub] || "Người dùng chưa đồng bộ" }}</span>
+              <span class="block text-xs chu-phu" :title="x.subject_sub">Mã yêu cầu {{ x.id.slice(0, 8) }}…</span>
             </td>
             <td class="px-3 py-2 whitespace-nowrap">{{ nhanLoai(x.type) }}</td>
             <td class="px-3 py-2 whitespace-nowrap">
               <span class="rounded-full px-2 py-0.5 text-xs" :class="lopTrangThai(x.status)">{{ nhanTrangThai(x.status) }}</span>
-              <span v-if="quaHan(x)" class="mt-1 block text-xs text-red-700">Quá hạn</span>
+              <span v-if="quaHan(x)" class="mt-1 block text-xs text-red-700">Quá hạn giải quyết</span>
+              <span v-else-if="quaHanXacNhan(x)" class="mt-1 block text-xs text-red-700">Quá hạn xác nhận ({{ ngay(x.ack_due_at) }})</span>
             </td>
             <td class="px-3 py-2 whitespace-nowrap">{{ ngay(x.received_at) }}</td>
             <td class="px-3 py-2 whitespace-nowrap">{{ ngay(x.due_at) }}</td>

@@ -125,7 +125,7 @@ onUnmounted(() => {
             v-if="chuaDoc > 0"
             id="badge-unread-count"
             class="absolute -right-1 -top-1 h-[18px] min-w-[18px] rounded-full bg-[rgb(var(--c-cham-nen))] px-1 text-center text-[11px] font-semibold leading-[18px] text-[#060a13]"
-          >{{ chuaDoc }}</span>
+          >{{ chuaDoc > 99 ? "99+" : chuaDoc }}</span>
         </button>
 
         <div
