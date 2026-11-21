@@ -5,7 +5,16 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { canViewDashboard, getUser, handleCallbackIfNeeded, login, logout, readRoles, readTenant } from "./auth";
 import { ApiError, apiDownload, apiGet, apiPost, luuBlob } from "./api";
-import { donViHienThi, formatThoiDiem, hienThiGiaTriChiSo, laThoiGianDuoiNgay, nhanChiSo, sapXepChiSo } from "./utils/metrics";
+import {
+  donViHienThi,
+  duongDanChiSo,
+  formatThoiDiem,
+  hienThiGiaTriChiSo,
+  laThoiGianDuoiNgay,
+  nhanChiSo,
+  nhanPhamViChiSo,
+  sapXepChiSo,
+} from "./utils/metrics";
 import { renderMarkdown, tenNguon } from "./utils/markdown";
 import { useTheme } from "./composables/useTheme";
 import KpiCard from "./components/KpiCard.vue";
@@ -29,10 +38,13 @@ interface MetricItem {
   name?: string;
   unit?: string;
   value: number | null;
+  /** true nếu SQL của chỉ số lọc theo đầu/cuối kỳ. */
+  theo_ky?: boolean;
   error?: string;
 }
 interface MetricsResponse {
   tenant: string;
+  thang?: string | null;
   computed_at: string;
   metrics: MetricItem[];
 }
@@ -178,7 +190,7 @@ async function loadMetrics(): Promise<void> {
   loading.value = true;
   loadError.value = "";
   try {
-    data.value = await apiGet<MetricsResponse>(theoDiaBan("/metrics"));
+    data.value = await apiGet<MetricsResponse>(theoDiaBan(duongDanChiSo(filter.thang)));
   } catch (e) {
     data.value = null;
     loadError.value = e instanceof Error ? e.message : "Lỗi không xác định";
@@ -286,23 +298,28 @@ const kpiCards = computed(() =>
   sapXepChiSo(data.value?.metrics ?? []).map((m: any) => {
     const series = seriesCho(m.code);
     const duoiNgay = m.code === "thoi_gian_xu_ly_tb" && coThoiGianDuoiNgay.value;
+    const toanKy = m.theo_ky === false || !filter.thang;
     return {
       ...m,
       value: hienThiGiaTriChiSo(m),
-      label: nhanChiSo(m.code, m.name),
+      label: `${nhanChiSo(m.code, m.name)}${nhanPhamViChiSo(m, Boolean(filter.thang))}`,
       unit: donViHienThi(m.unit),
       icon: m.code,
       tone: KPI_TONE[m.code] || "brand",
       series: series || [],
       trend: series ? xuHuong(series) : null,
+      toanKy,
       hint: m.error
         ? "Không có số liệu cho kỳ này"
-        : duoiNgay
-          ? "Trung bình dưới 1 ngày; dữ liệu demo có thời điểm nộp và cấp rất gần nhau"
-          : "Bấm để xem phả hệ chỉ số",
+        : toanKy
+          ? "Số toàn kỳ, không lọc theo tháng đang chọn"
+          : duoiNgay
+            ? "Trung bình dưới 1 ngày; dữ liệu demo có thời điểm nộp và cấp rất gần nhau"
+            : "Bấm để xem phả hệ chỉ số",
     };
   }),
 );
+const coChiSoToanKy = computed(() => kpiCards.value.some((m) => m.toanKy));
 const statusItems = computed(() =>
   (breakdown.value?.items ?? []).map((x, i) => ({
     label: nhanTrangThai(x.trang_thai),
@@ -680,6 +697,9 @@ function fmtDate(iso?: string | null): string {
               @select="openLineage(m.code)"
             />
           </div>
+          <p v-if="coChiSoToanKy" class="m-0 border-t border-vien-nhat px-4 py-2 text-[12.5px] chu-phu">
+            Thẻ có nhãn “(toàn kỳ)” là số lũy kế, không lọc theo tháng đang chọn.
+          </p>
           <p v-if="coThoiGianDuoiNgay" class="m-0 border-t border-vien-nhat px-4 py-2 text-[12.5px] chu-phu">
             Thời gian xử lý trung bình đang dưới 1 ngày. Chỉ số tính bằng ngày và làm tròn một chữ số thập phân;
             bấm thẻ để xem phả hệ và điều kiện lọc.

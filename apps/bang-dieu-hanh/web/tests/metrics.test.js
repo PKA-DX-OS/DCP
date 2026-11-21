@@ -16,6 +16,8 @@ import {
   formatThoiDiem,
   hienThiGiaTriChiSo,
   laThoiGianDuoiNgay,
+  duongDanChiSo,
+  nhanPhamViChiSo,
 } from "../src/utils/metrics.js";
 
 test("mọi chỉ số khai báo trong app.yaml đều có nhãn tiếng Việt", () => {
@@ -69,6 +71,20 @@ test("formatThoiDiem trả thời điểm theo giờ Việt Nam và xử lý l�
   expect(formatThoiDiem(null)).toBe("—");
   expect(formatThoiDiem("không phải ngày")).toBe("—");
   expect(formatThoiDiem("2026-11-16T00:00:00Z")).not.toBe("—");
+});
+
+test("đường dẫn chỉ số điều hành truyền đúng tháng", () => {
+  expect(duongDanChiSo("2025-01")).toBe("/metrics?thang=2025-01");
+  expect(duongDanChiSo("2026-11")).toBe("/metrics?thang=2026-11");
+  expect(duongDanChiSo("")).toBe("/metrics");
+  expect(duongDanChiSo(null)).toBe("/metrics");
+});
+
+test("chỉ số toàn kỳ được ghi rõ trong nhãn", () => {
+  expect(nhanPhamViChiSo({ theo_ky: false }, true)).toBe(" (toàn kỳ)");
+  expect(nhanPhamViChiSo({ theo_ky: true }, true)).toBe("");
+  expect(nhanPhamViChiSo({ theo_ky: true }, false)).toBe(" (toàn kỳ)");
+  expect(nhanPhamViChiSo({}, false)).toBe(" (toàn kỳ)");
 });
 
 test("thời gian xử lý trung bình 0 ngày hiển thị là dưới 1 ngày", () => {

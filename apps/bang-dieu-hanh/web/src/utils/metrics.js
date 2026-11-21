@@ -39,6 +39,20 @@ export function donViHienThi(unit) {
   return unit === "phần trăm" ? "%" : unit || "";
 }
 
+/** Đường dẫn chỉ số điều hành, kèm kỳ tháng nếu có. */
+export function duongDanChiSo(thang) {
+  const ky = String(thang || "").trim();
+  return ky ? `/metrics?thang=${encodeURIComponent(ky)}` : "/metrics";
+}
+
+/**
+ * Hậu tố nhãn cho thẻ chỉ số.
+ * `theo_ky: false` là số toàn kỳ; khi không chọn tháng thì mọi thẻ đều là toàn kỳ.
+ */
+export function nhanPhamViChiSo(metric, coThang) {
+  return metric?.theo_ky === false || !coThang ? " (toàn kỳ)" : "";
+}
+
 /**
  * Chỉ số thời gian xử lý trung bình: API làm tròn 0.0 khi trung bình dưới một ngày.
  * Hiển thị "< 1" thay vì "0" để không gây hiểu nhầm là chưa có dữ liệu.
