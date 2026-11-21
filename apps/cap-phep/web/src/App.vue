@@ -20,6 +20,7 @@ import SupplementModal from "./components/SupplementModal.vue";
 import Forbidden403Modal from "./components/Forbidden403Modal.vue";
 import BreakGlassModal from "./components/BreakGlassModal.vue";
 import GlobalSearch from "./components/GlobalSearch.vue";
+import HelpDrawer from "./components/HelpDrawer.vue";
 import { tabsChoVai } from "./features/registry";
 import { provideFeatureContext } from "./features/context";
 import { laCanBo as coVaiCanBo, laChuDauTu as coVaiChuDauTu } from "./features/roles";
@@ -70,6 +71,7 @@ const hoSoBoSung = ref<HoSo | null>(null);
 const biChan = ref<{ id: string; ma: string } | null>(null);
 const xinKhan = ref<{ id: string; ma: string } | null>(null);
 const moTimKiem = ref(false);
+const moTroGiup = ref(false);
 
 async function moNopHoSo(): Promise<void> {
   moNop.value = true;
@@ -127,6 +129,11 @@ function dangXuat(): void {
 
 function onPhimTat(e: KeyboardEvent): void {
   if (trang.value !== "ok") return;
+  if (e.key === "F1") {
+    e.preventDefault();
+    moTroGiup.value = true;
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     e.preventDefault();
     moTimKiem.value = !moTimKiem.value;
@@ -194,6 +201,7 @@ onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
       @da-doc="thongBao.danhDauDaDoc()"
       @doc-mot="thongBao.danhDauMot"
       @mo-tim-kiem="moTimKiem = true"
+      @mo-tro-giup="moTroGiup = true"
       @dang-xuat="dangXuat()"
       @dang-nhap="login()"
     />
@@ -302,4 +310,5 @@ onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
     @close="moTimKiem = false"
     @mo-ho-so="moHoSoTuTimKiem"
   />
+  <HelpDrawer v-if="moTroGiup" @close="moTroGiup = false" />
 </template>

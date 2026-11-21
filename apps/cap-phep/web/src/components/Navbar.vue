@@ -29,6 +29,7 @@ const emit = defineEmits<{
   (e: "da-doc"): void;
   (e: "doc-mot", id: string): void;
   (e: "mo-tim-kiem"): void;
+  (e: "mo-tro-giup"): void;
 }>();
 
 const { theme, toggle } = useTheme();
@@ -98,12 +99,30 @@ onUnmounted(() => {
         type="button"
         class="nut-tren"
         aria-label="Tìm kiếm toàn cục"
+        aria-keyshortcuts="Control+K Meta+K"
         title="Tìm kiếm toàn cục (Ctrl+K)"
         @click="emit('mo-tim-kiem')"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
           <circle cx="11" cy="11" r="6.5" />
           <path d="m16 16 4.5 4.5" />
+        </svg>
+      </button>
+
+      <button
+        v-if="daDangNhap"
+        id="btn-tro-giup"
+        type="button"
+        class="nut-tren"
+        aria-label="Trợ giúp và phím tắt"
+        aria-keyshortcuts="F1"
+        title="Trợ giúp (F1)"
+        @click="emit('mo-tro-giup')"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.6 9a2.4 2.4 0 1 1 3.7 2c-.7.5-1.3 1-1.3 2" />
+          <path d="M12 17h.01" />
         </svg>
       </button>
 

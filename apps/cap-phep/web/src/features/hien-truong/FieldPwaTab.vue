@@ -584,7 +584,16 @@ onBeforeUnmount(() => {
           <div class="mt-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="m-0 text-[14px] font-semibold">Ảnh hiện trường ({{ dangChon.photos.length }}/6)</h3>
-              <input ref="nhapAnh" type="file" accept="image/*" capture="environment" multiple class="sr-only" @change="themAnh" />
+              <input
+                ref="nhapAnh"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                class="sr-only"
+                aria-label="Chọn hoặc chụp ảnh hiện trường"
+                @change="themAnh"
+              />
               <button v-if="coTheSua" type="button" class="btn btn-sm" :disabled="dangChon.photos.length >= 6" @click="moChonAnh">
                 Chụp / chọn ảnh
               </button>
