@@ -33,6 +33,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Trợ lý pháp lý (FIX-V11-13):** hỏi giấy tờ thì trả lời đúng danh mục giấy tờ; câu hỏi không có căn cứ trong kho trả lời không tìm thấy thay vì đoạn lạc đề.
 - **Kịch bản demo (FIX-V11-14):** nhãn và thứ tự bước khớp giao diện (Bàn làm việc, Mở hồ sơ đầy đủ, tab bảng điều hành); ghi chú giấy phép ghi quy mô theo hồ sơ nộp.
 - **Mục Nghiệm thu của trật tự xây dựng (FIX-V11-15):** chính sách RLS hồ sơ cho cán bộ trật tự xây dựng khớp với `mo_ho_so` (chỉ hồ sơ đã cấp phép), nên mục Nghiệm thu tải được.
+- **Mốc nghiệm thu từ Bàn làm việc (FIX-V11-16):** bấm Đạt/Không đạt ở thanh thao tác ghi mốc nghiệm thu (từng lần) trước khi chuyển bước, nên mục Nghiệm thu hiện đúng lịch sử.
 
 ---
 
