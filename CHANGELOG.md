@@ -29,6 +29,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Hàng đợi hậu kiểm và hồ sơ hero (FIX-V11-08):** phiếu kiểm tra (lập tay hoặc từ cảm biến) có việc trong Bàn làm việc của trật tự xây dựng, kết luận Đạt/Vi phạm được ghi vào phiếu; `seed_hero.py` đưa `CP-HERO-2026-001` tới bước thẩm định giao `td.binh`.
 - **Hồ sơ hero và kết luận hậu kiểm (FIX-V11-10):** `seed_hero.py` tạo phân công thẩm định cho `td.binh` nên chi tiết hồ sơ mở được; kết luận phiếu dùng lại `sync_flow_state` (ghi "Đạt tiêu chuẩn", người kiểm tra, ghi chú).
 - **Nghiệm thu móng (FIX-V11-11):** bấm "Không đạt" sinh việc khắc phục móng thay vì sang nghiệm thu kết cấu.
+- **Trật tự xây dựng mở hồ sơ (FIX-V11-12):** cán bộ trật tự xây dựng mở được hồ sơ cùng phường đã cấp phép khi nghiệm thu; hồ sơ chưa cấp phép vẫn bị từ chối.
 
 ---
 
