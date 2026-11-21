@@ -22,6 +22,7 @@ service backend hay `contracts/dh/*` của Track D.
 | H-WORK-04 | Lưu bộ lọc, chọn nhiều, nhắc/phân công hàng loạt, xuất CSV | Xong |
 | H-FIELD | PWA hiện trường: nháp offline, ảnh, GPS, checklist, ký tay, đồng bộ | Xong phần UI + lưu máy |
 | H-SELF | Tự phục vụ công dân: tiến độ, bổ sung, tải giấy phép, QR tra cứu | Xong |
+| H-FLOW | Hỗ trợ xử lý: gợi ý phân công, cảnh báo SLA, nháp thông báo | Xong |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
 
 Chưa làm trong lát cắt này: autofill từ OCR thật, đặt lịch/thanh toán trực tuyến,
@@ -164,7 +165,23 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 - Trạng thái rỗng có nút nộp hồ sơ mới; tải/lỗi có retry.
 - Đặt lịch và thanh toán trực tuyến chưa làm vì backend chưa có API/nghiệp vụ.
 
-## 9. File chính
+## 9. Hỗ trợ xử lý
+
+- Panel “Hỗ trợ xử lý” trong Bàn làm việc khi chọn một việc/hồ sơ.
+- Cảnh báo hạn/SLA của việc: quá hạn, còn ≤ 48 giờ, còn ngày.
+- Gợi ý phân công:
+  - Chọn nhóm vai theo loại việc: một cửa, thẩm định, lãnh đạo, trật tự.
+  - Lấy `GET /api/v1/metrics/workload` và `fetchOfficers` để xếp cán bộ ít việc
+    đang xử lý trước; hiện top 3.
+  - Cán bộ phải chọn và bấm “Xác nhận giao việc”; không tự giao.
+- Nháp thông báo theo mẫu: nhắc bổ sung, tiếp nhận, đã cấp, nhắc việc nội bộ.
+  - Sinh từ mã hồ sơ, chủ đầu tư, địa chỉ, lý do bổ sung, hạn xử lý.
+  - Sửa được, tạo lại, chép nội dung.
+  - “Gửi nhắc việc nội bộ” dùng `remindTask` với nội dung nháp.
+  - Không tự gửi cho công dân; cán bộ gửi qua kênh chính thức.
+- Chỉ lãnh đạo/một cửa thấy nút giao việc/nhắc việc; cán bộ khác vẫn tạo nháp.
+
+## 10. File chính
 
 | File | Vai trò |
 | :--- | :--- |
@@ -191,9 +208,11 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | `apps/cap-phep/web/src/utils/field-drafts.ts` | IndexedDB/fallback lưu nháp, ảnh, cache công trình |
 | `apps/cap-phep/web/src/features/tu-phuc-vu/*` | Tab Tự phục vụ: tổng quan, tiến độ, bổ sung, tải kết quả, QR |
 | `apps/cap-phep/web/src/components/QrCodeModal.vue` | Tạo QR tra cứu bằng thư viện `qrcode` |
+| `apps/cap-phep/web/src/components/workflow/WorkflowAssistantPanel.vue` | Gợi ý phân công, SLA, nháp thông báo |
+| `apps/cap-phep/web/src/utils/workflow-assist.ts` | Chọn vai, xếp hạng cán bộ, sinh nháp |
 | `apps/cap-phep/web/public/{manifest.webmanifest,sw.js,offline.html,icon-*.png}` | PWA shell |
 
-## 10. Phân quyền hiển thị
+## 11. Phân quyền hiển thị
 
 | Màn | Vai |
 | :--- | :--- |
@@ -204,9 +223,11 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | Chọn & xuất CSV | Cán bộ thấy Bàn làm việc |
 | Hiện trường / PWA | `app:cap-phep:trat-tu-xd`, `app:cap-phep:lanh-dao` |
 | Tự phục vụ | `app:cap-phep:chu-dau-tu` |
+| Giao việc/nhắc việc hỗ trợ | `app:cap-phep:lanh-dao`, `app:cap-phep:mot-cua` |
+| Nháp thông báo | Cán bộ thấy Bàn làm việc |
 | Hiệu quả vận hành | `app:cap-phep:lanh-dao`, `dx:auditor`, `dx:tenant-admin`, `dx:platform-admin` |
 
-## 11. Kiểm thử
+## 12. Kiểm thử
 
 ```powershell
 cd apps/cap-phep/web
@@ -222,7 +243,7 @@ npm run build
 
 Kết quả tại lát cắt này:
 
-- Cấp phép: 30 tệp test, 187 test pass; type-check và build pass.
+- Cấp phép: 32 tệp test, 194 test pass; type-check và build pass.
 - Bảng điều hành: 5 tệp test, 26 test pass; type-check và build pass.
 - Test H-WORK: `tests/dh.test.js`, `tests/global-search.test.js`,
   `tests/dossier-360.test.js`, `tests/automation-panel.test.js`.
@@ -235,8 +256,9 @@ Kết quả tại lát cắt này:
 - Test H-FIELD: `tests/field-inspection.test.js`, `tests/field-drafts.test.js`,
   `tests/field-pwa.test.js`.
 - Test H-SELF: `tests/self-service.test.js`, `tests/qr-code.test.js`.
+- Test H-FLOW: `tests/workflow-assist.test.js`, `tests/workflow-assistant.test.js`.
 
-## 12. Việc Gate 2
+## 13. Việc Gate 2
 
 1. Track D merge `GET /api/v1/mdm/dossiers/{id}/360`, `GET /api/v1/search`,
    `GET /api/v1/automation/metrics`, `/api/v1/ocr/*`.
@@ -246,14 +268,14 @@ Kết quả tại lát cắt này:
 3. Thêm E2E: mở hồ sơ → tab Tổng hợp; `Ctrl/Cmd+K` → tìm mã hồ sơ → mở đúng hồ sơ;
    bảng điều hành → tab Hiệu quả vận hành; duyệt OCR → sửa trường → xác nhận;
    chọn nhiều việc → nhắc/phân công/CSV; PWA hiện trường → tạo nháp offline → sync;
-   tự phục vụ → bổ sung → tải giấy phép → QR.
+   tự phục vụ → bổ sung → tải giấy phép → QR; hỗ trợ xử lý → gợi ý phân công → nháp.
 4. Nối OCR thật: `POST /api/v1/ocr/extract` → review → điền tiếp vào form nộp hồ sơ.
 5. Bổ sung API nhận ảnh/chữ ký/GPS của phiếu hiện trường; hiện chỉ tóm tắt vào ghi chú.
 6. Làm đặt lịch/thanh toán khi có API và nghiệp vụ được chốt.
 7. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
 8. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
 
-## 13. Giới hạn đã biết
+## 14. Giới hạn đã biết
 
 - Chưa có mock server `VITE_API_MOCK`; fallback hiện dùng dữ liệu hồ sơ/baseline có nhãn.
 - Fallback tìm kiếm chỉ lọc trong tối đa 100 hồ sơ gần nhất do `fetchHoSo` giới hạn
@@ -281,3 +303,6 @@ Kết quả tại lát cắt này:
 - Tự phục vụ chưa có đặt lịch/thanh toán; chưa gửi thông báo đẩy riêng.
 - QR dùng `ma_cong_khai`; nếu giấy phép chưa có mã/tệp thì chỉ báo chưa sẵn sàng.
 - Tải giấy phép phụ thuộc `file_url` và quyền của chủ hồ sơ.
+- Gợi ý phân công dựa trên số việc đang xử lý, chưa có mô hình kỹ năng/chuyên môn.
+- Nháp thông báo là văn bản hỗ trợ, không phải quyết định pháp lý; chưa tự gửi công dân.
+- Gửi nhắc việc nội bộ cần việc đã có cán bộ xử lý.
