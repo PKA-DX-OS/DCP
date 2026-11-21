@@ -136,6 +136,8 @@ cmd_up() {
   run "${TOOLS[@]}" scripts/app_manager.py install cap-phep
   echo "--> Nạp kho văn bản pháp luật (chạy lại không tạo trùng)..."
   host_python scripts/seed_legal.py
+  echo "--> Khớp dữ liệu và backfill MDM..."
+  "${TOOLS[@]}" scripts/mdm_backfill.py || echo "  [WARN] MDM backfill lỗi, chạy lại: ${TOOLS[*]} scripts/mdm_backfill.py"
   echo "--> Chấm chất lượng dữ liệu (DQ worker)..."
   "${TOOLS[@]}" scripts/data_quality_worker.py || echo "  [WARN] DQ worker lỗi, chạy lại: ${TOOLS[*]} scripts/data_quality_worker.py"
   if [ ! -f secrets/demo-accounts.txt ] && is_demo; then
