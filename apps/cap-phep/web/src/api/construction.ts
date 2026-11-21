@@ -24,6 +24,28 @@ export async function fetchPhieuKiemTra(token: string): Promise<any[]> {
   return listWithFallback(token, "v_phieu_kiem_tra", "phieu_kiem_tra", "Lỗi tải phiếu kiểm tra");
 }
 
+async function listNhanh(token: string, view: string, table: string, label: string): Promise<any[]> {
+  try {
+    return await apiJson<any[]>(`/rest/${view}?order=created_at.desc`, { token, timeoutMs: 3_000, retries: 0 }, label);
+  } catch {
+    try {
+      return await apiJson<any[]>(`/rest/${table}?order=created_at.desc`, { token, timeoutMs: 3_000, retries: 0 }, label);
+    } catch {
+      return [];
+    }
+  }
+}
+
+/** Bản timeout ngắn cho PWA hiện trường: offline thì dùng cache, không chờ retry dài. */
+export async function fetchCongTrinhNhanh(token: string): Promise<any[]> {
+  return listNhanh(token, "v_cong_trinh", "cong_trinh", "Lỗi tải công trình");
+}
+
+/** Bản timeout ngắn để kiểm tra xung đột trước khi đồng bộ phiếu hiện trường. */
+export async function fetchPhieuKiemTraNhanh(token: string): Promise<any[]> {
+  return listNhanh(token, "v_phieu_kiem_tra", "phieu_kiem_tra", "Lỗi tải phiếu kiểm tra");
+}
+
 export async function createInspection(token: string, congTrinhId: string, ghiChu?: string): Promise<any> {
   return apiJson(
     "/rest/rpc/lap_phieu_kiem_tra",

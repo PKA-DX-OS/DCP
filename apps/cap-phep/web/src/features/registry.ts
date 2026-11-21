@@ -15,9 +15,19 @@ import { feature as congTrinh } from "./cong-trinh";
 import { feature as truyCapKhan } from "./truy-cap-khan";
 import { feature as phapLuat } from "./legal";
 import { feature as ocrReview } from "./ocr-review";
+import { feature as hienTruong } from "./hien-truong";
 import { dossierTab as thietKe } from "./design-review";
 
-export const FEATURES: readonly AppFeature[] = [hoSo, duLieu, banLamViec, ocrReview, congTrinh, phapLuat, truyCapKhan];
+export const FEATURES: readonly AppFeature[] = [
+  hoSo,
+  duLieu,
+  banLamViec,
+  ocrReview,
+  hienTruong,
+  congTrinh,
+  phapLuat,
+  truyCapKhan,
+];
 
 /** Phần mở rộng của chi tiết hồ sơ; 5.1, 5.2, 5.5 đăng ký ở đây. */
 export const DOSSIER_TABS: readonly DossierTab[] = [thietKe];
