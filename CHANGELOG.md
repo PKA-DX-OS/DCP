@@ -23,6 +23,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Phả hệ và chỉ số H (D-CAT-02, D-MART):** `/api/v1/lineage/{loại}/{id}` dựng đồ thị từ sự kiện có `facets.entity`, `/api/v1/lineage/jobs/{job}`; `/api/v1/automation/metrics?from=&to=` tính chỉ số H cùng định nghĩa `scripts/dh_baseline.py`, so với mốc trong `core.h_baseline` (`dh_baseline.py --save NHÃN`); thiếu dữ liệu trả null.
 - **Kiểm thử và ghi chú Gate 1 Track D (D-TEST-01):** `tests/unit/test_dh_gate1.py` (hàm thuần, migration, rule, route phủ đủ hợp đồng trừ OCR, lỗi sai vai), `tests/integration/test_dh_gate1_api.py` (qua APISIX, che CCCD, cách ly phường); `docs/data/gate-1.md` ghi phần đã có và phần để Gate sau.
 - **Gắn hồ sơ vào audit task (D-MET-00):** ghi `ho_so_id` và `process_instance_id` vào `detail` của `flow.task_completed`; `scripts/dh_baseline.py` tính thao tác task theo hồ sơ khi có trường này.
+- **Ghi nhận phả hệ theo hồ sơ (D-CAT-02):** sự kiện lineage gắn `facets.entity` và `facets.tenant` khi nộp hồ sơ, kiểm tra quy hoạch, cấp giấy phép và nghiệm thu (`apps/cap-phep/db/migrations/25-lineage-nghiep-vu.sql`, `services/construction`); không ghi dữ liệu cá nhân vào facets.
 
 ### Đã sửa (Fixed)
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.

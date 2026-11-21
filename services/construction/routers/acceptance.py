@@ -4,8 +4,11 @@
 """A-ACC-02: API nghiệm thu, biên bản và bản vẽ hoàn công."""
 
 import json
+import logging
 from datetime import date, datetime
 from typing import Any, Optional
+
+logger = logging.getLogger("dxos.construction.acceptance")
 
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
@@ -13,6 +16,7 @@ from pydantic import BaseModel, Field
 from dxos_core.audit import log_audit_event
 from dxos_core.db import get_db_connection
 from dxos_core.jwt import verify_jwt_token
+from dxos_core.lineage import record_lineage_event
 
 from construction.deps import la_can_bo, yeu_cau_nghiem_thu
 
@@ -205,6 +209,20 @@ async def tao_moc_nghiem_thu(ho_so_id: str, body: MilestoneRequest, authorizatio
             body.ghi_chu,
             file_id,
         )
+    try:
+        await record_lineage_event(
+            job="nghiem_thu.moc",
+            inputs=[{"name": "app_cap_phep.giay_phep"}, {"name": "app_cap_phep.ho_so"}],
+            outputs=[{"name": "app_construction.moc_nghiem_thu"}],
+            facets={
+                "tenant": claims.tenant,
+                "entity": {"type": "ho_so", "id": str(ho_so_id)},
+                "loai_moc": body.loai_moc,
+                "ket_qua": body.ket_qua,
+            },
+        )
+    except Exception as e:
+        logger.warning(f"Lỗi ghi lineage: {e}", exc_info=True)
     await log_audit_event(
         tenant=claims.tenant,
         action="acceptance.milestone_created",
@@ -256,6 +274,20 @@ async def nop_bien_ban(moc_id: str, body: RecordRequest, authorization: str = He
                 moc_id,
                 body.ket_qua,
             )
+    try:
+        await record_lineage_event(
+            job="nghiem_thu.bien_ban",
+            inputs=[{"name": "app_construction.moc_nghiem_thu"}],
+            outputs=[{"name": "app_construction.bien_ban_nghiem_thu"}],
+            facets={
+                "tenant": claims.tenant,
+                "entity": {"type": "ho_so", "id": str(moc["ho_so_id"])},
+                "so_bien_ban": body.so_bien_ban,
+                "ket_luan": body.ket_luan,
+            },
+        )
+    except Exception as e:
+        logger.warning(f"Lỗi ghi lineage: {e}", exc_info=True)
     await log_audit_event(
         tenant=claims.tenant,
         action="acceptance.record_submitted",

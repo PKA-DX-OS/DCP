@@ -72,3 +72,46 @@ def test_dh_tim_kiem_ma_ho_so(ho_so_moi):
     assert r.status_code == 200, r.text
     nhom = {g["type"]: g for g in r.json()["groups"]}
     assert nhom["ho_so"]["items"][0]["khop"] == "exact"
+
+
+def test_dh_lineage_ho_so_va_cach_ly_phuong(ho_so_moi):
+    hs_id = ho_so_moi.get("id") or ho_so_moi.get("ho_so_id")
+
+    # 1. Kiểm tra quy hoạch
+    r_plan = httpx.post(
+        f"{GATEWAY_URL}/api/v1/planning/check",
+        headers=_h("ld.hoa"),
+        json={"ho_so_id": hs_id, "thua_dat_id": "TD-A-01", "proposal": {"so_tang": 2, "loai_dat": "dat_o"}},
+        timeout=30.0,
+    )
+    assert r_plan.status_code == 200, r_plan.text
+
+    # 2. Nghiệm thu mốc móng
+    r_acc = httpx.post(
+        f"{GATEWAY_URL}/api/v1/acceptance/{hs_id}/milestones",
+        headers=_h("ld.hoa"),
+        json={"loai_moc": "mong", "ket_qua": "dat"},
+        timeout=30.0,
+    )
+    assert r_acc.status_code == 200, r_acc.text
+
+    # 3. Tra cứu phả hệ hồ sơ bằng lãnh đạo phường A
+    r_lin = _get(f"/api/v1/lineage/ho_so/{hs_id}", "ld.hoa")
+    assert r_lin.status_code == 200, r_lin.text
+    data = r_lin.json()
+    assert data["entity_type"] == "ho_so"
+    assert data["id"] == hs_id
+
+    # Đồ thị có ít nhất 3 sự kiện (nộp hồ sơ, kiểm tra quy hoạch, nghiệm thu)
+    jobs_in_edges = {e["job"] for e in data["edges"]}
+    assert "ho_so.nop" in jobs_in_edges
+    assert "quy_hoach.kiem_tra" in jobs_in_edges
+    assert "nghiem_thu.moc" in jobs_in_edges
+
+    # Đảm bảo không ghi lộ CCCD hoặc dữ liệu định danh trong response
+    assert "001099007777" not in r_lin.text
+
+    # 4. Cách ly địa bàn: Phường B không thấy hồ sơ của Phường A
+    r_phuongb = _get(f"/api/v1/lineage/ho_so/{hs_id}", "ld.phuongb")
+    assert r_phuongb.status_code == 404
+    assert r_phuongb.json()["code"] == "LINEAGE_NOT_FOUND"
