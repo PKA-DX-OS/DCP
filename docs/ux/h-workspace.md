@@ -23,6 +23,7 @@ service backend hay `contracts/dh/*` của Track D.
 | H-FIELD | PWA hiện trường: nháp offline, ảnh, GPS, checklist, ký tay, đồng bộ | Xong phần UI + lưu máy |
 | H-SELF | Tự phục vụ công dân: tiến độ, bổ sung, tải giấy phép, QR tra cứu | Xong |
 | H-FLOW | Hỗ trợ xử lý: gợi ý phân công, cảnh báo SLA, nháp thông báo | Xong |
+| H-UX | Trợ giúp F1, phím tắt, ARIA/focus, kiểm tra axe | Xong phần component |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
 
 Chưa làm trong lát cắt này: autofill từ OCR thật, đặt lịch/thanh toán trực tuyến,
@@ -181,7 +182,24 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
   - Không tự gửi cho công dân; cán bộ gửi qua kênh chính thức.
 - Chỉ lãnh đạo/một cửa thấy nút giao việc/nhắc việc; cán bộ khác vẫn tạo nháp.
 
-## 10. File chính
+## 10. Trợ giúp & khả năng tiếp cận
+
+- Nút “Trợ giúp” trên Navbar và phím `F1`.
+- Drawer trợ giúp có:
+  - Phím tắt: `Ctrl/Cmd+K`, `F1`, `Tab`, `Enter/Space`, `Esc`.
+  - Mô tả ngắn các màn hình theo vai.
+  - Liên hệ Bộ phận Một cửa; lưu ý giảm chuyển động.
+- `aria-keyshortcuts` cho tìm kiếm và trợ giúp.
+- Input chọn ảnh hiện trường có nhãn ARIA dù bị ẩn bằng `sr-only`.
+- Giữ hành vi có sẵn:
+  - Skip link “Bỏ qua điều hướng”.
+  - Focus-visible 2 px màu champagne.
+  - Dialog trap focus, đóng bằng Esc, trả focus.
+  - `prefers-reduced-motion` tắt animation/transition.
+- Test axe chạy trên `HelpDrawer` và `QrCodeModal`: không có vi phạm
+  serious/critical (tắt `color-contrast` vì happy-dom không có layout thật).
+
+## 11. File chính
 
 | File | Vai trò |
 | :--- | :--- |
@@ -210,9 +228,11 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | `apps/cap-phep/web/src/components/QrCodeModal.vue` | Tạo QR tra cứu bằng thư viện `qrcode` |
 | `apps/cap-phep/web/src/components/workflow/WorkflowAssistantPanel.vue` | Gợi ý phân công, SLA, nháp thông báo |
 | `apps/cap-phep/web/src/utils/workflow-assist.ts` | Chọn vai, xếp hạng cán bộ, sinh nháp |
+| `apps/cap-phep/web/src/components/HelpDrawer.vue` | Trợ giúp, phím tắt, mô tả màn hình |
+| `apps/cap-phep/web/src/components/Navbar.vue` | Nút trợ giúp + `aria-keyshortcuts` |
 | `apps/cap-phep/web/public/{manifest.webmanifest,sw.js,offline.html,icon-*.png}` | PWA shell |
 
-## 11. Phân quyền hiển thị
+## 12. Phân quyền hiển thị
 
 | Màn | Vai |
 | :--- | :--- |
@@ -225,9 +245,10 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | Tự phục vụ | `app:cap-phep:chu-dau-tu` |
 | Giao việc/nhắc việc hỗ trợ | `app:cap-phep:lanh-dao`, `app:cap-phep:mot-cua` |
 | Nháp thông báo | Cán bộ thấy Bàn làm việc |
+| Trợ giúp / phím tắt | Mọi người dùng đã đăng nhập |
 | Hiệu quả vận hành | `app:cap-phep:lanh-dao`, `dx:auditor`, `dx:tenant-admin`, `dx:platform-admin` |
 
-## 12. Kiểm thử
+## 13. Kiểm thử
 
 ```powershell
 cd apps/cap-phep/web
@@ -243,7 +264,7 @@ npm run build
 
 Kết quả tại lát cắt này:
 
-- Cấp phép: 32 tệp test, 194 test pass; type-check và build pass.
+- Cấp phép: 33 tệp test, 198 test pass; type-check và build pass.
 - Bảng điều hành: 5 tệp test, 26 test pass; type-check và build pass.
 - Test H-WORK: `tests/dh.test.js`, `tests/global-search.test.js`,
   `tests/dossier-360.test.js`, `tests/automation-panel.test.js`.
@@ -257,8 +278,9 @@ Kết quả tại lát cắt này:
   `tests/field-pwa.test.js`.
 - Test H-SELF: `tests/self-service.test.js`, `tests/qr-code.test.js`.
 - Test H-FLOW: `tests/workflow-assist.test.js`, `tests/workflow-assistant.test.js`.
+- Test H-UX: `tests/a11y.test.js`; axe bổ sung trong `tests/qr-code.test.js`.
 
-## 13. Việc Gate 2
+## 14. Việc Gate 2
 
 1. Track D merge `GET /api/v1/mdm/dossiers/{id}/360`, `GET /api/v1/search`,
    `GET /api/v1/automation/metrics`, `/api/v1/ocr/*`.
@@ -272,10 +294,11 @@ Kết quả tại lát cắt này:
 4. Nối OCR thật: `POST /api/v1/ocr/extract` → review → điền tiếp vào form nộp hồ sơ.
 5. Bổ sung API nhận ảnh/chữ ký/GPS của phiếu hiện trường; hiện chỉ tóm tắt vào ghi chú.
 6. Làm đặt lịch/thanh toán khi có API và nghiệp vụ được chốt.
-7. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
-8. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
+7. Chạy axe/Playwright trên trình duyệt thật cho các màn chính; kiểm tra color-contrast.
+8. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
+9. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
 
-## 14. Giới hạn đã biết
+## 15. Giới hạn đã biết
 
 - Chưa có mock server `VITE_API_MOCK`; fallback hiện dùng dữ liệu hồ sơ/baseline có nhãn.
 - Fallback tìm kiếm chỉ lọc trong tối đa 100 hồ sơ gần nhất do `fetchHoSo` giới hạn
@@ -306,3 +329,6 @@ Kết quả tại lát cắt này:
 - Gợi ý phân công dựa trên số việc đang xử lý, chưa có mô hình kỹ năng/chuyên môn.
 - Nháp thông báo là văn bản hỗ trợ, không phải quyết định pháp lý; chưa tự gửi công dân.
 - Gửi nhắc việc nội bộ cần việc đã có cán bộ xử lý.
+- Axe mới chạy component-level trong happy-dom, tắt `color-contrast`; chưa phải audit
+  trình duyệt thật/Playwright.
+- Chưa có tour tự động; trợ giúp mở theo yêu cầu để không làm phiền.
