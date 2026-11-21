@@ -6,6 +6,8 @@ import { computed, onMounted, ref } from "vue";
 import { getUser, getValidToken, readRoles } from "../auth";
 import { createInspection, fetchCongTrinh, fetchPhieuKiemTra, triggerDemoSensor } from "../api/construction";
 import { notify } from "../composables/useToast";
+import { startWorkflow } from "../api/flow";
+import { tenChiSo } from "../utils/labels";
 
 // Quyền lập phiếu: trật tự xây dựng hoặc lãnh đạo (theo app.yaml)
 const VAI_LAP_PHIEU = [
@@ -30,9 +32,6 @@ function coCanhBao(c: any): boolean {
   return Number(a.nguong) > 0;
 }
 
-function tenChiSo(value: string): string {
-  return { laeq_dba: "Độ ồn LAeq", do_bui: "Bụi", rung_cham: "Rung chấn" }[value] || value || "Chỉ số";
-}
 
 const phieuCuaChon = computed(() => phieu.value.filter((p) => p.cong_trinh_id === chon.value));
 const phieuLoc = computed(() =>
@@ -75,7 +74,16 @@ async function guiSoDo(c: any): Promise<void> {
   }
 }
 
-async function lapPhieu(congTrinhId: string): Promise<void> {
+/** Mở quy trình hậu kiểm cho phiếu để việc kiểm tra vào hàng đợi trật tự xây dựng. */
+async function moViecKiemTra(t: string, phieuId: string, maCongTrinh: string): Promise<void> {
+  await startWorkflow(t, "hau-kiem", phieuId, {
+    phieu_id: phieuId,
+    site_id: maCongTrinh,
+    chi_so: "kiem_tra_dinh_ky",
+  });
+}
+
+async function lapPhieu(c: any): Promise<void> {
   if (!quyenLapPhieu.value) {
     notify("Bạn không có quyền lập phiếu kiểm tra", "loi");
     return;
@@ -83,11 +91,38 @@ async function lapPhieu(congTrinhId: string): Promise<void> {
   try {
     const t = await getValidToken();
     if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
-    await createInspection(t, congTrinhId);
-    notify("Đã lập phiếu kiểm tra", "ok");
+    const kq: any = await createInspection(t, c.id);
+    const phieuId = kq?.phieu_id || kq?.id;
+    if (phieuId) {
+      try {
+        await moViecKiemTra(t, String(phieuId), c.ma_cong_trinh);
+        notify("Đã lập phiếu, việc kiểm tra đã vào Bàn làm việc", "ok");
+      } catch {
+        notify("Đã lập phiếu nhưng chưa mở được việc kiểm tra; bấm Mở việc ở bảng phiếu", "canh_bao");
+      }
+    } else {
+      notify("Đã lập phiếu kiểm tra", "ok");
+    }
     await taiDuLieu();
   } catch (e) {
     notify(e instanceof Error ? e.message : "Không lập được phiếu", "loi");
+  }
+}
+
+const dangMoViec = ref<string | null>(null);
+
+async function moViec(p: any): Promise<void> {
+  dangMoViec.value = p.id;
+  try {
+    const t = await getValidToken();
+    if (!t) throw new Error("Hết phiên, vui lòng đăng nhập lại");
+    await moViecKiemTra(t, p.id, p.ma_cong_trinh);
+    notify("Việc kiểm tra đã vào Bàn làm việc", "ok");
+    await taiDuLieu();
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không mở được việc kiểm tra", "loi");
+  } finally {
+    dangMoViec.value = null;
   }
 }
 
@@ -138,6 +173,7 @@ onMounted(async () => {
                 <th>Kết luận</th>
                 <th>Biên bản</th>
                 <th>Ngày lập</th>
+                <th v-if="quyenLapPhieu"><span class="sr-only">Thao tác</span></th>
               </tr>
             </thead>
             <tbody>
@@ -156,9 +192,20 @@ onMounted(async () => {
                   <span v-else class="text-phu">Chưa có</span>
                 </td>
                 <td class="whitespace-nowrap text-phu">{{ p.created_at ? new Date(p.created_at).toLocaleString("vi-VN") : "—" }}</td>
+                <td v-if="quyenLapPhieu" class="whitespace-nowrap">
+                  <button
+                    v-if="!p.process_instance_id && p.trang_thai === 'CHO_KIEM_TRA'"
+                    type="button"
+                    class="btn btn-sm"
+                    :disabled="dangMoViec === p.id"
+                    @click="moViec(p)"
+                  >
+                    {{ dangMoViec === p.id ? "Đang mở…" : "Mở việc" }}
+                  </button>
+                </td>
               </tr>
               <tr v-if="!phieuLoc.length">
-                <td colspan="7" class="py-6 text-center text-phu">
+                <td :colspan="quyenLapPhieu ? 8 : 7" class="py-6 text-center text-phu">
                   {{ nguonLoc === "tat-ca" ? "Chưa có phiếu kiểm tra nào." : "Không có phiếu thuộc nguồn đang lọc." }}
                 </td>
               </tr>
@@ -185,7 +232,7 @@ onMounted(async () => {
           <button v-if="quyenLapPhieu" class="btn-sm" :disabled="dangGuiCamBien === c.id" @click="guiSoDo(c)">
             {{ dangGuiCamBien === c.id ? "Đang gửi…" : "Gửi số đo thử" }}
           </button>
-          <button v-if="quyenLapPhieu" class="btn-sm" @click="lapPhieu(c.id)">Lập phiếu</button>
+          <button v-if="quyenLapPhieu" class="btn-sm" @click="lapPhieu(c)">Lập phiếu</button>
         </div>
 
         <ul v-if="chon === c.id" class="mt-3 space-y-1 border-t border-vien-nhat pt-3 text-sm">

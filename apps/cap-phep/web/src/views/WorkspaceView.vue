@@ -4,18 +4,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { getUser, getValidToken, readRoles } from "../auth";
-import { fetchEscalations, fetchTasks, remindTask } from "../api/flow";
+import { completeTask, fetchEscalations, fetchTasks, remindTask } from "../api/flow";
 import { fetchDossierFiles, fetchDossierHistory, openHoSo, reviewDossierFile } from "../api/dossiers";
 import { useDossierActions, type NguoiDung } from "../composables/useDossierActions";
 import { notify } from "../composables/useToast";
 import { EmptyState, Skeleton } from "../design-system";
 import DossierActionBar from "../components/DossierActionBar.vue";
 import { formatStatus } from "../utils/formatters";
-import { cheCccd, ngayLamViecDaQua, tenBuoc, tenHanhDong } from "../utils/labels";
+import { cheCccd, ngayLamViecDaQua, tenBuoc, tenChiSo, tenHanhDong } from "../utils/labels";
 import type { FlowTask } from "../types";
 
 type BoLoc = "tat-ca" | "qua-han" | "sap-han";
-type LoaiViec = "tat-ca" | "tiep-nhan" | "tham-dinh" | "phe-duyet" | "nghiem-thu" | "khac";
+type LoaiViec = "tat-ca" | "tiep-nhan" | "tham-dinh" | "phe-duyet" | "nghiem-thu" | "hau-kiem" | "khac";
+
+// Việc của quy trình hau-kiem: gắn với phiếu kiểm tra, không có hồ sơ cấp phép
+const VIEC_HAU_KIEM = ["taskKiemTraHienTruong", "taskXuLyViPham"];
 
 const nguoi = ref<NguoiDung | null>(null);
 const tasks = ref<FlowTask[]>([]);
@@ -51,8 +54,13 @@ function bien(t: FlowTask, ten: string): any {
   return ((t.variables as any[] | undefined) || []).find((v: any) => v.name === ten)?.value;
 }
 
+function laHauKiem(t: FlowTask | null | undefined): boolean {
+  return !!t && VIEC_HAU_KIEM.includes(t.taskDefinitionKey || "");
+}
+
 function thongTin(t: FlowTask): { id: string; ma: string; diaChi: string; trangThai: string; uuTien: string } {
-  const ma = bien(t, "ma_ho_so") || t.businessKey || "";
+  const maPhieu = laHauKiem(t) ? `Phiếu kiểm tra ${bien(t, "site_id") || ""}`.trim() : "";
+  const ma = bien(t, "ma_ho_so") || t.businessKey || maPhieu;
   const id = bien(t, "ho_so_id") || ma;
   return {
     id,
@@ -74,6 +82,7 @@ function thongTinEsc(e: any): { id: string; ma: string; diaChi: string } {
 
 function nhomViec(t: FlowTask): LoaiViec {
   const key = t.taskDefinitionKey || "";
+  if (laHauKiem(t)) return "hau-kiem";
   if (key === "taskKiemTraHopLe" || key === "taskChoBoSung") return "tiep-nhan";
   if (key.startsWith("taskThamDinh") || key === "taskPhanCong" || key === "taskKiemTraQuyHoach") return "tham-dinh";
   if (key === "taskDuyetCapPhep" || key === "taskPheDuyet") return "phe-duyet";
@@ -160,6 +169,13 @@ function fallbackDossier(t: FlowTask): any {
 
 async function taiChiTiet(): Promise<void> {
   if (!selectedTask.value) return;
+  if (laHauKiem(selectedTask.value)) {
+    // Phiếu hậu kiểm không có hồ sơ để mở; kết luận ngay ở cột giữa
+    selectedDossier.value = null;
+    files.value = [];
+    audit.value = [];
+    return;
+  }
   loadingDetail.value = true;
   detailError.value = "";
   files.value = [];
@@ -191,7 +207,33 @@ async function taiChiTiet(): Promise<void> {
 
 async function chonViec(t: FlowTask): Promise<void> {
   selectedTask.value = t;
+  ghiChuHauKiem.value = "";
   await taiChiTiet();
+}
+
+const ghiChuHauKiem = ref("");
+
+/** Kết luận việc hậu kiểm: việc giao cho nhóm trật tự xây dựng nên gọi thẳng API hoàn thành. */
+async function ketLuanHauKiem(t: FlowTask, ketLuan: "dat" | "vi_pham" | null): Promise<void> {
+  dangLam.value = t.id;
+  try {
+    const token = await getValidToken();
+    if (!token) throw new Error("Hết phiên, vui lòng đăng nhập lại");
+    const bienGui: Record<string, string> = {};
+    if (ketLuan) bienGui.ketLuan = ketLuan;
+    if (ghiChuHauKiem.value.trim()) bienGui.ghi_chu = ghiChuHauKiem.value.trim();
+    await completeTask(token, t.id, bienGui);
+    notify(
+      ketLuan === "dat" ? "Đã ghi kết luận đạt" : ketLuan === "vi_pham" ? "Đã ghi vi phạm, việc khắc phục đã tạo" : "Đã ghi khắc phục xong",
+      "ok",
+    );
+    selectedTask.value = null;
+    await taiViec();
+  } catch (e) {
+    notify(e instanceof Error ? e.message : "Không ghi được kết luận", "loi");
+  } finally {
+    dangLam.value = null;
+  }
 }
 
 async function hoanThanh(t: FlowTask): Promise<void> {
@@ -253,11 +295,12 @@ async function sauKhiXuLy(d: any): Promise<void> {
   await taiChiTiet();
 }
 
+// Tổng 7 ngày làm việc (Điều 54 NĐ 217/2026), thẩm định 3 ngày; khớp app_cap_phep.so_ngay_giai_quyet()
 const STEPS = [
-  { key: "tiep_nhan", label: "Tiếp nhận", days: 3 },
-  { key: "phan_cong", label: "Phân công", days: 2 },
-  { key: "tham_dinh", label: "Thẩm định", days: 7 },
-  { key: "phe_duyet", label: "Phê duyệt", days: 2 },
+  { key: "tiep_nhan", label: "Tiếp nhận", days: 1 },
+  { key: "phan_cong", label: "Phân công", days: 1 },
+  { key: "tham_dinh", label: "Thẩm định", days: 3 },
+  { key: "phe_duyet", label: "Phê duyệt", days: 1 },
   { key: "hoan_thanh", label: "Cấp phép", days: 1 },
 ];
 
@@ -327,6 +370,7 @@ defineExpose({ taiViec });
           <option value="tham-dinh">Thẩm định / quy hoạch</option>
           <option value="phe-duyet">Phê duyệt</option>
           <option value="nghiem-thu">Nghiệm thu</option>
+          <option value="hau-kiem">Hậu kiểm</option>
           <option value="khac">Khác</option>
         </select>
       </div>
@@ -409,6 +453,40 @@ defineExpose({ taiViec });
         <div v-if="loadingDetail" class="space-y-3" role="status" aria-busy="true">
           <p class="sr-only">Đang tải chi tiết hồ sơ.</p>
           <Skeleton :lines="6" height="1.8rem" />
+        </div>
+        <div v-else-if="selectedTask && laHauKiem(selectedTask)" id="workspace-hau-kiem">
+          <div class="border-b border-vien-nhat pb-3">
+            <p class="nhan-nho m-0">Phiếu kiểm tra hiện trường</p>
+            <h2 class="m-0 mt-1 text-[17px] font-semibold text-chu">{{ bien(selectedTask, "site_id") || "Công trình" }}</h2>
+            <p class="m-0 mt-1 text-[12.5px] text-phu">{{ selectedTask.name || selectedTask.taskDefinitionKey }}</p>
+          </div>
+          <dl class="m-0 mt-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-[13px]">
+            <dt class="text-phu">Nội dung</dt>
+            <dd class="m-0 text-chu">{{ tenChiSo(bien(selectedTask, "chi_so")) }}</dd>
+            <template v-if="Number(bien(selectedTask, 'nguong')) > 0">
+              <dt class="text-phu">Đo được</dt>
+              <dd class="m-0 text-chu">{{ bien(selectedTask, "gia_tri") }} (ngưỡng {{ bien(selectedTask, "nguong") }})</dd>
+            </template>
+            <dt class="text-phu">Hạn</dt>
+            <dd class="m-0 text-chu">{{ dinhDangHan(selectedTask) }}</dd>
+          </dl>
+          <div class="mt-4">
+            <label class="nhan" for="ghi-chu-hau-kiem">Ghi chú kiểm tra</label>
+            <textarea id="ghi-chu-hau-kiem" v-model="ghiChuHauKiem" class="o min-h-[84px]" maxlength="1000" />
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <template v-if="selectedTask.taskDefinitionKey === 'taskKiemTraHienTruong'">
+              <button type="button" class="btn btn-chinh" :disabled="dangLam === selectedTask.id" @click="ketLuanHauKiem(selectedTask, 'dat')">
+                Đạt yêu cầu
+              </button>
+              <button type="button" class="btn" :disabled="dangLam === selectedTask.id" @click="ketLuanHauKiem(selectedTask, 'vi_pham')">
+                Có vi phạm
+              </button>
+            </template>
+            <button v-else type="button" class="btn btn-chinh" :disabled="dangLam === selectedTask.id" @click="ketLuanHauKiem(selectedTask, null)">
+              Đã khắc phục
+            </button>
+          </div>
         </div>
         <div v-else-if="!selectedDossier" class="flex h-full min-h-[320px] items-center justify-center text-[13.5px] text-phu">
           Chọn một việc ở cột bên trái để mở hồ sơ. Mỗi lần mở được ghi vào nhật ký truy cập.
@@ -564,7 +642,9 @@ defineExpose({ taiViec });
       <!-- Cột 3: thao tác xử lý -->
       <aside class="the max-h-[760px] overflow-y-auto p-4 lg:col-span-12 xl:col-span-3">
         <h2 class="nhan-nho m-0 border-b border-vien-nhat pb-3">Thao tác xử lý</h2>
-        <p v-if="!selectedDossier" class="mt-4 text-[12.5px] italic text-phu">Chọn một việc để xem thao tác.</p>
+        <p v-if="!selectedDossier" class="mt-4 text-[12.5px] italic text-phu">
+          {{ laHauKiem(selectedTask) ? "Ghi kết luận phiếu ở cột giữa." : "Chọn một việc để xem thao tác." }}
+        </p>
         <template v-else>
           <DossierActionBar
             v-if="accessToken"
