@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, Header, HTTPException, status
 from dxos_core.middleware import setup_standard_service
 from dxos_core.jwt import verify_jwt_token
+from dxos_core.xem_dia_ban import dia_ban_duoc_xem
 from dxos_core.audit import verify_audit_chain
 from dxos_core.db import get_db_connection
 from dxos_core.storage import storage_client
@@ -31,9 +32,11 @@ async def audit_chain(
     entity: Optional[str] = None,
     id: Optional[str] = None,
     limit: int = 200,
+    tenant: Optional[str] = None,
     authorization: str = Header(...),
 ):
-    """Chuỗi kiểm toán theo đối tượng, kèm trạng thái xác minh toàn chuỗi của tenant (A-DATA-04)."""
+    """Các bản ghi kiểm toán gần nhất (mới nhất trước) theo đối tượng, kèm trạng thái xác minh toàn
+    chuỗi của tenant (A-DATA-04)."""
     claims = verify_jwt_token(authorization)
     has_perm = any(r in claims.roles for r in ["dx:auditor", "dx:platform-admin", "dx:tenant-admin"])
     if not has_perm:
@@ -42,30 +45,34 @@ async def audit_chain(
             detail={"loi": "Chỉ kiểm toán viên hoặc quản trị viên được xem chuỗi kiểm toán"},
         )
     limit = max(1, min(int(limit), 1000))
+    dia_ban = dia_ban_duoc_xem(claims, tenant)
     async with get_db_connection(claims) as conn:
         rows = await conn.fetch(
             """
-            SELECT id, at, actor_sub, actor_type, action, object_type, object_id, detail,
-                   prev_hash, hash
-            FROM core.audit_log
-            WHERE tenant = $1
-              AND ($2::text IS NULL OR object_type = $2)
-              AND ($3::text IS NULL OR object_id = $3)
-            ORDER BY id
+            SELECT a.id, a.at, a.actor_sub, a.actor_type, a.action, a.object_type, a.object_id, a.detail,
+                   a.prev_hash, a.hash, u.full_name AS actor_name
+            FROM core.audit_log a
+            LEFT JOIN core.users_directory u
+              ON u.tenant = a.tenant AND (u.id::text = a.actor_sub OR u.username = a.actor_sub)
+            WHERE a.tenant = $1
+              AND ($2::text IS NULL OR a.object_type = $2)
+              AND ($3::text IS NULL OR a.object_id = $3)
+            ORDER BY a.id DESC
             LIMIT $4
             """,
-            claims.tenant,
+            dia_ban,
             entity,
             id,
             limit,
         )
-    verification = await verify_audit_chain(claims.tenant)
+    verification = await verify_audit_chain(dia_ban)
     items = []
     for r in rows:
         items.append({
             "id": r["id"],
             "at": r["at"].isoformat() if r["at"] else None,
             "actor_sub": r["actor_sub"],
+            "actor_name": r["actor_name"],
             "actor_type": r["actor_type"],
             "action": r["action"],
             "object_type": r["object_type"],
@@ -75,7 +82,7 @@ async def audit_chain(
             "hash": bytes(r["hash"]).hex() if r["hash"] else None,
         })
     return {
-        "tenant": claims.tenant,
+        "tenant": dia_ban,
         "entity": entity,
         "object_id": id,
         "chain_valid": verification.get("valid", False),
@@ -97,6 +104,7 @@ async def verify_chain_post(authorization: str = Header(...)):
 
 @app.get("/api/v1/audit/verify")
 async def verify_chain_endpoint(
+    tenant: Optional[str] = None,
     authorization: str = Header(...),
 ):
     """
@@ -104,8 +112,10 @@ async def verify_chain_endpoint(
     Dành cho kiểm toán viên (dx:auditor) hoặc quản trị viên hệ thống.
     """
     claims = verify_jwt_token(authorization)
-    result = await verify_audit_chain(claims.tenant)
-    return result
+    has_perm = any(r in claims.roles for r in ["dx:auditor", "dx:platform-admin", "dx:tenant-admin"])
+    if not has_perm:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"loi": "Không có quyền xác minh chuỗi kiểm toán"})
+    return await verify_audit_chain(dia_ban_duoc_xem(claims, tenant))
 
 
 @app.post("/api/v1/audit/seal")

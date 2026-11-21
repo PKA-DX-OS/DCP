@@ -69,7 +69,7 @@ interface AcceptanceProgressResponse {
   items: { loai_moc: string; ket_qua: string; so_luong: number }[];
 }
 interface OnTimeResponse {
-  items: { thang: string; da_cap: number; dung_han: number; ty_le: number }[];
+  items: { thang: string; da_cap: number; dung_han: number; ty_le: number | null }[];
 }
 interface HoSoTomTat {
   id: string;
@@ -95,12 +95,36 @@ const tab = ref<Tab>("chi-so");
 const vaiTro = ref<string[]>([]);
 const tenNguoiDung = ref("");
 const tenant = ref("");
+const laQuanTriNenTang = computed(() => vaiTro.value.includes("dx:platform-admin"));
+const danhSachDiaBan = ref<{ tenant: string; ten: string }[]>([]);
+/** Phường đang xem: quản trị nền tảng (tenant global) chọn phường, vai khác xem phường của mình. */
+const diaBanXem = computed(() => (laQuanTriNenTang.value && filter.diaBan ? filter.diaBan : tenant.value));
 const donVi = computed(() => {
-  const t = tenant.value;
-  if (t === "phuong-a") return "UBND Phường A";
-  if (t === "phuong-b") return "UBND Phường B";
+  const t = diaBanXem.value;
+  const daBiet = danhSachDiaBan.value.find((x) => x.tenant === t);
+  if (daBiet?.ten) return daBiet.ten;
+  const m = /^(phuong|xa)-(.+)$/.exec(t || "");
+  if (m) return `UBND ${m[1] === "phuong" ? "Phường" : "Xã"} ${m[2].toUpperCase()}`;
+  if (t === "global") return "toàn hệ thống (chưa chọn phường)";
   return t || "Hệ thống cấp phép";
 });
+/** Thêm `tenant=` vào đường dẫn khi quản trị nền tảng xem một phường. */
+function theoDiaBan(duongDan: string): string {
+  if (!laQuanTriNenTang.value || !filter.diaBan) return duongDan;
+  return `${duongDan}${duongDan.includes("?") ? "&" : "?"}tenant=${encodeURIComponent(filter.diaBan)}`;
+}
+async function taiDiaBan(): Promise<void> {
+  if (!laQuanTriNenTang.value) return;
+  try {
+    const res = await apiGet<{ items: { tenant: string; ten: string; active: boolean }[] }>("/admin/tenants");
+    danhSachDiaBan.value = res.items.filter((x) => x.tenant !== "global" && x.active !== false);
+    if (!filter.diaBan || !danhSachDiaBan.value.some((x) => x.tenant === filter.diaBan)) {
+      filter.diaBan = danhSachDiaBan.value[0]?.tenant || "";
+    }
+  } catch {
+    danhSachDiaBan.value = [];
+  }
+}
 const vai = computed(() => {
   if (vaiTro.value.includes("app:cap-phep:lanh-dao")) return "Lãnh đạo phường";
   if (vaiTro.value.includes("dx:auditor")) return "Kiểm toán viên";
@@ -147,13 +171,8 @@ const data = ref<MetricsResponse | null>(null);
 async function loadMetrics(): Promise<void> {
   loading.value = true;
   loadError.value = "";
-  const q = new URLSearchParams();
-  if (filter.thang) q.set("thang", filter.thang);
-  if (filter.diaBan) q.set("dia_ban", filter.diaBan);
   try {
-    data.value = await apiGet<MetricsResponse>(
-      `/metrics${q.toString() ? `?${q}` : ""}`,
-    );
+    data.value = await apiGet<MetricsResponse>(theoDiaBan("/metrics"));
   } catch (e) {
     data.value = null;
     loadError.value = e instanceof Error ? e.message : "Lỗi không xác định";
@@ -209,6 +228,26 @@ const TRANG_THAI: Record<string, string> = {
 function nhanTrangThai(v: string): string {
   return TRANG_THAI[v] || v;
 }
+const BUOC: Record<string, string> = {
+  tiep_nhan: "Tiếp nhận",
+  phan_cong: "Phân công",
+  tham_dinh: "Thẩm định",
+  phe_duyet: "Phê duyệt",
+  hoan_thanh: "Hoàn thành",
+};
+function nhanBuoc(v?: string | null): string {
+  return (v && BUOC[v]) || v || "Đang xử lý";
+}
+/** Hồ sơ quá hạn vì hạn tổng hay vì hạn của bước hiện tại: in đúng mốc đã bị lỡ. */
+function hanBiLo(h: { han_tong_at?: string | null; han_buoc_at?: string | null }): string {
+  const now = Date.now();
+  if (h.han_tong_at && new Date(h.han_tong_at).getTime() < now) return `Quá hạn giải quyết: ${fmtDate(h.han_tong_at)}`;
+  if (h.han_buoc_at) return `Quá hạn bước: ${fmtDate(h.han_buoc_at)}`;
+  return `Hạn giải quyết: ${fmtDate(h.han_tong_at || undefined)}`;
+}
+function daQua(iso?: string | null): boolean {
+  return !!iso && new Date(iso).getTime() < Date.now();
+}
 const trendSeries = computed(() => {
   const items = trendData.value?.items ?? [];
   return {
@@ -256,7 +295,7 @@ const statusItems = computed(() =>
     color: ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2"][i % 6],
   })),
 );
-const trendLabels = computed(() => (trendData.value?.items ?? []).map((x) => x.thang.slice(2)));
+const trendLabels = computed(() => (trendData.value?.items ?? []).map((x) => `${x.thang.slice(5, 7)}/${x.thang.slice(0, 4)}`));
 const trendLines = computed(() => [
   { label: "Hồ sơ mới", values: trendSeries.value.so_ho_so, color: "#2563eb" },
   { label: "Đã cấp", values: trendSeries.value.da_cap, color: "#059669" },
@@ -302,14 +341,14 @@ async function loadDashboard(): Promise<void> {
   const thang = filter.thang || "";
   try {
     const [b, t, w, o, h, pf, ap, ot] = await Promise.all([
-      apiGet<BreakdownResponse>(`/metrics/status-breakdown${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
-      apiGet<TrendResponse>("/metrics/trend?months=6"),
-      apiGet<WorkloadResponse>("/metrics/workload"),
-      apiGet<DanhSachHoSo>("/metrics/overdue"),
-      apiGet<DanhSachHoSo>("/metrics/today-tasks"),
-      apiGet<PlanningFailResponse>(`/metrics/planning-fail${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
-      apiGet<AcceptanceProgressResponse>(`/metrics/acceptance-progress${thang ? `?month=${encodeURIComponent(thang)}` : ""}`),
-      apiGet<OnTimeResponse>("/metrics/on-time?months=12"),
+      apiGet<BreakdownResponse>(theoDiaBan(`/metrics/status-breakdown${thang ? `?month=${encodeURIComponent(thang)}` : ""}`)),
+      apiGet<TrendResponse>(theoDiaBan("/metrics/trend?months=6")),
+      apiGet<WorkloadResponse>(theoDiaBan("/metrics/workload")),
+      apiGet<DanhSachHoSo>(theoDiaBan("/metrics/overdue")),
+      apiGet<DanhSachHoSo>(theoDiaBan("/metrics/today-tasks")),
+      apiGet<PlanningFailResponse>(theoDiaBan(`/metrics/planning-fail${thang ? `?month=${encodeURIComponent(thang)}` : ""}`)),
+      apiGet<AcceptanceProgressResponse>(theoDiaBan(`/metrics/acceptance-progress${thang ? `?month=${encodeURIComponent(thang)}` : ""}`)),
+      apiGet<OnTimeResponse>(theoDiaBan("/metrics/on-time?months=12")),
     ]);
     breakdown.value = b;
     trendData.value = t;
@@ -452,6 +491,7 @@ onMounted(async () => {
     return;
   }
   auth.value = "ok";
+  await taiDiaBan();
   await taiTatCa();
 });
 
@@ -463,7 +503,7 @@ watch(
   },
 );
 
-function fmtDate(iso?: string): string {
+function fmtDate(iso?: string | null): string {
   return iso ? formatThoiDiem(iso) : "—";
 }
 </script>
@@ -568,6 +608,12 @@ function fmtDate(iso?: string): string {
           </p>
         </div>
         <div class="flex-1"></div>
+        <label v-if="laQuanTriNenTang && danhSachDiaBan.length" class="flex items-center gap-2 text-sm chu-phu">
+          Phường
+          <select v-model="filter.diaBan" class="o w-auto">
+            <option v-for="d in danhSachDiaBan" :key="d.tenant" :value="d.tenant">{{ d.ten || d.tenant }}</option>
+          </select>
+        </label>
         <label class="flex items-center gap-2 text-sm chu-phu">
           Tháng
           <input v-model="filter.thang" type="month" class="o w-auto" />
@@ -672,7 +718,7 @@ function fmtDate(iso?: string): string {
                   <td class="whitespace-nowrap">{{ m.thang }}</td>
                   <td>{{ m.da_cap }}</td>
                   <td>{{ m.dung_han }}</td>
-                  <td><b :class="Number(m.ty_le) < 80 ? 'text-son' : 'text-xanh'">{{ m.ty_le }}%</b></td>
+                  <td><b v-if="m.ty_le !== null && m.ty_le !== undefined" :class="Number(m.ty_le) < 80 ? 'text-son' : 'text-xanh'">{{ m.ty_le }}%</b><span v-else class="chu-phu">—</span></td>
                 </tr>
               </tbody>
             </table>
@@ -699,22 +745,24 @@ function fmtDate(iso?: string): string {
               <li v-for="h in overdue.items.slice(0, 5)" :key="h.id" class="border-b border-slate-200 pb-2 last:border-0 dark:border-slate-700">
                 <a :href="'/?tab=ho-so'" target="_blank" rel="noopener" class="font-medium underline">{{ h.ma_ho_so }}</a>
                 <span class="block chu-phu">{{ h.ho_ten }} · {{ h.dia_chi_cong_trinh }}</span>
-                <span class="block text-xs text-rose-700 dark:text-rose-300">Hạn: {{ fmtDate(h.han_tong_at) }} · {{ nhanTrangThai(h.trang_thai) }}</span>
+                <span class="block text-xs text-rose-700 dark:text-rose-300">{{ hanBiLo(h) }} · {{ nhanTrangThai(h.trang_thai) }}</span>
               </li>
             </ul>
           </div>
 
           <div class="rounded-lg kinh p-4 shadow">
             <div class="flex items-center justify-between gap-2">
-              <h2 class="text-sm font-semibold chu-phu">Việc cần xử lý hôm nay</h2>
+              <h2 class="text-sm font-semibold chu-phu">Việc đến hạn hôm nay hoặc đã quá hạn bước</h2>
               <span class="rounded-full bg-amber-100 px-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">{{ todayTasks?.items?.length || 0 }}</span>
             </div>
             <p v-if="!todayTasks?.items?.length" class="mt-2 text-sm chu-phu">Không có việc đến hạn hôm nay.</p>
             <ul v-else class="mt-2 list-none space-y-2 p-0 text-sm">
               <li v-for="h in todayTasks.items.slice(0, 5)" :key="h.id" class="border-b border-slate-200 pb-2 last:border-0 dark:border-slate-700">
                 <a :href="'/?tab=ban-lam-viec'" target="_blank" rel="noopener" class="font-medium underline">{{ h.ma_ho_so }}</a>
-                <span class="block chu-phu">{{ h.ho_ten }} · {{ h.buoc || "Đang xử lý" }}</span>
-                <span class="block text-xs text-amber-700 dark:text-amber-300">Hạn bước: {{ fmtDate(h.han_buoc_at || h.han_tong_at) }}</span>
+                <span class="block chu-phu">{{ h.ho_ten }} · {{ nhanBuoc(h.buoc) }}</span>
+                <span
+                  :class="['block text-xs', daQua(h.han_buoc_at) ? 'text-rose-700 dark:text-rose-300' : 'text-amber-700 dark:text-amber-300']"
+                >{{ daQua(h.han_buoc_at) ? "Quá hạn bước" : "Hạn bước" }}: {{ fmtDate(h.han_buoc_at || h.han_tong_at) }}</span>
               </li>
             </ul>
           </div>
@@ -859,7 +907,7 @@ function fmtDate(iso?: string): string {
 
     <!-- Tab Kiểm toán (chỉ dx:auditor / quản trị) -->
     <section v-if="laKiemToan" v-show="tab === 'kiem-toan'">
-      <AuditorPanel />
+      <AuditorPanel :dia-ban="laQuanTriNenTang ? filter.diaBan : ''" />
     </section>
 
     <!-- Tab Quản trị địa bàn (dx:platform-admin / dx:tenant-admin) -->

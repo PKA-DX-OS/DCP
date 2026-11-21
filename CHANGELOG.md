@@ -20,6 +20,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 ### Đã sửa (Fixed)
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.
 - **Hạn bước xử lý (FIX-V11-02):** việc trong hàng đợi có hạn suy ra từ SLA của bước khi quy trình không đặt `dueDate`, nên cảnh báo quá hạn và leo thang hoạt động.
+- **Bảng điều hành (FIX-V11-03):** quản trị nền tảng chọn được phường để xem chỉ số và nhật ký; nhật ký kiểm toán hiện mới nhất trước kèm tên người thực hiện; tỷ lệ đúng hạn hiện "—" khi chưa có giấy phép.
 
 ---
 

@@ -12,6 +12,7 @@ from dxos_core.db import get_db_connection
 from dxos_core.jwt import verify_jwt_token
 
 from construction.deps import yeu_cau_can_bo
+from dxos_core.xem_dia_ban import ngu_canh_danh_sach, ngu_canh_tong_hop
 
 router = APIRouter(prefix="/api/v1/metrics", tags=["Số liệu Track A"])
 
@@ -26,11 +27,12 @@ def _thang(month: Optional[str]) -> date:
 
 
 @router.get("/status-breakdown")
-async def status_breakdown(month: Optional[str] = Query(default=None), authorization: str = Header(...)):
+async def status_breakdown(month: Optional[str] = Query(default=None), tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     thang = _thang(month)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             SELECT trang_thai, count(*) AS so_luong
@@ -42,14 +44,15 @@ async def status_breakdown(month: Optional[str] = Query(default=None), authoriza
             """,
             thang,
         )
-    return {"tenant": claims.tenant, "month": thang, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "month": thang, "items": [dict(r) for r in rows]}
 
 
 @router.get("/trend")
-async def trend(months: int = Query(default=12, ge=1, le=24), authorization: str = Header(...)):
+async def trend(months: int = Query(default=12, ge=1, le=24), tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             WITH m AS (
@@ -72,14 +75,15 @@ async def trend(months: int = Query(default=12, ge=1, le=24), authorization: str
             """,
             months,
         )
-    return {"tenant": claims.tenant, "months": months, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "months": months, "items": [dict(r) for r in rows]}
 
 
 @router.get("/workload")
-async def workload(authorization: str = Header(...)):
+async def workload(tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             SELECT a.user_sub,
@@ -100,15 +104,16 @@ async def workload(authorization: str = Header(...)):
             ORDER BY so_ho_so_duoc_giao DESC
             """
         )
-    return {"tenant": claims.tenant, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "items": [dict(r) for r in rows]}
 
 
 @router.get("/planning-fail")
-async def planning_fail(month: Optional[str] = Query(default=None), authorization: str = Header(...)):
+async def planning_fail(month: Optional[str] = Query(default=None), tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     thang = _thang(month)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             SELECT z.ma_zone, z.ten, count(*) AS so_lan_fail
@@ -122,15 +127,16 @@ async def planning_fail(month: Optional[str] = Query(default=None), authorizatio
             """,
             thang,
         )
-    return {"tenant": claims.tenant, "month": thang, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "month": thang, "items": [dict(r) for r in rows]}
 
 
 @router.get("/acceptance-progress")
-async def acceptance_progress(month: Optional[str] = Query(default=None), authorization: str = Header(...)):
+async def acceptance_progress(month: Optional[str] = Query(default=None), tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     thang = _thang(month)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             SELECT loai_moc, ket_qua, count(*) AS so_luong
@@ -142,15 +148,16 @@ async def acceptance_progress(month: Optional[str] = Query(default=None), author
             """,
             thang,
         )
-    return {"tenant": claims.tenant, "month": thang, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "month": thang, "items": [dict(r) for r in rows]}
 
 
 @router.get("/on-time")
-async def on_time(months: int = Query(default=12, ge=1, le=24), authorization: str = Header(...)):
+async def on_time(months: int = Query(default=12, ge=1, le=24), tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     """Tỷ lệ hồ sơ DA_CAP đúng hạn theo từng tháng của địa bàn."""
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_tong_hop(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             WITH m AS (
@@ -163,7 +170,7 @@ async def on_time(months: int = Query(default=12, ge=1, le=24), authorization: s
             SELECT to_char(m.thang, 'YYYY-MM') AS thang,
                    count(h.id) AS da_cap,
                    count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) AS dung_han,
-                   COALESCE(round(100::numeric * count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) / NULLIF(count(h.id), 0), 1), 0) AS ty_le
+                   round(100::numeric * count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) / NULLIF(count(h.id), 0), 1) AS ty_le
             FROM m
             LEFT JOIN app_cap_phep.ho_so h
               ON h.tenant = core.jwt_tenant()
@@ -174,15 +181,16 @@ async def on_time(months: int = Query(default=12, ge=1, le=24), authorization: s
             """,
             months,
         )
-    return {"tenant": claims.tenant, "months": months, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "months": months, "items": [dict(r) for r in rows]}
 
 
 @router.get("/overdue")
-async def overdue(authorization: str = Header(...)):
+async def overdue(tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     """Hồ sơ quá hạn hoặc đã quá hạn tổng, cho dashboard lãnh đạo (B-UX-01)."""
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_danh_sach(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             SELECT id, ma_ho_so, ho_ten, dia_chi_cong_trinh, trang_thai, buoc,
@@ -195,15 +203,16 @@ async def overdue(authorization: str = Header(...)):
             LIMIT 50
             """
         )
-    return {"tenant": claims.tenant, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "items": [dict(r) for r in rows]}
 
 
 @router.get("/today-tasks")
-async def today_tasks(authorization: str = Header(...)):
+async def today_tasks(tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
     """Hồ sơ có hạn bước hôm nay hoặc đang chờ xử lý (B-UX-01)."""
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
-    async with get_db_connection(claims) as conn:
+    ctx = ngu_canh_danh_sach(claims, tenant)
+    async with get_db_connection(ctx) as conn:
         rows = await conn.fetch(
             """
             SELECT id, ma_ho_so, ho_ten, dia_chi_cong_trinh, trang_thai, buoc,
@@ -219,4 +228,4 @@ async def today_tasks(authorization: str = Header(...)):
             LIMIT 50
             """
         )
-    return {"tenant": claims.tenant, "items": [dict(r) for r in rows]}
+    return {"tenant": ctx.tenant, "items": [dict(r) for r in rows]}

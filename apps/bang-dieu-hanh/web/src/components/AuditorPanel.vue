@@ -3,13 +3,14 @@ SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
 SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { apiDownload, apiGet, apiPost, luuBlob } from "../api";
 
 interface AuditItem {
   id: number | string;
   at: string;
   actor_sub: string;
+  actor_name?: string | null;
   actor_type: string;
   action: string;
   object_type: string;
@@ -34,6 +35,9 @@ interface VerifyResponse {
 
 const duLieu = ref<AuditResponse | null>(null);
 const xacMinh = ref<VerifyResponse | null>(null);
+const props = withDefaults(defineProps<{ diaBan?: string }>(), { diaBan: "" });
+/** Quản trị nền tảng xem nhật ký của phường đang chọn trên bảng điều hành. */
+const thamSoDiaBan = computed(() => (props.diaBan ? `&tenant=${encodeURIComponent(props.diaBan)}` : ""));
 const loading = ref(false);
 const sealing = ref(false);
 const error = ref("");
@@ -49,9 +53,9 @@ const daLoc = computed(() => {
   return (duLieu.value?.items ?? []).filter(
     (x) =>
       (!locEntity.value || x.object_type === locEntity.value) &&
-      (!locActor.value || x.actor_sub.toLowerCase().includes(locActor.value.toLowerCase())) &&
+      (!locActor.value || `${x.actor_name || ""} ${x.actor_sub || ""}`.toLowerCase().includes(locActor.value.toLowerCase())) &&
       (!locAction.value || x.action.toLowerCase().includes(locAction.value.toLowerCase())) &&
-      (!q || `${x.action} ${x.actor_sub} ${x.object_type} ${x.object_id}`.toLowerCase().includes(q)),
+      (!q || `${x.action} ${x.actor_name || ""} ${x.actor_sub} ${x.object_type} ${x.object_id}`.toLowerCase().includes(q)),
   );
 });
 
@@ -66,8 +70,8 @@ async function tai(): Promise<void> {
   error.value = "";
   try {
     const [chain, verify] = await Promise.all([
-      apiGet<AuditResponse>("/audit/chain?limit=200"),
-      apiGet<VerifyResponse>("/audit/verify"),
+      apiGet<AuditResponse>(`/audit/chain?limit=200${thamSoDiaBan.value}`),
+      apiGet<VerifyResponse>(`/audit/verify${thamSoDiaBan.value ? `?${thamSoDiaBan.value.slice(1)}` : ""}`),
     ]);
     duLieu.value = chain;
     xacMinh.value = verify;
@@ -79,7 +83,7 @@ async function tai(): Promise<void> {
 }
 async function xacMinhLai(): Promise<void> {
   try {
-    xacMinh.value = await apiGet<VerifyResponse>("/audit/verify");
+    xacMinh.value = await apiGet<VerifyResponse>(`/audit/verify${thamSoDiaBan.value ? `?${thamSoDiaBan.value.slice(1)}` : ""}`);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Không xác minh được chuỗi";
   }
@@ -111,9 +115,10 @@ async function xuatExcel(): Promise<void> {
   }
 }
 function xuatCsv(): void {
-  const header = ["Thời gian", "Người thực hiện", "Hành động", "Đối tượng", "ID đối tượng", "Hash", "Prev hash"];
+  const header = ["Thời gian", "Người thực hiện", "Mã người thực hiện", "Hành động", "Đối tượng", "ID đối tượng", "Hash", "Prev hash"];
   const rows = daLoc.value.map((x) => [
     ngayGio(x.at),
+    x.actor_name || "",
     x.actor_sub,
     x.action,
     x.object_type,
@@ -133,6 +138,7 @@ function xuatCsv(): void {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 onMounted(tai);
+watch(() => props.diaBan, () => void tai());
 </script>
 
 <template>
@@ -205,7 +211,7 @@ onMounted(tai);
         <tbody>
           <tr v-for="x in daLoc" :key="x.id" class="border-b last:border-0" :title="JSON.stringify(x.detail)">
             <td class="whitespace-nowrap px-3 py-2">{{ ngayGio(x.at) }}</td>
-            <td class="px-3 py-2">{{ x.actor_sub }}<span class="block text-xs chu-phu">{{ x.actor_type }}</span></td>
+            <td class="px-3 py-2">{{ x.actor_name || (x.actor_type === "user" ? "Người dùng" : "Hệ thống") }}<span class="block text-xs chu-phu" :title="x.actor_sub || ''">{{ x.actor_type }}<template v-if="x.actor_sub"> · {{ x.actor_sub.slice(0, 8) }}</template></span></td>
             <td class="px-3 py-2">{{ x.action }}</td>
             <td class="px-3 py-2">{{ x.object_type }}<span class="block text-xs chu-phu">{{ x.object_id }}</span></td>
             <td class="px-3 py-2 font-mono text-xs" :title="x.hash || ''">{{ nganHash(x.hash) }}</td>
