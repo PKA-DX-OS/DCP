@@ -117,6 +117,11 @@ host_python() {
 cmd_up() {
   need_env
   is_demo && echo "[CẢNH BÁO] DEMO_MODE=true: chỉ dùng thử nghiệm, không dùng cho môi trường thật."
+  local ocr_engine=0
+  if [ "${DH_OCR:-false}" = "true" ] || grep -qE '^DH_OCR=true' .env 2>/dev/null; then
+    ocr_engine=1
+  fi
+  export OCR_ENGINE="$ocr_engine"
   echo "--> Build image..."
   run "${COMPOSE[@]}" --profile core --profile tools build
   echo "--> Ghép route APISIX từ core/apisix/routes..."

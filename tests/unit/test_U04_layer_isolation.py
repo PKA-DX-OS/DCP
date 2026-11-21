@@ -36,6 +36,9 @@ EXCLUDED_PREFIXES = (
     "core/postgres/25-mdm-dsar.sql",
     "core/postgres/26-mdm-360-views.sql",
     "services/construction/",
+    # Track D (kế hoạch D & H, mục 5.7, issue #247): dịch vụ trích xuất OCR giấy tờ hồ sơ
+    # (CCCD, đất đai, đơn đề nghị) phục vụ quy trình cấp phép xây dựng.
+    "services/ocr/",
 )
 SUFFIXES = {".py", ".sql", ".yaml", ".yml", ".conf", ".sh", ".json", ".toml", ".ts", ".js"}
 

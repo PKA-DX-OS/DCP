@@ -152,7 +152,11 @@ def test_danh_muc_du_9_mien():
 def test_route_apisix_va_dich_vu_phu_du_hop_dong(ung_dung):
     route = yaml.safe_load((ROOT / "core/apisix/routes/dh.yaml").read_text(encoding="utf-8"))["routes"]
     tien_to = {r["uri"].rstrip("*") for r in route}
-    assert all(r["upstream"]["nodes"] == {"construction:8000": 1} for r in route)
+    assert all(
+        r["upstream"]["nodes"] == {"ocr:8000": 1} if r.get("id") == "route_dh_ocr"
+        else r["upstream"]["nodes"] == {"construction:8000": 1}
+        for r in route
+    )
     assert all("openid-connect" in r["plugins"] for r in route)
     co = {(r.path, m.lower()) for r in ung_dung.app.routes if hasattr(r, "path") for m in getattr(r, "methods", set()) or set()}
     co |= {(p, m.lower()) for p, ops in ung_dung.app.openapi().get("paths", {}).items() for m in ops}
