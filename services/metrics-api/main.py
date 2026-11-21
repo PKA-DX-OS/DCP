@@ -4,22 +4,24 @@
 """
 API 8 chỉ số điều hành cho lãnh đạo và phả hệ dữ liệu (C04).
 
-- GET /api/v1/metrics                      : các chỉ số của tenant trong token
+- GET /api/v1/metrics[?thang=YYYY-MM]      : các chỉ số của tenant trong token; chỉ số khai báo
+                                             $2/$3 (đầu/cuối kỳ) được lọc theo tháng
 - GET /api/v1/metrics/{code}/lineage       : phả hệ của một chỉ số
 
 Danh sách chỉ số không nằm trong lõi: app khai báo ở khóa `metrics` của app.yaml,
 app_manager nạp vào core.app_policies (policy_type = 'metrics', kèm `thu_tu`).
 Mỗi chỉ số chạy trong savepoint riêng: một chỉ số lỗi chỉ ảnh hưởng chính nó.
 Chỉ trả số liệu tổng hợp (đếm, trung bình), không trả dữ liệu chi tiết cá nhân.
+Giá trị null nghĩa là chưa có mẫu để tính (ví dụ trung bình khi chưa có bản ghi).
 """
 
 import json
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, Query, status
 
 from dxos_core.middleware import setup_standard_service
 from dxos_core.jwt import verify_jwt_token
@@ -65,9 +67,31 @@ def validate_metric_policy(policy: Dict[str, Any]) -> Optional[str]:
         return "SQL không được chứa dấu ;"
     if "$1" not in sql:
         return "SQL phải dùng $1 làm tham số tenant"
+    if ("$2" in sql) != ("$3" in sql):
+        return "SQL lọc kỳ phải dùng cả $2 (đầu kỳ) và $3 (cuối kỳ)"
+    if re.search(r"\$[4-9]", sql):
+        return "SQL chỉ được dùng tham số $1, $2, $3"
     if FORBIDDEN_SQL.search(sql):
         return "SQL chứa từ khóa không được phép"
     return None
+
+
+GIO_VN = timezone(timedelta(hours=7))
+THANG_RE = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
+
+
+def ky_thang(thang: Optional[str]) -> Tuple[Optional[datetime], Optional[datetime]]:
+    """Đầu và cuối kỳ (nửa mở) của tháng YYYY-MM theo giờ Việt Nam; không truyền thì không lọc."""
+    if not thang:
+        return None, None
+    m = THANG_RE.match(thang)
+    if not m:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail={"loi": "Tham số thang phải có dạng YYYY-MM", "ma_loi": "VALIDATION_ERROR"})
+    nam, so_thang = int(m.group(1)), int(m.group(2))
+    dau = datetime(nam, so_thang, 1, tzinfo=GIO_VN)
+    cuoi = datetime(nam + (so_thang == 12), so_thang % 12 + 1, 1, tzinfo=GIO_VN)
+    return dau, cuoi
 
 
 async def _load_policies(conn) -> List[Dict[str, Any]]:
@@ -92,9 +116,11 @@ async def _load_policies(conn) -> List[Dict[str, Any]]:
 @app.get("/api/v1/metrics")
 async def get_executive_metrics(
     tenant: Optional[str] = None,
+    thang: Annotated[Optional[str], Query(description="Kỳ báo cáo YYYY-MM (giờ Việt Nam)")] = None,
     authorization: str = Header(...),
 ):
     claims = verify_jwt_token(authorization)
+    dau_ky, cuoi_ky = ky_thang(thang)
     ctx = ngu_canh_tong_hop(claims, tenant)
     tenant = ctx.tenant
     computed_at = datetime.now(timezone.utc).isoformat()
@@ -111,16 +137,18 @@ async def get_executive_metrics(
                 continue
             try:
                 # Savepoint riêng cho từng chỉ số: lỗi SQL không làm hỏng các chỉ số khác
+                theo_ky = "$2" in str(policy["sql"])
+                tham_so = (tenant, dau_ky, cuoi_ky) if theo_ky else (tenant,)
                 async with conn.transaction():
-                    value = await conn.fetchval(policy["sql"], tenant)
+                    value = await conn.fetchval(policy["sql"], *tham_so)
                 results.append({"code": code, "name": policy["name"], "unit": policy["unit"],
-                                "value": value if value is not None else 0})
+                                "value": value, "theo_ky": theo_ky})
             except Exception as exc:
                 logger.warning(f"Lỗi tính chỉ số {code}: {exc}")
                 results.append({"code": code, "name": policy["name"], "unit": policy["unit"],
                                 "value": None, "error": "loi_tinh_toan"})
 
-    return {"tenant": tenant, "computed_at": computed_at, "metrics": results}
+    return {"tenant": tenant, "thang": thang, "computed_at": computed_at, "metrics": results}
 
 
 @app.get("/api/v1/metrics/{code}/lineage")

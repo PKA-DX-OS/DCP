@@ -68,3 +68,31 @@ def test_khong_co_can_cu_thi_khong_tim_thay():
 def test_khong_tach_cau_o_dau_cham_phay():
     cau = assistant._cac_cau("Thời hạn là 07 ngày làm việc; thẩm định hồ sơ 03 ngày làm việc.")
     assert cau == ["Thời hạn là 07 ngày làm việc; thẩm định hồ sơ 03 ngày làm việc."]
+
+
+def test_khai_niem_ngoai_kho_thi_khong_tim_thay():
+    """FIX-V11-21: câu hỏi trùng cụm chung ("giấy tờ", "thời hạn") nhưng nói về khái niệm kho không có."""
+    for cau in (
+        "Đăng ký kết hôn cần giấy tờ gì?",
+        "Đăng ký xe máy cần giấy tờ gì?",
+        "Thời hạn sử dụng thẻ căn cước?",
+        "Mật độ xây dựng tối đa là bao nhiêu?",
+    ):
+        hits, tra_loi = _hoi(cau)
+        assert hits == [] and tra_loi == assistant.NOT_FOUND, cau
+
+
+def test_cau_hoi_trong_kho_van_tra_loi():
+    for cau in (
+        "Lệ phí cấp phép là bao nhiêu?",
+        "Ai có thẩm quyền cấp giấy phép?",
+        "Nghiệm thu công trình gồm những gì?",
+        "Thời hạn giải quyết cấp phép là bao lâu?",
+    ):
+        hits, _ = _hoi(cau)
+        assert hits, cau
+
+
+def test_ngoai_kho_bo_qua_so_va_tu_chung():
+    assert assistant.ngoai_kho({"lâu", "54", "phép"}, {"phép"}) == set()
+    assert assistant.ngoai_kho({"hôn", "phép"}, {"phép"}) == {"hôn"}

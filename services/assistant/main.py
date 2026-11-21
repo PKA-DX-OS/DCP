@@ -43,6 +43,12 @@ STOPWORDS = {
     "phải", "cần", "vì", "sao", "thế", "ai",
 }
 
+# Từ hỏi, từ xưng hô và từ thủ tục chung: không mang chủ đề nên không cần có trong kho
+TU_CHUNG = {
+    "lâu", "đâu", "mấy", "giờ", "bị", "xin", "muốn", "hỏi", "giúp", "ạ", "nhỉ", "vậy", "ơi",
+    "tôi", "mình", "em", "anh", "chị", "đăng", "thủ", "tục",
+}
+
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=500)
@@ -60,7 +66,7 @@ def score_chunk(query_tokens: Set[str], chunk: str) -> int:
 def cum_tu(text: str) -> Set[str]:
     """Cặp âm tiết liền nhau: tiếng Việt phần lớn là từ hai âm tiết, cặp phân biệt nghĩa tốt hơn từng âm."""
     am_tiet = [t for t in re.findall(r"\w+", text.lower())]
-    return {f"{a} {b}" for a, b in zip(am_tiet, am_tiet[1:]) if a not in STOPWORDS and b not in STOPWORDS}
+    return {f"{a} {b}" for a, b in zip(am_tiet, am_tiet[1:], strict=False) if a not in STOPWORDS and b not in STOPWORDS}
 
 
 def thuat_ngu(text: str) -> Set[str]:
@@ -86,6 +92,13 @@ def diem_khop(q_terms: Set[str], terms: Set[str], idf: Dict[str, float]) -> floa
     return sum(idf.get(t, mac_dinh) * (1.5 if " " in t else 1.0) for t in q_terms & terms)
 
 
+def ngoai_kho(query_tokens: Set[str], tu_vung: Set[str]) -> Set[str]:
+    """Âm tiết nội dung của câu hỏi không có ở đoạn nào trong kho (bỏ qua số và từ chung).
+    Câu hỏi nhắc tới khái niệm kho không có (ví dụ "kết hôn", "căn cước") thì kho không trả lời được,
+    dù trùng vài cụm chung như "giấy tờ", "thời hạn"."""
+    return {t for t in query_tokens if t not in tu_vung and t not in TU_CHUNG and not t.isdigit()}
+
+
 def min_match(query_tokens: Set[str]) -> int:
     """Câu hỏi ngắn cần ít nhất 1 từ khớp; câu dài cần ít nhất 2 từ khớp."""
     return 1 if len(query_tokens) <= 2 else 2
@@ -106,6 +119,11 @@ async def retrieve(conn, tenant: str, question: str, app_code: Optional[str]) ->
     if not q:
         return []
     threshold = min_match(q)
+    tu_vung: Set[str] = set()
+    for r in rows:
+        tu_vung |= tokenize(r["chunk"])
+    if ngoai_kho(q, tu_vung):
+        return []
     q_terms = thuat_ngu(question)
     idf = trong_so([r["chunk"] for r in rows])
     scored = []
