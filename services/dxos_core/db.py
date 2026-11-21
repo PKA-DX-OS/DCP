@@ -103,6 +103,13 @@ async def get_db_connection(claims: Optional[UserClaims] = None) -> AsyncGenerat
                 yield conn
     except HTTPException:
         raise
+    except asyncpg.exceptions.InsufficientPrivilegeError as e:
+        # SQLSTATE 42501: quyền dữ liệu từ chối (RLS/hàm kiểm quyền), không phải DB hỏng.
+        logger.info(f"Cơ sở dữ liệu từ chối quyền: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"loi": "Bạn không có quyền truy cập dữ liệu này", "ma_loi": "FORBIDDEN"},
+        )
     except Exception as e:
         logger.error(f"Lỗi truy vấn cơ sở dữ liệu: {e}")
         raise HTTPException(
