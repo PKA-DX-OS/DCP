@@ -14,6 +14,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 
 ### Đã thêm (Added)
 - **Kế hoạch D & H (D-P0-01):** `docs/data/ke-hoach-dh.md` bản chỉnh sau rà soát v1.1 và `OWNERSHIP.md` chia quyền sở hữu tệp giữa Track D và Track H.
+- **Đo mốc D & H (D-P0-02):** `scripts/dh_baseline.py` đo thao tác thủ công, chuyển tay, làm lại, tự phục vụ và chất lượng dữ liệu hồ sơ (chỉ đọc, không in dữ liệu định danh).
 
 ---
 
