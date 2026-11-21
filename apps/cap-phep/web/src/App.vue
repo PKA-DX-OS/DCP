@@ -13,6 +13,7 @@ import LogoMark from "./components/LogoMark.vue";
 import ToastHost from "./components/ToastHost.vue";
 import { APP_VERSION, SOURCE_URL } from "./config";
 import { tenDonVi } from "./utils/labels";
+import { khoaBanNhap } from "./utils/nop-ho-so";
 import CreateDossierModal from "./components/CreateDossierModal.vue";
 import DetailDossierModal from "./components/DetailDossierModal.vue";
 import SupplementModal from "./components/SupplementModal.vue";
@@ -106,6 +107,24 @@ async function moHoSoTuTimKiem(id: string): Promise<void> {
   await moHoSo(id);
 }
 
+async function moHoSoTuNopMoi(id: string, ma: string): Promise<void> {
+  moNop.value = false;
+  await nextTick();
+  await moHoSo(id, ma);
+}
+
+/** Đăng xuất thì xóa bản nháp nộp hồ sơ của chính người dùng trên tab này. */
+function dangXuat(): void {
+  if (subNguoiDung.value) {
+    try {
+      sessionStorage.removeItem(khoaBanNhap(subNguoiDung.value));
+    } catch {
+      /* trình duyệt chặn storage: bỏ qua */
+    }
+  }
+  logout();
+}
+
 function onPhimTat(e: KeyboardEvent): void {
   if (trang.value !== "ok") return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -175,7 +194,7 @@ onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
       @da-doc="thongBao.danhDauDaDoc()"
       @doc-mot="thongBao.danhDauMot"
       @mo-tim-kiem="moTimKiem = true"
-      @dang-xuat="logout()"
+      @dang-xuat="dangXuat()"
       @dang-nhap="login()"
     />
 
@@ -221,7 +240,7 @@ onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
         <p v-if="coBangDieuHanh" class="mt-2 text-phu">Vai của bạn làm việc trên bảng điều hành (chỉ số, kiểm toán, quản trị).</p>
         <div class="mt-4 flex flex-wrap gap-2">
           <a v-if="coBangDieuHanh" class="btn btn-chinh" href="/dieu-hanh/">Mở bảng điều hành</a>
-          <button class="btn" @click="logout()">Đăng xuất</button>
+          <button class="btn" @click="dangXuat()">Đăng xuất</button>
         </div>
       </section>
     </main>
@@ -242,8 +261,12 @@ onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
     :requirements="cd.requirements.value"
     :errors="cd.docErrors.value"
     :loading-requirements="cd.dangTaiGiayTo.value"
+    :dossiers="cd.dossiers.value"
+    :ten-nguoi-dung="tenNguoiDung"
+    :nguoi-dung-id="subNguoiDung"
     @close="moNop = false"
     @submit="nopHoSo"
+    @mo-ho-so="moHoSoTuNopMoi"
   />
   <DetailDossierModal
     v-if="hoSoChiTiet"

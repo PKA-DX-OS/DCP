@@ -22,22 +22,72 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           Hạn bổ sung: {{ ngayNgan(dossier.han_buoc_at) }}<template v-if="quaHan"> (đã quá hạn)</template>
         </p>
 
-        <form id="form-bo-sung-ho-so" @submit.prevent="handleSubmit">
+        <form id="form-bo-sung-ho-so" novalidate @submit.prevent="handleSubmit">
           <label for="input-bo-sung-dia-chi" class="nhan mt-4">Địa chỉ công trình</label>
-          <input v-model="form.dia_chi_cong_trinh" required class="o" id="input-bo-sung-dia-chi" />
+          <input
+            v-model="form.dia_chi_cong_trinh"
+            required
+            class="o"
+            :class="loiHien('dia_chi_cong_trinh') ? 'o-loi' : ''"
+            :aria-invalid="loiHien('dia_chi_cong_trinh') ? 'true' : undefined"
+            :aria-describedby="loiHien('dia_chi_cong_trinh') ? 'loi-bo-sung-dia-chi' : undefined"
+            id="input-bo-sung-dia-chi"
+          />
+          <p v-if="loiHien('dia_chi_cong_trinh')" id="loi-bo-sung-dia-chi" class="m-0 mt-1 text-[12.5px] text-son" role="alert">{{ loiHien("dia_chi_cong_trinh") }}</p>
           <div class="grid sm:grid-cols-3 gap-3 mt-3">
             <div>
               <label for="input-bo-sung-thua-dat" class="nhan">Thửa đất</label>
-              <input v-model="form.thua_dat" required class="o" id="input-bo-sung-thua-dat" />
+              <input
+                v-model="form.thua_dat"
+                required
+                class="o"
+                :class="loiHien('thua_dat') ? 'o-loi' : ''"
+                :aria-invalid="loiHien('thua_dat') ? 'true' : undefined"
+                :aria-describedby="loiHien('thua_dat') ? 'loi-bo-sung-thua-dat' : undefined"
+                id="input-bo-sung-thua-dat"
+              />
+              <p v-if="loiHien('thua_dat')" id="loi-bo-sung-thua-dat" class="m-0 mt-1 text-[12.5px] text-son" role="alert">{{ loiHien("thua_dat") }}</p>
             </div>
             <div>
               <label for="input-bo-sung-so-tang" class="nhan">Số tầng</label>
-              <input type="number" min="1" v-model.number="form.so_tang" required class="o" id="input-bo-sung-so-tang" />
+              <input
+                type="number"
+                min="1"
+                max="5"
+                step="1"
+                v-model.number="form.so_tang"
+                required
+                class="o"
+                :class="loiHien('so_tang') ? 'o-loi' : ''"
+                :aria-invalid="loiHien('so_tang') ? 'true' : undefined"
+                :aria-describedby="loiHien('so_tang') ? 'loi-bo-sung-so-tang' : undefined"
+                id="input-bo-sung-so-tang"
+              />
+              <p v-if="loiHien('so_tang')" id="loi-bo-sung-so-tang" class="m-0 mt-1 text-[12.5px] text-son" role="alert">{{ loiHien("so_tang") }}</p>
             </div>
             <div>
               <label for="input-bo-sung-dien-tich" class="nhan">Diện tích sàn (m²)</label>
-              <input type="number" step="0.1" min="1" v-model.number="form.dien_tich_san_m2" required class="o" id="input-bo-sung-dien-tich" />
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                max="100000"
+                v-model.number="form.dien_tich_san_m2"
+                required
+                class="o"
+                :class="loiHien('dien_tich_san_m2') ? 'o-loi' : ''"
+                :aria-invalid="loiHien('dien_tich_san_m2') ? 'true' : undefined"
+                :aria-describedby="loiHien('dien_tich_san_m2') ? 'loi-bo-sung-dien-tich' : undefined"
+                id="input-bo-sung-dien-tich"
+              />
+              <p v-if="loiHien('dien_tich_san_m2')" id="loi-bo-sung-dien-tich" class="m-0 mt-1 text-[12.5px] text-son" role="alert">{{ loiHien("dien_tich_san_m2") }}</p>
             </div>
+          </div>
+          <div v-if="daThuGui && loiTatCa.length" class="thong-bao-loi mt-3" role="alert">
+            <b>Kiểm tra lại thông tin ({{ loiTatCa.length }} lỗi)</b>
+            <ul class="mt-1 mb-0 pl-5 list-disc">
+              <li v-for="(loi, i) in loiTatCa" :key="i">{{ loi }}</li>
+            </ul>
           </div>
 
           <label for="file-bo-sung" class="nhan mt-3">Giấy tờ bổ sung</label>
@@ -60,10 +110,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 <script setup lang="ts">
 import IconX from "./IconX.vue";
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import type { HoSo } from "../types";
 import { useModal } from "../composables/useModal";
 import { ngayNgan } from "../utils/labels";
+import { loiDiaChi, loiDienTich, loiSoTang, loiThuaDat } from "../utils/validation";
 import ChonTep from "./ChonTep.vue";
 
 
@@ -99,6 +150,28 @@ const quaHan = computed(() => {
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string>("");
 const loiTep = ref("");
+const daThuGui = ref(false);
+
+const TRUONG_FORM = ["dia_chi_cong_trinh", "thua_dat", "so_tang", "dien_tich_san_m2"] as const;
+type TruongForm = (typeof TRUONG_FORM)[number];
+const ID_TRUONG: Record<TruongForm, string> = {
+  dia_chi_cong_trinh: "input-bo-sung-dia-chi",
+  thua_dat: "input-bo-sung-thua-dat",
+  so_tang: "input-bo-sung-so-tang",
+  dien_tich_san_m2: "input-bo-sung-dien-tich",
+};
+
+const loiForm = computed<Record<TruongForm, string>>(() => ({
+  dia_chi_cong_trinh: loiDiaChi(form.value.dia_chi_cong_trinh),
+  thua_dat: loiThuaDat(form.value.thua_dat),
+  so_tang: loiSoTang(form.value.so_tang),
+  dien_tich_san_m2: loiDienTich(form.value.dien_tich_san_m2),
+}));
+const loiTatCa = computed(() => TRUONG_FORM.map((t) => loiForm.value[t]).filter(Boolean));
+
+function loiHien(truong: TruongForm): string {
+  return daThuGui.value ? loiForm.value[truong] : "";
+}
 
 function handleFileUpload(event: Event) {
   const target = event.target as HTMLInputElement;
@@ -123,6 +196,21 @@ function handleFileUpload(event: Event) {
 }
 
 function handleSubmit() {
+  daThuGui.value = true;
+  form.value.dia_chi_cong_trinh = form.value.dia_chi_cong_trinh.trim();
+  form.value.thua_dat = form.value.thua_dat.trim();
+  const truongLoi = TRUONG_FORM.find((t) => loiForm.value[t]);
+  if (truongLoi) {
+    nextTick(() => document.getElementById(ID_TRUONG[truongLoi])?.focus());
+    return;
+  }
   emit("submit", { form: { ...form.value }, file: selectedFile.value });
 }
 </script>
+
+<style scoped>
+.o-loi {
+  border-color: rgb(var(--c-son) / 0.65) !important;
+  background: var(--do-nen);
+}
+</style>
