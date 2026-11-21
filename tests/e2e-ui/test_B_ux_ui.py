@@ -62,6 +62,42 @@ def test_BU01_dashboard_lanh_dao_co_kpi_chart_va_danh_sach():
             browser.close()
 
 
+def test_BU01b_dashboard_loc_thang():
+    """FIX-V11-24: đổi tháng phải gọi /metrics?thang= và cập nhật thẻ KPI."""
+    accounts = _mat_khau()
+    if "ld.hoa" not in accounts:
+        pytest.skip("Thiếu tài khoản demo ld.hoa")
+
+    with sync_api.sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=os.getenv("E2E_HEADED", "") != "1")
+        ctx = browser.new_context(viewport={"width": 1366, "height": 900}, locale="vi-VN")
+        page = ctx.new_page()
+        try:
+            _dang_nhap(page, "ld.hoa", accounts["ld.hoa"], f"{BASE_URL}/dieu-hanh/")
+            page.get_by_role("heading", name="Chỉ số điều hành").wait_for(timeout=20000)
+            page.locator("button.chi-so").first.wait_for(timeout=20000)
+
+            with page.expect_response(
+                lambda r: "/api/v1/metrics?thang=2025-01" in r.url, timeout=20000
+            ) as thong_tin:
+                page.locator('input[type="month"]').fill("2025-01")
+            data = thong_tin.value.json()
+            chi_so = {m["code"]: m for m in data["metrics"]}
+            assert chi_so["ho_so_moi"]["value"] == 0
+            assert chi_so["thoi_gian_xu_ly_tb"]["value"] is None
+            assert chi_so["ty_le_dung_han"]["value"] is None
+
+            page.wait_for_timeout(800)
+            the = lambda ten: page.locator("button.chi-so").filter(has_text=ten).first.inner_text()
+            assert "0" in the("Hồ sơ mới trong kỳ")
+            assert "—" in the("Thời gian xử lý trung bình")
+            assert "—" in the("Tỷ lệ cấp phép đúng hạn")
+            assert "toàn kỳ" in the("Hồ sơ đang xử lý").lower()
+        finally:
+            ctx.close()
+            browser.close()
+
+
 def test_BU05_auditor_ui_va_BU04_thong_bao():
     accounts = _mat_khau()
     if "kt.an" not in accounts:
