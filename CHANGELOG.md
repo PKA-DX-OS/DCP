@@ -28,6 +28,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Worker chất lượng dữ liệu định kỳ (D-DQ-02):** thêm chế độ lặp `--lap-giay N` cho `scripts/data_quality_worker.py` (lỗi một lượt chỉ ghi log, tiếp tục lượt sau); thêm dịch vụ nền `dq-worker` trong `compose.yaml` (profile core, restart unless-stopped, N=3600) (#246).
 - **DSAR cho dữ liệu chủ (D-GOV-02):** bổ sung tài sản MDM vào danh mục dữ liệu, API xuất và xóa/ẩn danh dữ liệu MDM theo chính sách retention không lộ HMAC thô, có ghi audit (#162).
 - **Khớp dữ liệu và backfill MDM (D-MDM-02):** `scripts/mdm_backfill.py` khớp chính xác dùng lại logic `dh_mdm.py`, khớp gần đúng tạo ứng viên trùng `core.mdm_link_candidate` dưới ngưỡng, hỗ trợ `--dry-run`, đạt 100% hồ sơ demo có chủ thể và thửa đất; thêm bước chạy tự động vào `dx.ps1` và `dx.sh`; `scripts/seed_mdm.py` nạp dữ liệu bịa (#164).
+- **View 360 và golden view MDM (D-MDM-03):** tạo các view `core.v_dossier_360`, `core.v_permit_360`, `core.v_construction_360` (`core/postgres/26-mdm-360-views.sql`) với `security_invoker = true`, che CCCD và điện thoại, khớp schema `HoSo360`; router MDM đọc từ view 360; kiểm thử tích hợp cách ly phường (#165).
 
 ### Đã sửa (Fixed)
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.
