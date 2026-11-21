@@ -4,7 +4,14 @@
 /** Bộ lọc Bàn làm việc được lưu trong trình duyệt; không chứa PII. */
 
 export type LocHan = "tat-ca" | "qua-han" | "sap-han";
-export type LocLoaiViec = "tat-ca" | "tiep-nhan" | "tham-dinh" | "phe-duyet" | "nghiem-thu" | "khac";
+export type LocLoaiViec =
+  | "tat-ca"
+  | "tiep-nhan"
+  | "tham-dinh"
+  | "phe-duyet"
+  | "nghiem-thu"
+  | "hau-kiem"
+  | "khac";
 
 export interface BoLocDaLuu {
   ten: string;
@@ -18,7 +25,15 @@ const TOI_DA = 10;
 const TEN_DAI_TOI_DA = 50;
 
 const LOC_HAN: readonly LocHan[] = ["tat-ca", "qua-han", "sap-han"];
-const LOC_LOAI: readonly LocLoaiViec[] = ["tat-ca", "tiep-nhan", "tham-dinh", "phe-duyet", "nghiem-thu", "khac"];
+const LOC_LOAI: readonly LocLoaiViec[] = [
+  "tat-ca",
+  "tiep-nhan",
+  "tham-dinh",
+  "phe-duyet",
+  "nghiem-thu",
+  "hau-kiem",
+  "khac",
+];
 
 function hopLe(x: any): x is BoLocDaLuu {
   return (

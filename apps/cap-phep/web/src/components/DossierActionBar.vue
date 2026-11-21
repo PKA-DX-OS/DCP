@@ -106,9 +106,18 @@ function hanhDongCoBan(t: any): HanhDong[] {
     ];
   }
   if (key.startsWith("taskNghiemThu") || key === "taskHoanCong") {
+    // Cổng rẽ nhánh sau nghiệm thu móng đọc mong_dat (mặc định true); thiếu biến này thì "Không đạt" vẫn đi nhánh đạt
+    const laMong = key === "taskNghiemThuMong";
     return [
-      { key: "dat", nhan: "Đạt", variables: { ket_qua_nghiem_thu: "dat" }, tone: "chinh" },
-      { key: "khong-dat", nhan: "Không đạt", variables: { ket_qua_nghiem_thu: "khong_dat" }, canLyDo: true, varLyDo: "ghi_chu", tone: "do" },
+      { key: "dat", nhan: "Đạt", variables: { ket_qua_nghiem_thu: "dat", ...(laMong ? { mong_dat: true } : {}) }, tone: "chinh" },
+      {
+        key: "khong-dat",
+        nhan: "Không đạt",
+        variables: { ket_qua_nghiem_thu: "khong_dat", ...(laMong ? { mong_dat: false } : {}) },
+        canLyDo: true,
+        varLyDo: "ghi_chu",
+        tone: "do",
+      },
     ];
   }
   if (key === "taskKhacPhucMong") {

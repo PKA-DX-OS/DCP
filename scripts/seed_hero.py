@@ -8,6 +8,10 @@ Nạp hồ sơ "hero" phục vụ demo Track A (A-PLAN-08, A-ACC-05).
 - CP-HERO-2026-001: hồ sơ 5 tầng tại TD-A-01 để demo quy hoạch fail → sửa 3 tầng pass.
 - CP-HERO-ACC-2026-001: hồ sơ đã cấp phép, có mốc móng fail → khắc phục → đạt.
 - Idempotent theo mã hồ sơ; không xóa dữ liệu khác.
+- CP-HERO-2026-001 có quy trình cap-phep thật đang ở bước thẩm định, giao td.binh, để hồ sơ
+  hiện trong Bàn làm việc của thẩm định viên (FIX-V11-08), có phân công và trạng thái như luồng
+  thật nhờ chạy sync_flow_state cho các bước đã qua (FIX-V11-10). Cần Flowable ở 127.0.0.1:8082
+  (FLOWABLE_HOST_URL) và FLOWABLE_PASSWORD trong môi trường hoặc .env; thiếu thì chỉ cảnh báo.
 
 Chạy:
     py -3 scripts/seed_hero.py
@@ -15,11 +19,16 @@ Chạy:
 """
 
 import argparse
+import base64
+import json
+import os
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -196,6 +205,158 @@ COMMIT;
 """
 
 
+HERO_MA = "CP-HERO-2026-001"
+HERO_TENANT = "phuong-a"
+THAM_DINH_VIEN = "td.binh"
+
+
+def doc_env(path: Path) -> dict[str, str]:
+    env: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip()
+    return env
+
+
+class Flowable:
+    """Client REST tối giản (thư viện chuẩn) tới Flowable của stack."""
+
+    def __init__(self, url: str, user: str, password: str) -> None:
+        self.url = url.rstrip("/")
+        self.auth = "Basic " + base64.b64encode(f"{user}:{password}".encode()).decode()
+
+    def goi(self, method: str, path: str, body: Optional[dict] = None) -> tuple[int, Any]:
+        data = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(self.url + path, data=data, method=method)
+        req.add_header("Authorization", self.auth)
+        if data is not None:
+            req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as res:
+                raw = res.read()
+                return res.status, (json.loads(raw) if raw else None)
+        except urllib.error.HTTPError as e:
+            return e.code, None
+
+    def viec_dang_mo(self, proc_id: str) -> list[dict]:
+        code, data = self.goi("GET", f"/service/runtime/tasks?processInstanceId={proc_id}")
+        return (data or {}).get("data", []) if code == 200 else []
+
+    def hoan_thanh(self, task_id: str, bien: dict[str, Any]) -> None:
+        code, _ = self.goi(
+            "POST",
+            f"/service/runtime/tasks/{task_id}",
+            {"action": "complete", "variables": [{"name": k, "value": v} for k, v in bien.items()]},
+        )
+        if code not in (200, 204):
+            raise RuntimeError(f"Flowable không hoàn thành được việc {task_id} (HTTP {code})")
+
+
+def psql_gia_tri(base_cmd: list[str], sql: str) -> str:
+    res = subprocess.run(base_cmd + ["-tA", "-c", sql], capture_output=True, text=True, encoding="utf-8")
+    if res.returncode != 0:
+        raise RuntimeError(res.stderr or res.stdout)
+    return res.stdout.strip()
+
+
+def dong_bo_buoc(base_cmd: list[str], proc_id: str, buoc: str, bien: dict[str, Any]) -> None:
+    """Chạy hàm đồng bộ của app như dịch vụ flow làm khi hoàn thành việc (trạng thái, phân công, thông báo)."""
+    payload = json.dumps(bien, ensure_ascii=False).replace("'", "''")
+    psql_gia_tri(
+        base_cmd,
+        f"SELECT app_cap_phep_private.sync_flow_state('{proc_id}', '{buoc}', '{payload}'::jsonb)",
+    )
+
+
+def da_phan_cong(base_cmd: list[str], ho_so_id: str, td_sub: str) -> bool:
+    return psql_gia_tri(
+        base_cmd,
+        "SELECT count(*) FROM core.assignments WHERE object_type = 'ho_so' AND active "
+        f"AND object_id = '{ho_so_id}' AND user_sub = '{td_sub}' AND role = 'tham-dinh'",
+    ) not in ("", "0")
+
+
+def gan_quy_trinh_hero(base_cmd: list[str]) -> str:
+    """Đưa hồ sơ hero vào bước taskThamDinh giao td.binh; trả về thông điệp kết quả."""
+    env = doc_env(ROOT / ".env")
+    password = os.environ.get("FLOWABLE_PASSWORD") or env.get("FLOWABLE_PASSWORD")
+    if not password:
+        return "[CẢNH BÁO] Thiếu FLOWABLE_PASSWORD: hồ sơ hero chưa có việc thẩm định trong Bàn làm việc."
+    fl = Flowable(
+        os.environ.get("FLOWABLE_HOST_URL", "http://localhost:8082/flowable-rest"),
+        os.environ.get("FLOWABLE_USER") or env.get("FLOWABLE_USER") or "rest-admin",
+        password,
+    )
+
+    dong = psql_gia_tri(
+        base_cmd,
+        "SELECT h.id || '|' || COALESCE(h.process_instance_id, '') || '|' || COALESCE(h.chu_dau_tu_sub, '') "
+        "|| '|' || COALESCE((SELECT u.id::text FROM core.users_directory u "
+        f"WHERE u.tenant = '{HERO_TENANT}' AND u.username = '{THAM_DINH_VIEN}'), '') "
+        f"FROM app_cap_phep.ho_so h WHERE h.ma_ho_so = '{HERO_MA}'",
+    )
+    if not dong:
+        return f"[CẢNH BÁO] Không thấy {HERO_MA} sau khi nạp."
+    ho_so_id, proc_cu, cdt_sub, td_sub = dong.split("|")
+    if not td_sub:
+        return f"[CẢNH BÁO] Chưa có {THAM_DINH_VIEN} trong danh bạ phường: chạy lại sau khi đồng bộ người dùng."
+
+    try:
+        if proc_cu:
+            viec = fl.viec_dang_mo(proc_cu)
+            if any(v.get("taskDefinitionKey") == "taskThamDinh" for v in viec):
+                if not da_phan_cong(base_cmd, ho_so_id, td_sub):
+                    # Bản seed trước FIX-V11-10 không chạy đồng bộ nên thiếu phân công
+                    dong_bo_buoc(base_cmd, proc_cu, "taskPhanCong", {"ma_ho_so": HERO_MA, "ho_so_id": ho_so_id, "nguoiThamDinh": td_sub})
+                    return f"[PASS] {HERO_MA} đã có việc thẩm định; bổ sung phân công {THAM_DINH_VIEN}."
+                return f"[PASS] {HERO_MA} đã có việc thẩm định của {THAM_DINH_VIEN}."
+            # Quy trình cũ đã đi tiếp (sau một lần demo): bỏ để làm lại từ bước thẩm định
+            fl.goi("DELETE", f"/service/runtime/process-instances/{proc_cu}?deleteReason=seed_hero")
+
+        code, data = fl.goi("POST", "/service/runtime/process-instances", {
+            "processDefinitionKey": "cap-phep",
+            "businessKey": HERO_MA,
+            "tenantId": HERO_TENANT,
+            "variables": [
+                {"name": "ma_ho_so", "value": HERO_MA},
+                {"name": "ho_so_id", "value": ho_so_id},
+                {"name": "tenant", "value": HERO_TENANT},
+                {"name": "chu_dau_tu_sub", "value": cdt_sub},
+                {"name": "dia_chi_cong_trinh", "value": "Số 18 Đường Hòa Bình, phường A"},
+                {"name": "dien_tich_san_m2", "value": 600.0},
+                {"name": "khu_quan_ly_kien_truc", "value": False},
+            ],
+        })
+        if code not in (200, 201) or not data:
+            return f"[CẢNH BÁO] Flowable không mở được quy trình cho {HERO_MA} (HTTP {code})."
+        proc_id = data["id"]
+
+        for buoc, bien in (
+            ("taskKiemTraHopLe", {"hoSoHopLe": True}),
+            ("taskPhanCong", {"nguoiThamDinh": td_sub}),
+        ):
+            viec = [v for v in fl.viec_dang_mo(proc_id) if v.get("taskDefinitionKey") == buoc]
+            if not viec:
+                return f"[CẢNH BÁO] Quy trình {proc_id} không dừng ở {buoc} như mong đợi."
+            fl.hoan_thanh(viec[0]["id"], bien)
+
+        if not any(v.get("taskDefinitionKey") == "taskThamDinh" for v in fl.viec_dang_mo(proc_id)):
+            return f"[CẢNH BÁO] Quy trình {proc_id} chưa tới bước thẩm định."
+        psql_gia_tri(
+            base_cmd,
+            f"UPDATE app_cap_phep.ho_so SET process_instance_id = '{proc_id}' WHERE ma_ho_so = '{HERO_MA}'",
+        )
+        goc = {"ma_ho_so": HERO_MA, "ho_so_id": ho_so_id}
+        dong_bo_buoc(base_cmd, proc_id, "taskKiemTraHopLe", {**goc, "hoSoHopLe": True})
+        dong_bo_buoc(base_cmd, proc_id, "taskPhanCong", {**goc, "nguoiThamDinh": td_sub})
+    except (urllib.error.URLError, OSError, RuntimeError) as e:
+        return f"[CẢNH BÁO] Không gắn được quy trình cho {HERO_MA}: {e}"
+    return f"[PASS] {HERO_MA} ở bước thẩm định, giao {THAM_DINH_VIEN}."
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Nạp hồ sơ hero Track A")
     parser.add_argument("--no-docker", action="store_true")
@@ -203,15 +364,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--container", default="dxos-postgres")
     parser.add_argument("--user", default="dxos_owner")
     parser.add_argument("--database", default="dxos")
+    parser.add_argument("--khong-quy-trinh", action="store_true", help="Chỉ nạp dữ liệu, không mở quy trình Flowable")
     args = parser.parse_args(argv)
 
     if args.no_docker:
         psql = args.psql or shutil.which("psql")
         if not psql:
             raise SystemExit("Không tìm thấy psql.")
-        cmd = [psql, "-U", args.user, "-d", args.database, "-v", "ON_ERROR_STOP=1", "-f", "-"]
+        base_cmd = [psql, "-U", args.user, "-d", args.database, "-v", "ON_ERROR_STOP=1"]
     else:
-        cmd = ["docker", "exec", "-i", args.container, "psql", "-U", args.user, "-d", args.database, "-v", "ON_ERROR_STOP=1", "-f", "-"]
+        base_cmd = ["docker", "exec", "-i", args.container, "psql", "-U", args.user, "-d", args.database, "-v", "ON_ERROR_STOP=1"]
+    cmd = base_cmd + ["-f", "-"]
 
     res = subprocess.run(cmd, input=SQL, capture_output=True, text=True, encoding="utf-8")
     if res.returncode != 0:
@@ -225,6 +388,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             )
         return 1
     print("[PASS] Đã nạp hồ sơ hero: CP-HERO-2026-001 (5 tầng) và CP-HERO-ACC-2026-001 (nghiệm thu).")
+    if not args.khong_quy_trinh:
+        print(gan_quy_trinh_hero(base_cmd))
     return 0
 
 

@@ -23,6 +23,7 @@ import {
   ngayLamViecDaQua,
   ngayNgan,
   tenBuoc,
+  tenChiSo,
 } from "../src/utils/labels";
 
 const NGAY = 24 * 60 * 60 * 1000;
@@ -146,5 +147,16 @@ describe("che số CCCD", () => {
     expect(cheCccd("0010****3456")).toBe("0010****3456");
     expect(cheCccd("1234567")).toBe("1234567");
     expect(cheCccd(null)).toBe("");
+  });
+});
+
+describe("tên chỉ số phiếu hậu kiểm", () => {
+  test("chỉ số cảm biến và kiểm tra chủ động có tên tiếng Việt", () => {
+    expect(tenChiSo("laeq_dba")).toBe("Độ ồn LAeq");
+    expect(tenChiSo("kiem_tra_dinh_ky")).toBe("Kiểm tra chủ động");
+  });
+  test("mã lạ giữ nguyên, thiếu thì ghi Chỉ số", () => {
+    expect(tenChiSo("pm10")).toBe("pm10");
+    expect(tenChiSo(null)).toBe("Chỉ số");
   });
 });

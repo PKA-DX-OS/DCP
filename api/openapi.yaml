@@ -24,6 +24,7 @@ info:
     | Dịch vụ FastAPI (`files`, `doc-sign`, `flow`) dùng `HTTPException` | `LoiDichVu`: `{"detail": {"loi": "...", "ma_loi": "..."}}` | 401 token sai, 403 không đúng người xử lý |
     | Dịch vụ trả `JSONResponse` trực tiếp (quét mã độc, ClamAV quá tải) | `LoiTrucTiep`: `{"loi": "...", ...}` | 422 tệp nhiễm mã độc, 503 ClamAV |
     | PostgREST (`/api/v1/rest/*`) | `LoiPostgrest`: `{"code", "message", "details", "hint"}` | 403 RLS, 422 thiếu giấy tờ |
+    | Gateway, đường dẫn `/api/` không có route | `LoiDichVu` với `ma_loi` `NOT_FOUND` | 404 |
 
     Mã `ma_loi` dịch vụ dùng: `TOKEN_INVALID` (401, `dxos_core.jwt`). RPC `mo_ho_so` trả thân
     JSON với `ma_loi` `ACCESS_DENIED`, `FORBIDDEN_TENANT` hoặc `NOT_FOUND` kèm mã HTTP tương ứng.

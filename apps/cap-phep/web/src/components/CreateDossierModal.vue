@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <div class="hop-dau">
         <div>
           <h2 id="tieu-de-nop">Nộp hồ sơ cấp phép xây dựng</h2>
-          <p class="goi-y m-0 mt-1">Chuẩn bị đủ giấy tờ theo danh mục bên dưới. Hệ thống kiểm tra lại toàn bộ trước khi nhận; thời hạn giải quyết 15 ngày làm việc kể từ khi hồ sơ hợp lệ.</p>
+          <p class="goi-y m-0 mt-1">Chuẩn bị đủ giấy tờ theo danh mục bên dưới. Hệ thống kiểm tra lại toàn bộ trước khi nhận; thời hạn giải quyết 7 ngày làm việc kể từ khi hồ sơ hợp lệ.</p>
         </div>
         <button type="button" class="nut-dong" aria-label="Đóng" @click="$emit('close')"><IconX /></button>
       </div>

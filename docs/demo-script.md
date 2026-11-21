@@ -44,13 +44,13 @@ Chiếu sơ đồ [architecture-onepage.md](architecture-onepage.md) và chỉ b
 
 | # | Thao tác | Kết quả |
 |---|---|---|
-| 1 | Đăng nhập `mc.thu`, tab **Bàn làm việc**, ở việc của hồ sơ vừa nộp bấm **Xem hồ sơ** | Mở chi tiết hồ sơ, có thanh **Việc đang chờ bạn** |
-| 2 | Bấm **Tiếp nhận hợp lệ**, rồi **Xác nhận** | Hồ sơ sang bước phân công |
-| 3 | Đăng nhập `ld.hoa`, **Bàn làm việc**, mở hồ sơ, bấm **Phân công thẩm định**, chọn `td.binh`, **Xác nhận** | Việc thẩm định chuyển sang `td.binh` |
-| 4 | Đăng nhập `td.binh`, **Bàn làm việc**, mở hồ sơ, chọn mục **Quy hoạch** | Bản đồ vùng QH-A1; **Thửa đất kiểm tra** tự chọn `TD-A-01` |
-| 5 | Ở **Thông số đề xuất**: Số tầng `5`, Chiều cao `18`. Bấm **Kiểm tra quy hoạch** | Kết quả **không đạt**: vượt số tầng tối đa (3) và chiều cao tối đa (12 m), kèm trích dẫn văn bản |
-| 6 | Sửa Số tầng `3`, Chiều cao `11.5`, bấm **Kiểm tra quy hoạch** | Kết quả **đạt**; **Lịch sử kiểm tra** có cả hai lần |
-| 7 | (Nếu còn thời gian) Bấm **Giải thích bằng trợ lý (có trích dẫn)** | Trợ lý giải thích chỉ tiêu, có nguồn |
+| 1 | Đăng nhập `mc.thu`, tab **Bàn làm việc**, trong **Hàng đợi công việc** chọn việc **Kiểm tra Hồ sơ Hợp lệ** của hồ sơ vừa nộp | Cột giữa hiện chi tiết hồ sơ; cột phải có **Việc đang chờ bạn** |
+| 2 | Ở cột phải bấm **Tiếp nhận hợp lệ**, rồi **Xác nhận** | Hồ sơ sang bước phân công |
+| 3 | Đăng nhập `ld.hoa`, **Bàn làm việc**, chọn việc **Lãnh đạo Phân công Thẩm định viên**, bấm **Phân công thẩm định**, chọn `td.binh`, **Xác nhận** | Việc thẩm định chuyển sang `td.binh` |
+| 4 | Đăng nhập `td.binh`, **Bàn làm việc**, chọn việc **Thẩm định Hồ sơ Kỹ thuật**, bấm **Mở hồ sơ đầy đủ**, chọn mục **Quy hoạch** | Bản đồ vùng QH-A1; **Thửa đất kiểm tra** tự chọn `TD-A-01`; Số tầng điền sẵn `5` |
+| 5 | Ở **Thông số đề xuất**: Số tầng `5`, Chiều cao `18`. Bấm **Kiểm tra quy hoạch** | Kết quả **Không đạt quy hoạch**: R03 chiều cao 18 > 12 m, R04 số tầng 5 > 3, kèm trích dẫn văn bản |
+| 6 | (Nếu còn thời gian) Ngay dưới kết quả không đạt, bấm **Giải thích bằng trợ lý (có trích dẫn)** | Trợ lý giải thích, có nguồn. Nút chỉ hiện khi kết quả không đạt |
+| 7 | Sửa Số tầng `3`, Chiều cao `11.5`, bấm **Kiểm tra quy hoạch** | Kết quả **Đạt quy hoạch**; **Lịch sử kiểm tra** có cả hai lần |
 
 **Lời thoại:**
 > Một cửa tiếp nhận, lãnh đạo phân công. Mỗi người chỉ thấy việc của mình, lấy từ quy trình thật chứ không phải danh sách cứng. Thẩm định viên kiểm tra quy hoạch trên bản đồ. Thửa TD-A-01 thuộc vùng chỉ cho phép tối đa 3 tầng, 12 mét. Phương án 5 tầng bị chỉ ra ngay từng chỉ tiêu vi phạm, có trích dẫn. Sửa còn 3 tầng thì đạt, và cả hai lần kiểm tra đều được lưu lại. Dữ liệu quy hoạch ở đây là dữ liệu tổng hợp cho demo.
@@ -75,8 +75,11 @@ Chiếu sơ đồ [architecture-onepage.md](architecture-onepage.md) và chỉ b
 
 | # | Thao tác | Kết quả |
 |---|---|---|
-| 1 | `td.binh`, **Bàn làm việc**, mở hồ sơ, bấm **Đạt thẩm định**, **Xác nhận** | Hồ sơ chuyển lãnh đạo duyệt |
-| 2 | `ld.hoa`, **Bàn làm việc**, mở hồ sơ, bấm **Phê duyệt và ký**, **Xác nhận** | Trạng thái **Đã cấp phép**; phần giấy phép có mã công khai và nút **Mở trang tra cứu** |
+| 1 | `td.binh`, **Bàn làm việc**, chọn việc thẩm định của hồ sơ, bấm **Đạt thẩm định**, **Xác nhận** | Hồ sơ chuyển lãnh đạo duyệt |
+| 2 | `ld.hoa`, **Bàn làm việc**, chọn việc **Lãnh đạo Phê duyệt Cấp phép**, bấm **Phê duyệt và ký**, **Xác nhận** | Trạng thái **Đã cấp phép** |
+| 3 | Bấm **Mở hồ sơ đầy đủ**, mục **Thông tin**, phần **Giấy phép và chữ ký số** | Số giấy phép, người ký, chữ ký PAdES, **Mã tra cứu** và nút **Mở trang tra cứu** |
+
+Giấy phép ghi quy mô theo hồ sơ đã nộp ở cảnh 3 (5 tầng). Kiểm tra quy hoạch ở cảnh 4 không sửa quy mô trong hồ sơ, nên khi demo không nói giấy phép ghi 3 tầng.
 
 **Lời thoại:**
 > Lãnh đạo phê duyệt, giấy phép được ký số chuẩn PAdES bằng khoá nằm trong thiết bị bảo mật mềm SoftHSM. Khoá không bao giờ rời thiết bị. Mỗi giấy phép có một mã công khai ngẫu nhiên, không đoán được.
@@ -87,10 +90,10 @@ Chiếu sơ đồ [architecture-onepage.md](architecture-onepage.md) và chỉ b
 
 | # | Thao tác | Kết quả |
 |---|---|---|
-| 1 | Vẫn ở chi tiết hồ sơ (`ld.hoa`), mục **Nghiệm thu**, bấm **Bắt đầu quy trình nghiệm thu** | Tạo quy trình; việc nghiệm thu móng xuất hiện |
-| 2 | Đăng nhập `tt.khanh`, **Bàn làm việc**, mở hồ sơ, bấm **Không đạt**, lý do `Cao độ đáy móng thấp hơn thiết kế 12 cm`, **Xác nhận** | Mốc móng **Không đạt**; sinh việc khắc phục |
-| 3 | Mở lại việc, bấm **Đã khắc phục**, ghi nội dung, **Xác nhận** | Quay về việc nghiệm thu móng |
-| 4 | Bấm **Đạt**, **Xác nhận** | Mốc móng **Đạt**; chuyển sang nghiệm thu kết cấu |
+| 1 | Vẫn trong **Mở hồ sơ đầy đủ** (`ld.hoa`), mục **Nghiệm thu**, bấm **Bắt đầu quy trình nghiệm thu** | Thông báo **Đã tạo quy trình nghiệm thu trong Bàn làm việc** |
+| 2 | Đăng nhập `tt.khanh`, **Bàn làm việc**, chọn việc **Nghiệm thu móng** của hồ sơ, bấm **Không đạt**, lý do `Cao độ đáy móng thấp hơn thiết kế 12 cm`, **Xác nhận** | Mốc móng **Không đạt**; sinh việc **Khắc phục móng và nghiệm thu lại** |
+| 3 | Chọn việc khắc phục, bấm **Đã khắc phục**, ghi nội dung, **Xác nhận** | Quay về việc nghiệm thu móng |
+| 4 | Chọn lại việc **Nghiệm thu móng**, bấm **Đạt**, **Xác nhận** | Mốc móng **Đạt**; chuyển sang nghiệm thu kết cấu |
 
 Nếu thiếu thời gian: chỉ làm bước 1–2 và nói tiếp phần còn lại. Ví dụ đủ ba lần (móng không đạt, đạt sau khắc phục, kết cấu đạt) có sẵn ở hồ sơ `CP-HERO-ACC-2026-001`.
 
@@ -115,8 +118,8 @@ Nếu thiếu thời gian: chỉ làm bước 1–2 và nói tiếp phần còn 
 
 | # | Thao tác | Kết quả |
 |---|---|---|
-| 1 | Mở `/dieu-hanh/`, tab **Chỉ số** | Thẻ chỉ số, xu hướng 12 tháng, hồ sơ quá hạn, tải việc theo cán bộ |
-| 2 | Tab **Trợ lý**, hỏi `Hồ sơ cấp phép xây dựng nhà ở riêng lẻ gồm những giấy tờ gì?`, bấm **Hỏi** | Câu trả lời có trích dẫn nguồn; không có nguồn thì trợ lý nói không tìm thấy |
+| 1 | Mở `/dieu-hanh/`, tab **Chỉ số điều hành** | Thẻ chỉ số, hồ sơ theo tháng (6 tháng), hồ sơ quá hạn, tải việc theo cán bộ |
+| 2 | Tab **Hỏi đáp quy định**, hỏi `Hồ sơ cấp phép xây dựng nhà ở riêng lẻ gồm những giấy tờ gì?`, bấm **Hỏi** | Câu trả lời liệt kê đơn, giấy tờ đất, bản vẽ, bản cam kết, có trích dẫn nguồn. Hỏi điều không có trong kho (ví dụ `Khi nào phải xin điều chỉnh giấy phép?`) thì trợ lý nói không tìm thấy căn cứ |
 | 3 | Chuyển slide 9 (tác động) và slide 10 (lộ trình) | Số liệu lấy từ `python scripts/impact_metrics.py` |
 
 **Lời thoại:**
