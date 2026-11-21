@@ -321,6 +321,8 @@ Kết quả tại lát cắt này:
 - Phiếu hiện trường chỉ tóm tắt checklist/GPS/ghi chú vào `p_ghi_chu`; ảnh/chữ ký chưa
   tải lên máy chủ.
 - Xung đột dựa trên `created_at` của phiếu cùng công trình, chưa phải version chính thức.
+- H-LINK mới là adapter mock; chưa gọi CSDL liên ngành thật và chưa ghi audit.
+  Xác nhận chỉ nằm trong bộ nhớ phiên, không đồng bộ giữa thiết bị.
 - PWA cache app shell; nếu phiên OIDC hết hạn khi offline, ứng dụng có thể yêu cầu đăng
   nhập lại trước khi mở tab.
 - Tự phục vụ chưa có đặt lịch/thanh toán; chưa gửi thông báo đẩy riêng.
@@ -332,3 +334,15 @@ Kết quả tại lát cắt này:
 - Axe mới chạy component-level trong happy-dom, tắt `color-contrast`; chưa phải audit
   trình duyệt thật/Playwright.
 - Chưa có tour tự động; trợ giúp mở theo yêu cầu để không làm phiền.
+
+## 16. Đối chiếu liên ngành (H-LINK)
+
+- Tab **Liên ngành** trong chi tiết hồ sơ cho cán bộ, đăng ký qua `features/link`.
+- Bốn nguồn mẫu: dân cư, đất đai, thuế, PCCC; kết quả hiển thị cạnh hồ sơ.
+- `features/link/adapter.ts` sinh dữ liệu mẫu, che CCCD/điện thoại/mã số thuế và
+  tạo UUID giả lập; không đọc/ghi `localStorage` hay `sessionStorage`.
+- `api/mdm.ts` gọi `GET /api/v1/mdm/dossiers/{id}/links`; 404 thì hiện ghi chú
+  “API liên kết MDM chưa sẵn sàng”, không chặn tra cứu.
+- Cán bộ xác nhận đối chiếu; trạng thái chỉ nằm trong bộ nhớ phiên.
+- Test: `tests/link-adapter.test.js`, `tests/external-lookup.test.js`,
+  `tests/mdm-api.test.js`, `tests/e2e-ui/test_B_link_ui.py`.
