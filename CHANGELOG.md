@@ -34,6 +34,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Kịch bản demo (FIX-V11-14):** nhãn và thứ tự bước khớp giao diện (Bàn làm việc, Mở hồ sơ đầy đủ, tab bảng điều hành); ghi chú giấy phép ghi quy mô theo hồ sơ nộp.
 - **Mục Nghiệm thu của trật tự xây dựng (FIX-V11-15):** chính sách RLS hồ sơ cho cán bộ trật tự xây dựng khớp với `mo_ho_so` (chỉ hồ sơ đã cấp phép), nên mục Nghiệm thu tải được.
 - **Mốc nghiệm thu từ Bàn làm việc (FIX-V11-16):** bấm Đạt/Không đạt ở thanh thao tác ghi mốc nghiệm thu (từng lần) trước khi chuyển bước, nên mục Nghiệm thu hiện đúng lịch sử.
+- **Nghiệm thu bởi trật tự xây dựng (FIX-V11-17):** cán bộ trật tự xây dựng ghi được mốc nghiệm thu, biên bản và bản vẽ hoàn công (API `services/construction` và chính sách RLS ghi), khớp nhóm được BPMN giao việc nghiệm thu; quyền kiểm tra quy hoạch và pháp lý giữ nguyên.
 
 ---
 
