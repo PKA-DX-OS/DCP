@@ -21,10 +21,11 @@ service backend hay `contracts/dh/*` của Track D.
 | H-OCR | Hàng chờ duyệt trích xuất, xem tệp gốc, sửa trường, xác nhận/từ chối | Xong UI + mock; chờ API D |
 | H-WORK-04 | Lưu bộ lọc, chọn nhiều, nhắc/phân công hàng loạt, xuất CSV | Xong |
 | H-FIELD | PWA hiện trường: nháp offline, ảnh, GPS, checklist, ký tay, đồng bộ | Xong phần UI + lưu máy |
+| H-SELF | Tự phục vụ công dân: tiến độ, bổ sung, tải giấy phép, QR tra cứu | Xong |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
 
-Chưa làm trong lát cắt này: autofill từ OCR thật, self-service, external lookup,
-workflow assistance, a11y/help đầy đủ.
+Chưa làm trong lát cắt này: autofill từ OCR thật, đặt lịch/thanh toán trực tuyến,
+external lookup, workflow assistance, a11y/help đầy đủ.
 
 ## 2. API tiêu thụ
 
@@ -149,7 +150,21 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 - Gửi lỗi thì giữ trạng thái “Lỗi đồng bộ” để thử lại; gửi thành công lưu mã phiếu.
 - “Gửi tất cả” chỉ gửi phiếu hợp lệ và không xung đột; phiếu xung đột phải xác nhận riêng.
 
-## 8. File chính
+## 8. Tự phục vụ công dân
+
+- Tab “Tự phục vụ” cho `app:cap-phep:chu-dau-tu`.
+- Tổng quan 4 nhóm: tổng hồ sơ, đang xử lý, cần bổ sung, đã cấp; bấm để lọc.
+- Từng hồ sơ hiện trạng thái, bước hiện tại, hạn xử lý/quá hạn, thanh tiến trình.
+- Hồ sơ cần bổ sung có lý do, hạn và nút mở form bổ sung hiện có.
+- Hồ sơ đã cấp:
+  - Tải giấy phép PDF qua `fetchPermitInfo` + `downloadFile`.
+  - QR tra cứu công khai từ `ma_cong_khai`, tạo trên trình duyệt bằng thư viện
+    `qrcode`; không gọi dịch vụ ngoài.
+  - Chép liên kết, tải ảnh QR, mở trang tra cứu.
+- Trạng thái rỗng có nút nộp hồ sơ mới; tải/lỗi có retry.
+- Đặt lịch và thanh toán trực tuyến chưa làm vì backend chưa có API/nghiệp vụ.
+
+## 9. File chính
 
 | File | Vai trò |
 | :--- | :--- |
@@ -174,9 +189,11 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | `apps/cap-phep/web/src/features/hien-truong/*` | Tab hiện trường, ký tay, nháp/đồng bộ |
 | `apps/cap-phep/web/src/utils/field-inspection.ts` | Kiểu phiếu, checklist, tóm tắt ghi chú, xung đột |
 | `apps/cap-phep/web/src/utils/field-drafts.ts` | IndexedDB/fallback lưu nháp, ảnh, cache công trình |
+| `apps/cap-phep/web/src/features/tu-phuc-vu/*` | Tab Tự phục vụ: tổng quan, tiến độ, bổ sung, tải kết quả, QR |
+| `apps/cap-phep/web/src/components/QrCodeModal.vue` | Tạo QR tra cứu bằng thư viện `qrcode` |
 | `apps/cap-phep/web/public/{manifest.webmanifest,sw.js,offline.html,icon-*.png}` | PWA shell |
 
-## 9. Phân quyền hiển thị
+## 10. Phân quyền hiển thị
 
 | Màn | Vai |
 | :--- | :--- |
@@ -186,9 +203,10 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
 | Nhắc/phân công hàng loạt | `app:cap-phep:lanh-dao`, `app:cap-phep:mot-cua` |
 | Chọn & xuất CSV | Cán bộ thấy Bàn làm việc |
 | Hiện trường / PWA | `app:cap-phep:trat-tu-xd`, `app:cap-phep:lanh-dao` |
+| Tự phục vụ | `app:cap-phep:chu-dau-tu` |
 | Hiệu quả vận hành | `app:cap-phep:lanh-dao`, `dx:auditor`, `dx:tenant-admin`, `dx:platform-admin` |
 
-## 10. Kiểm thử
+## 11. Kiểm thử
 
 ```powershell
 cd apps/cap-phep/web
@@ -204,7 +222,7 @@ npm run build
 
 Kết quả tại lát cắt này:
 
-- Cấp phép: 28 tệp test, 181 test pass; type-check và build pass.
+- Cấp phép: 30 tệp test, 187 test pass; type-check và build pass.
 - Bảng điều hành: 5 tệp test, 26 test pass; type-check và build pass.
 - Test H-WORK: `tests/dh.test.js`, `tests/global-search.test.js`,
   `tests/dossier-360.test.js`, `tests/automation-panel.test.js`.
@@ -216,8 +234,9 @@ Kết quả tại lát cắt này:
   `tests/workspace-bulk.test.js`.
 - Test H-FIELD: `tests/field-inspection.test.js`, `tests/field-drafts.test.js`,
   `tests/field-pwa.test.js`.
+- Test H-SELF: `tests/self-service.test.js`, `tests/qr-code.test.js`.
 
-## 11. Việc Gate 2
+## 12. Việc Gate 2
 
 1. Track D merge `GET /api/v1/mdm/dossiers/{id}/360`, `GET /api/v1/search`,
    `GET /api/v1/automation/metrics`, `/api/v1/ocr/*`.
@@ -226,13 +245,15 @@ Kết quả tại lát cắt này:
    nhãn “Số đo thật”, OCR chuyển nhãn “API OCR”.
 3. Thêm E2E: mở hồ sơ → tab Tổng hợp; `Ctrl/Cmd+K` → tìm mã hồ sơ → mở đúng hồ sơ;
    bảng điều hành → tab Hiệu quả vận hành; duyệt OCR → sửa trường → xác nhận;
-   chọn nhiều việc → nhắc/phân công/CSV; PWA hiện trường → tạo nháp offline → sync.
+   chọn nhiều việc → nhắc/phân công/CSV; PWA hiện trường → tạo nháp offline → sync;
+   tự phục vụ → bổ sung → tải giấy phép → QR.
 4. Nối OCR thật: `POST /api/v1/ocr/extract` → review → điền tiếp vào form nộp hồ sơ.
 5. Bổ sung API nhận ảnh/chữ ký/GPS của phiếu hiện trường; hiện chỉ tóm tắt vào ghi chú.
-6. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
-7. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
+6. Làm đặt lịch/thanh toán khi có API và nghiệp vụ được chốt.
+7. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
+8. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
 
-## 12. Giới hạn đã biết
+## 13. Giới hạn đã biết
 
 - Chưa có mock server `VITE_API_MOCK`; fallback hiện dùng dữ liệu hồ sơ/baseline có nhãn.
 - Fallback tìm kiếm chỉ lọc trong tối đa 100 hồ sơ gần nhất do `fetchHoSo` giới hạn
@@ -257,4 +278,6 @@ Kết quả tại lát cắt này:
 - Xung đột dựa trên `created_at` của phiếu cùng công trình, chưa phải version chính thức.
 - PWA cache app shell; nếu phiên OIDC hết hạn khi offline, ứng dụng có thể yêu cầu đăng
   nhập lại trước khi mở tab.
-- Chưa có self-service.
+- Tự phục vụ chưa có đặt lịch/thanh toán; chưa gửi thông báo đẩy riêng.
+- QR dùng `ma_cong_khai`; nếu giấy phép chưa có mã/tệp thì chỉ báo chưa sẵn sàng.
+- Tải giấy phép phụ thuộc `file_url` và quyền của chủ hồ sơ.
