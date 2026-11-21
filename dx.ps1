@@ -116,6 +116,14 @@ function Confirm-OpenBao {
 function Invoke-Up {
     Assert-Env
     if (Test-Demo) { Write-Host "[CANH BAO] DEMO_MODE=true: chi dung thu nghiem, khong dung cho moi truong that." -ForegroundColor Yellow }
+    $ocrEngine = "0"
+    if ((Test-Path Env:DH_OCR) -and ($env:DH_OCR -eq "true")) {
+        $ocrEngine = "1"
+    } elseif (Test-Path ".env") {
+        $dhOcrLine = Get-Content ".env" | Select-String "^DH_OCR=true"
+        if ($dhOcrLine) { $ocrEngine = "1" }
+    }
+    $env:OCR_ENGINE = $ocrEngine
     Write-Host "--> Build image..."
     Invoke-Step "docker" @("compose", "--profile", "core", "--profile", "tools", "build")
     Write-Host "--> Ghep route APISIX tu core/apisix/routes..."

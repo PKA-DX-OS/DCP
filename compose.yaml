@@ -697,6 +697,46 @@ services:
         condition: service_healthy
     mem_limit: 256m
 
+  ocr:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args:
+        OCR_ENGINE: ${OCR_ENGINE:-0}
+    image: dxos/ocr:1.1
+    container_name: dxos-ocr
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["uvicorn", "ocr.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      DH_OCR: ${DH_OCR:-false}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-dxos}
+      SEAWEEDFS_S3_ENDPOINT: ${SEAWEEDFS_S3_ENDPOINT:-http://seaweedfs:8333}
+      SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:-dxos_dev_s3_key_2026}
+      SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:-dxos_dev_s3_secret_2026}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./services:/app/services:ro
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+
   # ============================================================================
   # 4. GIAO DIỆN NGƯỜI DÙNG TẦNG 2 & CỔNG BIÊN MẠNG (EDGE)
   # ============================================================================
