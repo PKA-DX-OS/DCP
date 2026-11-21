@@ -137,6 +137,9 @@ function Invoke-Up {
     Invoke-Tools @("scripts/app_manager.py", "install", "cap-phep")
     Write-Host "--> Nap kho van ban phap luat (chay lai khong tao trung)..."
     Invoke-Step $pyMigrate @("scripts/seed_legal.py")
+    Write-Host "--> Cham chat luong du lieu (DQ worker)..."
+    docker compose --profile tools run --rm -T tools scripts/data_quality_worker.py
+    if ($LASTEXITCODE -ne 0) { Write-Host "  [WARN] DQ worker loi, chay lai: docker compose --profile tools run --rm tools scripts/data_quality_worker.py" -ForegroundColor Yellow }
     if ((-not (Test-Path "secrets\demo-accounts.txt")) -and (Test-Demo)) {
         Write-Host "--> Nap tai khoan va du lieu mau..."
         Invoke-Tools @("apps/cap-phep/seed/seed.py")

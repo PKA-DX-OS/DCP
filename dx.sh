@@ -136,6 +136,8 @@ cmd_up() {
   run "${TOOLS[@]}" scripts/app_manager.py install cap-phep
   echo "--> Nạp kho văn bản pháp luật (chạy lại không tạo trùng)..."
   host_python scripts/seed_legal.py
+  echo "--> Chấm chất lượng dữ liệu (DQ worker)..."
+  "${TOOLS[@]}" scripts/data_quality_worker.py || echo "  [WARN] DQ worker lỗi, chạy lại: ${TOOLS[*]} scripts/data_quality_worker.py"
   if [ ! -f secrets/demo-accounts.txt ] && is_demo; then
     echo "--> Nạp tài khoản và dữ liệu mẫu..."
     run "${TOOLS[@]}" apps/cap-phep/seed/seed.py
