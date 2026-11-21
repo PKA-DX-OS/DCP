@@ -23,11 +23,12 @@ service backend hay `contracts/dh/*` của Track D.
 | H-FIELD | PWA hiện trường: nháp offline, ảnh, GPS, checklist, ký tay, đồng bộ | Xong phần UI + lưu máy |
 | H-SELF | Tự phục vụ công dân: tiến độ, bổ sung, tải giấy phép, QR tra cứu | Xong |
 | H-FLOW | Hỗ trợ xử lý: gợi ý phân công, cảnh báo SLA, nháp thông báo | Xong |
-| H-UX | Trợ giúp F1, phím tắt, ARIA/focus, kiểm tra axe | Xong phần component |
+| H-UX | Trợ giúp F1, phím tắt, ARIA/focus, kiểm tra axe | Xong phần component + axe tab Liên ngành |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
+| H-LINK | Đối chiếu liên ngành dân cư/đất đai/thuế/PCCC cạnh hồ sơ | Xong UI + mock; chờ API/audit D |
 
 Chưa làm trong lát cắt này: autofill từ OCR thật, đặt lịch/thanh toán trực tuyến,
-external lookup, workflow assistance, a11y/help đầy đủ.
+a11y/help đầy đủ ngoài các màn đã có test.
 
 ## 2. API tiêu thụ
 
@@ -36,6 +37,7 @@ external lookup, workflow assistance, a11y/help đầy đủ.
 | `GET /api/v1/mdm/dossiers/{id}/360` | `Dossier360Panel.vue` | `contracts/dh/mdm.yaml` |
 | `GET /api/v1/search?q=&limit=` | `GlobalSearch.vue` | `contracts/dh/search.yaml` |
 | `GET /api/v1/automation/metrics?from=&to=` | `AutomationMetricsPanel.vue` | `contracts/dh/automation.yaml` |
+| `GET /api/v1/mdm/dossiers/{id}/links` | `features/link/ExternalLookupPanel.vue` | `contracts/dh/mdm.yaml` |
 
 Mọi lời gọi H dùng timeout ngắn và không thử lại để UI không bị treo khi Track D chưa
 triển khai endpoint:
