@@ -1,0 +1,43 @@
+{
+  "name": "DX-OS Cấp phép xây dựng",
+  "short_name": "DX-OS Cấp phép",
+  "description": "Nộp hồ sơ, theo dõi tiến độ và kiểm tra hiện trường xây dựng.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1322",
+  "theme_color": "#17324d",
+  "categories": ["government", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Phiếu hiện trường",
+      "short_name": "Hiện trường",
+      "description": "Tạo phiếu kiểm tra hiện trường",
+      "url": "/?tab=hien-truong",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
