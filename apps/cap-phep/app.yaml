@@ -314,10 +314,10 @@ metrics:
     name: Hồ sơ mới trong kỳ
     unit: hồ sơ
     query_type: lakehouse
-    sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1"
+    sql: "SELECT count(*) FROM app_cap_phep.ho_so WHERE tenant = $1 AND ($2::timestamptz IS NULL OR created_at >= $2) AND ($3::timestamptz IS NULL OR created_at < $3)"
     lineage_job: export_warm_lakehouse
     bang_nguon: [app_cap_phep.ho_so]
-    dieu_kien_loc: "tenant = <tenant từ token>"
+    dieu_kien_loc: "tenant = <tenant từ token>; created_at trong tháng nếu có tham số thang"
   - code: ho_so_dang_xu_ly
     name: Hồ sơ đang xử lý
     unit: hồ sơ
@@ -335,13 +335,13 @@ metrics:
     bang_nguon: [app_cap_phep.ho_so]
     dieu_kien_loc: "tenant = <tenant>; quá hạn tổng hoặc qua_han = true; chưa đóng"
   - code: thoi_gian_xu_ly_tb
-    name: Thời gian xử lý trung bình
+    name: Thời gian xử lý trung bình (ngày làm việc)
     unit: ngày
     query_type: hybrid
-    sql: "SELECT COALESCE(round(avg(EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400.0)::numeric, 1), 0) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai = 'DA_CAP'"
+    sql: "SELECT round(avg(app_cap_phep.so_ngay_lam_viec(h.created_at, g.ngay_cap))::numeric, 1) FROM app_cap_phep.ho_so h JOIN app_cap_phep.giay_phep g ON g.ho_so_id = h.id WHERE h.tenant = $1 AND ($2::timestamptz IS NULL OR g.ngay_cap >= $2) AND ($3::timestamptz IS NULL OR g.ngay_cap < $3)"
     lineage_job: export_warm_lakehouse
-    bang_nguon: [app_cap_phep.ho_so]
-    dieu_kien_loc: "tenant = <tenant>; trạng thái DA_CAP; trung bình (updated_at - created_at)"
+    bang_nguon: [app_cap_phep.ho_so, app_cap_phep.giay_phep]
+    dieu_kien_loc: "tenant = <tenant>; hồ sơ đã có giấy phép; trung bình số ngày làm việc từ nộp (created_at) đến ngày cấp (ngay_cap); ngay_cap trong tháng nếu có tham số thang; null khi chưa có giấy phép"
   - code: truy_cap_tu_choi
     name: Lượt truy cập bị từ chối (403)
     unit: lượt
@@ -386,10 +386,10 @@ metrics:
     name: Tỷ lệ hồ sơ đã cấp đúng hạn
     unit: phần trăm
     query_type: transactional
-    sql: "SELECT COALESCE(round(100.0 * count(*) FILTER (WHERE updated_at <= han_tong_at) / NULLIF(count(*), 0), 1), 0) FROM app_cap_phep.ho_so WHERE tenant = $1 AND trang_thai = 'DA_CAP'"
+    sql: "SELECT round(100.0 * count(*) FILTER (WHERE g.ngay_cap <= h.han_tong_at) / NULLIF(count(*), 0), 1) FROM app_cap_phep.ho_so h JOIN app_cap_phep.giay_phep g ON g.ho_so_id = h.id WHERE h.tenant = $1 AND ($2::timestamptz IS NULL OR g.ngay_cap >= $2) AND ($3::timestamptz IS NULL OR g.ngay_cap < $3)"
     lineage_job: export_warm_lakehouse
-    bang_nguon: [app_cap_phep.ho_so]
-    dieu_kien_loc: "tenant = <tenant>; trạng thái DA_CAP; updated_at <= han_tong_at"
+    bang_nguon: [app_cap_phep.ho_so, app_cap_phep.giay_phep]
+    dieu_kien_loc: "tenant = <tenant>; hồ sơ đã có giấy phép; ngay_cap <= han_tong_at; ngay_cap trong tháng nếu có tham số thang; null khi chưa có giấy phép"
   - code: vi_pham
     name: Số vụ vi phạm đã kết luận
     unit: vụ

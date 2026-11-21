@@ -37,6 +37,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Nghiệm thu bởi trật tự xây dựng (FIX-V11-17):** cán bộ trật tự xây dựng ghi được mốc nghiệm thu, biên bản và bản vẽ hoàn công (API `services/construction` và chính sách RLS ghi), khớp nhóm được BPMN giao việc nghiệm thu; quyền kiểm tra quy hoạch và pháp lý giữ nguyên.
 - **Cảnh báo hồ sơ cho trật tự xây dựng (FIX-V11-18):** cán bộ trật tự xây dựng xem được cảnh báo của hồ sơ đã cấp phép (hàm `danh_sach_canh_bao_ho_so`, migration 20); DB từ chối quyền (SQLSTATE 42501) trả 403 thay vì 503 "Cơ sở dữ liệu tạm thời không sẵn sàng".
 - **Trang tra cứu công khai (FIX-V11-19):** `/kiem-tra/{mã}` hiện tên loại văn bản (theo `doc_templates` của ứng dụng) và tên đơn vị ban hành (`core.tenants`) thay vì mã; JSON thêm `ten_loai_van_ban`, `ten_don_vi`, giữ nguyên trường mã.
+- **Chỉ số thời gian xử lý (FIX-V11-20):** `thoi_gian_xu_ly_tb` tính số ngày làm việc từ nộp đến ngày cấp giấy phép (hàm `so_ngay_lam_viec`, migration 21), trả null khi chưa có giấy phép; `ty_le_dung_han` so ngày cấp với hạn; `/api/v1/metrics?thang=YYYY-MM` lọc các chỉ số khai báo đầu/cuối kỳ.
 
 ---
 
