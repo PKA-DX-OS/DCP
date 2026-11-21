@@ -119,36 +119,37 @@ async def xem_360_ho_so(dossier_id: str, authorization: str = Header(...)):
     link = await _dong_bo(claims.tenant, did) or {}
 
     async with get_db_connection(claims) as conn:
-        subject_id = await vang(conn, "subject", link.get("subject_id"))
-        nguoi = None
-        if subject_id:
-            so_khac = await conn.fetchval(
-                "SELECT count(*) FROM core.mdm_dossier_link WHERE tenant = core.jwt_tenant() AND subject_id = $1 AND dossier_id <> $2",
-                subject_id, did,
-            )
-            nguoi = {"subject_id": subject_id, "ho_ten": hs["ho_ten"] or "", "cccd_mask": che_cccd(hs["cccd"]),
-                     "dien_thoai_mask": che_dien_thoai(hs["dien_thoai"]), "so_ho_so_khac": int(so_khac or 0)}
-            if nguoi["cccd_mask"] is None:
-                nguoi = None
+        # Đọc thông tin tổng hợp từ view 360 (D-MDM-03)
+        row_360 = await conn.fetchrow(
+            """
+            SELECT ho_so, chu_dau_tu, thua_dat, cong_trinh, giay_phep
+            FROM core.v_dossier_360
+            WHERE dossier_id = $1
+            """,
+            did,
+        )
+        if row_360:
+            def _pj(v):
+                return json.loads(v) if isinstance(v, str) else v
+            ho_so_val = _pj(row_360["ho_so"])
+            nguoi = _pj(row_360["chu_dau_tu"])
+            thua = _pj(row_360["thua_dat"])
+            cong_trinh = _pj(row_360["cong_trinh"])
+            giay_phep = _pj(row_360["giay_phep"])
+        else:
+            ho_so_val = {k: hs[k] for k in ("id", "ma_ho_so", "trang_thai", "buoc", "created_at", "han_tong_at")} | {"qua_han": bool(hs["qua_han"])}
+            nguoi = None
+            thua = None
+            cong_trinh = None
+            giay_phep = None
 
-        thua = None
-        parcel_id = await vang(conn, "parcel", link.get("parcel_id"))
-        if parcel_id:
-            r = await conn.fetchrow(
-                "SELECT parcel_id, so_thua, to_ban_do, ma_dinh_danh_dia_diem, dien_tich_m2 FROM core.mdm_parcel WHERE parcel_id = $1",
-                parcel_id,
-            )
-            if r:
-                thua = dict(r)
-                thua["dien_tich_m2"] = float(thua["dien_tich_m2"]) if thua["dien_tich_m2"] is not None else None
+        subject_id = link.get("subject_id")
 
         gp_rows = await _an_toan(
             conn,
             """
-            SELECT g.id, g.so_giay_phep, g.trang_thai, g.ngay_cap, d.public_code,
-                   c.ma_cong_trinh, c.dia_chi, c.id AS cong_trinh_app_id
+            SELECT g.id, c.id AS cong_trinh_app_id
             FROM app_cap_phep.giay_phep g
-            LEFT JOIN core.signed_docs d ON d.id = g.signed_doc_id
             LEFT JOIN app_cap_phep.cong_trinh c ON c.giay_phep_id = g.id
             WHERE g.ho_so_id = $1
             ORDER BY (g.trang_thai = 'hieu_luc') DESC, g.ngay_cap DESC LIMIT 1
@@ -156,12 +157,6 @@ async def xem_360_ho_so(dossier_id: str, authorization: str = Header(...)):
             did,
         )
         gp = gp_rows[0] if gp_rows else None
-        giay_phep = gp and {"permit_id": gp["id"], "so_giay_phep": gp["so_giay_phep"], "public_code": gp["public_code"],
-                            "trang_thai": gp["trang_thai"], "ngay_cap": gp["ngay_cap"]}
-        cong_trinh = None
-        construction_id = await vang(conn, "construction", link.get("construction_id"))
-        if construction_id and gp and gp["ma_cong_trinh"]:
-            cong_trinh = {"construction_id": construction_id, "ma_cong_trinh": gp["ma_cong_trinh"], "dia_chi": gp["dia_chi"]}
 
         kiem_tra: List[Dict[str, Any]] = []
         for r in await _an_toan(
@@ -225,8 +220,7 @@ async def xem_360_ho_so(dossier_id: str, authorization: str = Header(...)):
                  "gan_nhat": audit_rows[0]["gan_nhat"] if audit_rows else None}
 
     return {
-        "ho_so": {k: hs[k] for k in ("id", "ma_ho_so", "trang_thai", "buoc", "created_at", "han_tong_at")}
-        | {"qua_han": bool(hs["qua_han"])},
+        "ho_so": ho_so_val,
         "chu_dau_tu": nguoi,
         "thua_dat": thua,
         "cong_trinh": cong_trinh,

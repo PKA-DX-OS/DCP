@@ -34,6 +34,7 @@ EXCLUDED_PREFIXES = (
     "core/postgres/23-catalog-lineage.sql",
     "core/postgres/24-external-refs.sql",
     "core/postgres/25-mdm-dsar.sql",
+    "core/postgres/26-mdm-360-views.sql",
     "services/construction/",
 )
 SUFFIXES = {".py", ".sql", ".yaml", ".yml", ".conf", ".sh", ".json", ".toml", ".ts", ".js"}
