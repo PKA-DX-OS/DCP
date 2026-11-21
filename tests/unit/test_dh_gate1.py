@@ -154,7 +154,8 @@ def test_route_apisix_va_dich_vu_phu_du_hop_dong(ung_dung):
     tien_to = {r["uri"].rstrip("*") for r in route}
     assert all(r["upstream"]["nodes"] == {"construction:8000": 1} for r in route)
     assert all("openid-connect" in r["plugins"] for r in route)
-    co = {(r.path, m.lower()) for r in ung_dung.app.routes for m in getattr(r, "methods", set()) or set()}
+    co = {(r.path, m.lower()) for r in ung_dung.app.routes if hasattr(r, "path") for m in getattr(r, "methods", set()) or set()}
+    co |= {(p, m.lower()) for p, ops in ung_dung.app.openapi().get("paths", {}).items() for m in ops}
     for tep in sorted((ROOT / "contracts/dh").glob("*.yaml")):
         if tep.stem == "ocr":  # dịch vụ ocr riêng (DH_OCR), Gate 3
             continue

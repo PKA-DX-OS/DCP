@@ -153,7 +153,7 @@ async def acceptance_progress(month: Optional[str] = Query(default=None), tenant
 
 @router.get("/on-time")
 async def on_time(months: int = Query(default=12, ge=1, le=24), tenant: Optional[str] = Query(default=None), authorization: str = Header(...)):
-    """Tỷ lệ hồ sơ DA_CAP đúng hạn theo từng tháng của địa bàn."""
+    """Tỷ lệ hồ sơ đã cấp đúng hạn theo từng tháng của địa bàn (theo ngày cấp giấy phép)."""
     claims = verify_jwt_token(authorization)
     yeu_cau_can_bo(claims)
     ctx = ngu_canh_tong_hop(claims, tenant)
@@ -162,20 +162,21 @@ async def on_time(months: int = Query(default=12, ge=1, le=24), tenant: Optional
             """
             WITH m AS (
                 SELECT generate_series(
-                    date_trunc('month', now()) - ($1 - 1) * interval '1 month',
-                    date_trunc('month', now()),
+                    date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - ($1 - 1) * interval '1 month',
+                    date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh'),
                     interval '1 month'
                 )::date AS thang
             )
             SELECT to_char(m.thang, 'YYYY-MM') AS thang,
-                   count(h.id) AS da_cap,
-                   count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) AS dung_han,
-                   round(100::numeric * count(h.id) FILTER (WHERE h.updated_at <= h.han_tong_at) / NULLIF(count(h.id), 0), 1) AS ty_le
+                   count(g.id) AS da_cap,
+                   count(g.id) FILTER (WHERE g.ngay_cap <= h.han_tong_at) AS dung_han,
+                   round(100::numeric * count(g.id) FILTER (WHERE g.ngay_cap <= h.han_tong_at) / NULLIF(count(g.id), 0), 1) AS ty_le
             FROM m
-            LEFT JOIN app_cap_phep.ho_so h
+            LEFT JOIN (app_cap_phep.giay_phep g
+                       JOIN app_cap_phep.ho_so h ON h.id = g.ho_so_id)
               ON h.tenant = core.jwt_tenant()
-             AND h.trang_thai = 'DA_CAP'
-             AND date_trunc('month', h.updated_at)::date = m.thang
+             AND g.tenant = core.jwt_tenant()
+             AND date_trunc('month', g.ngay_cap AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = m.thang
             GROUP BY m.thang
             ORDER BY m.thang
             """,
