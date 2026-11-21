@@ -137,6 +137,9 @@ function Invoke-Up {
     Invoke-Tools @("scripts/app_manager.py", "install", "cap-phep")
     Write-Host "--> Nap kho van ban phap luat (chay lai khong tao trung)..."
     Invoke-Step $pyMigrate @("scripts/seed_legal.py")
+    Write-Host "--> Khop du lieu va backfill MDM (mdm_backfill.py)..."
+    docker compose --profile tools run --rm -T tools scripts/mdm_backfill.py
+    if ($LASTEXITCODE -ne 0) { Write-Host "  [WARN] MDM backfill loi, chay lai: docker compose --profile tools run --rm tools scripts/mdm_backfill.py" -ForegroundColor Yellow }
     Write-Host "--> Cham chat luong du lieu (DQ worker)..."
     docker compose --profile tools run --rm -T tools scripts/data_quality_worker.py
     if ($LASTEXITCODE -ne 0) { Write-Host "  [WARN] DQ worker loi, chay lai: docker compose --profile tools run --rm tools scripts/data_quality_worker.py" -ForegroundColor Yellow }

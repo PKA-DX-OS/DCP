@@ -27,6 +27,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Vai chủ quản dữ liệu (D-MDM-04):** thêm vai `dx:data-steward` vào realm qua `user_sync.py` (idempotent), gán vai cho tài khoản demo `mc.thu` để thực hiện quyền giao/đóng vấn đề chất lượng dữ liệu và quản trị dữ liệu chủ (#245).
 - **Worker chất lượng dữ liệu định kỳ (D-DQ-02):** thêm chế độ lặp `--lap-giay N` cho `scripts/data_quality_worker.py` (lỗi một lượt chỉ ghi log, tiếp tục lượt sau); thêm dịch vụ nền `dq-worker` trong `compose.yaml` (profile core, restart unless-stopped, N=3600) (#246).
 - **DSAR cho dữ liệu chủ (D-GOV-02):** bổ sung tài sản MDM vào danh mục dữ liệu, API xuất và xóa/ẩn danh dữ liệu MDM theo chính sách retention không lộ HMAC thô, có ghi audit (#162).
+- **Khớp dữ liệu và backfill MDM (D-MDM-02):** `scripts/mdm_backfill.py` khớp chính xác dùng lại logic `dh_mdm.py`, khớp gần đúng tạo ứng viên trùng `core.mdm_link_candidate` dưới ngưỡng, hỗ trợ `--dry-run`, đạt 100% hồ sơ demo có chủ thể và thửa đất; thêm bước chạy tự động vào `dx.ps1` và `dx.sh`; `scripts/seed_mdm.py` nạp dữ liệu bịa (#164).
 
 ### Đã sửa (Fixed)
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.
