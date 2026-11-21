@@ -671,6 +671,32 @@ services:
         condition: service_healthy
     mem_limit: 256m
 
+  dq-worker:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    image: dxos/services:1.1
+    container_name: dxos-dq-worker
+    restart: unless-stopped
+    profiles: [core]
+    networks:
+      - app
+      - data
+    command: ["python", "scripts/data_quality_worker.py", "--lap-giay", "3600"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dxos}
+      DB_USER: ${DB_USER:-dxos_svc}
+      DB_PASSWORD: ${DB_PASSWORD:?thiếu DB_PASSWORD}
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./services:/app/services:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 256m
+
   # ============================================================================
   # 4. GIAO DIỆN NGƯỜI DÙNG TẦNG 2 & CỔNG BIÊN MẠNG (EDGE)
   # ============================================================================
