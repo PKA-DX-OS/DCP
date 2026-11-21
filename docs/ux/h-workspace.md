@@ -16,9 +16,11 @@ service backend hay `contracts/dh/*` của Track D.
 | H-WORK-01 | Client H theo hợp đồng `contracts/dh/*`, có fallback khi API chưa có | Xong phần 360/search |
 | H-WORK-02 | Tab “Tổng hợp” trong chi tiết hồ sơ: chủ đầu tư, thửa đất, công trình, giấy phép, kiểm tra, tài chính, cảnh báo, nhật ký | Xong |
 | H-WORK-03 | Tìm kiếm toàn cục `Ctrl/Cmd+K`, nhóm kết quả, điều hướng bàn phím | Xong |
+| H-AUTO-01 | Điền nhanh từ hồ sơ cũ/tài khoản; không ghi đè dữ liệu đã nhập; cảnh báo trùng | Xong phần hồ sơ/tài khoản |
+| H-AUTO-02 | Kiểm tra CCCD, điện thoại, địa chỉ, thửa đất, số tầng, diện tích; tự lưu bản nháp | Xong |
 | H-METRIC-01 | Tab “Hiệu quả vận hành” trong bảng điều hành | Xong phần khung + dữ liệu |
 
-Chưa làm trong lát cắt này: autofill, OCR review, PWA hiện trường, self-service,
+Chưa làm trong lát cắt này: autofill từ OCR, OCR review, PWA hiện trường, self-service,
 external lookup, workflow assistance, a11y/help đầy đủ.
 
 ## 2. API tiêu thụ
@@ -48,7 +50,41 @@ Không hiển thị số liệu giả như số thật. Mỗi fallback đều c�
 Fallback tìm kiếm không trả CCCD hay số điện thoại đầy đủ; chỉ trả mã hồ sơ, họ tên,
 trạng thái và địa chỉ. Kết quả không gắn hồ sơ thì không mở được và có ghi chú rõ.
 
-## 4. File chính
+## 4. Autofill, kiểm tra dữ liệu và bản nháp
+
+### 4.1. Điền nhanh
+
+- Nguồn: hồ sơ cũ của chính chủ đầu tư (ưu tiên hồ sơ cùng CCCD) và họ tên từ tài khoản.
+- Chỉ điền vào ô đang trống. Số tầng/diện tích còn ở giá trị mặc định `1`/`100` cũng được
+  coi là ô trống; dữ liệu người dùng đã sửa không bị ghi đè.
+- Không điền CCCD hoặc điện thoại đã bị che (`****`).
+- OCR là nguồn tiếp theo nhưng chưa dùng vì Track D chưa có `/api/v1/ocr/*`.
+
+### 4.2. Kiểm tra trước khi nộp
+
+| Trường | Quy tắc |
+| :--- | :--- |
+| Họ tên | Ít nhất 3 ký tự, không có chữ số |
+| CCCD | Đúng 12 chữ số, không bắt đầu `000`, không toàn số giống nhau |
+| Điện thoại | 10–11 chữ số, đầu số 02/03/05/07/08/09; tự đổi `+84` thành `0` |
+| Địa chỉ | Ít nhất 5 ký tự |
+| Thửa đất | Có ít nhất 3 ký tự và có số |
+| Số tầng | Số nguyên 1–5 |
+| Diện tích sàn | Lớn hơn 0 và không quá 100.000 m² |
+
+Lỗi hiện tại chỗ, có `aria-invalid`, tổng hợp ở đầu form và chặn gửi. Hồ sơ trùng
+CCCD + thửa đất hiện cảnh báo kèm nút mở hồ sơ đã có; cảnh báo không tự chặn nộp.
+Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đất, số tầng, diện tích.
+
+### 4.3. Bản nháp
+
+- Tự lưu sau 500 ms vào `sessionStorage`, khóa theo người dùng; hết hạn sau 24 giờ.
+- Chỉ lưu biểu mẫu, không lưu tệp đã chọn (trình duyệt không cho khôi phục `File`).
+- Nộp thành công hoặc đăng xuất thì xóa; người dùng có nút “Xóa bản nháp” và ghi chú
+  không dùng máy tính dùng chung.
+- Không gửi bản nháp lên máy chủ; chỉ dùng trong tab trình duyệt hiện tại.
+
+## 5. File chính
 
 | File | Vai trò |
 | :--- | :--- |
@@ -61,8 +97,12 @@ trạng thái và địa chỉ. Kết quả không gắn hồ sơ thì không m�
 | `apps/bang-dieu-hanh/web/src/api/automation.ts` | Kiểu + client chỉ số H, mốc v1.1 |
 | `apps/bang-dieu-hanh/web/src/components/automation/AutomationMetricsPanel.vue` | Tab hiệu quả vận hành |
 | `apps/bang-dieu-hanh/web/src/App.vue` | Thêm tab và phân quyền hiển thị |
+| `apps/cap-phep/web/src/components/CreateDossierModal.vue` | Điền nhanh, kiểm tra, cảnh báo trùng, bản nháp |
+| `apps/cap-phep/web/src/components/SupplementModal.vue` | Kiểm tra dữ liệu bổ sung |
+| `apps/cap-phep/web/src/utils/validation.ts` | Quy tắc kiểm tra CCCD, điện thoại, địa chỉ, thửa đất, tầng, diện tích |
+| `apps/cap-phep/web/src/utils/nop-ho-so.ts` | Form mặc định, bản nháp sessionStorage, điền từ hồ sơ cũ |
 
-## 5. Phân quyền hiển thị
+## 6. Phân quyền hiển thị
 
 | Màn | Vai |
 | :--- | :--- |
@@ -70,7 +110,7 @@ trạng thái và địa chỉ. Kết quả không gắn hồ sơ thì không m�
 | 360 hồ sơ | Người đã đăng nhập; API quyết định dữ liệu trả về |
 | Hiệu quả vận hành | `app:cap-phep:lanh-dao`, `dx:auditor`, `dx:tenant-admin`, `dx:platform-admin` |
 
-## 6. Kiểm thử
+## 7. Kiểm thử
 
 ```powershell
 cd apps/cap-phep/web
@@ -86,12 +126,15 @@ npm run build
 
 Kết quả tại lát cắt này:
 
-- Cấp phép: 14 tệp test, 121 test pass; type-check và build pass.
+- Cấp phép: 20 tệp test, 150 test pass; type-check và build pass.
 - Bảng điều hành: 5 tệp test, 26 test pass; type-check và build pass.
-- Test mới: `tests/dh.test.js`, `tests/global-search.test.js`,
+- Test H-WORK: `tests/dh.test.js`, `tests/global-search.test.js`,
   `tests/dossier-360.test.js`, `tests/automation-panel.test.js`.
+- Test H-AUTO: `tests/validation.test.js`, `tests/nop-ho-so.test.js`,
+  `tests/create-dossier-autofill.test.js`, `tests/create-dossier-validation.test.js`,
+  `tests/create-dossier-draft.test.js`, `tests/supplement-validation.test.js`.
 
-## 7. Việc Gate 2
+## 8. Việc Gate 2
 
 1. Track D merge `GET /api/v1/mdm/dossiers/{id}/360`, `GET /api/v1/search`,
    `GET /api/v1/automation/metrics`.
@@ -100,10 +143,11 @@ Kết quả tại lát cắt này:
    nhãn “Số đo thật”.
 3. Thêm E2E: mở hồ sơ → tab Tổng hợp; `Ctrl/Cmd+K` → tìm mã hồ sơ → mở đúng hồ sơ;
    bảng điều hành → tab Hiệu quả vận hành.
-4. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
-5. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
+4. Nối OCR: `POST /api/v1/ocr/extract` → review → điền tiếp vào form nộp hồ sơ.
+5. Đo lại baseline H trên dữ liệu thật trước khi công bố tiết kiệm.
+6. Giữ fallback có nhãn; không xóa cho tới khi API thật ổn định qua một vòng kiểm thử.
 
-## 8. Giới hạn đã biết
+## 9. Giới hạn đã biết
 
 - Chưa có mock server `VITE_API_MOCK`; fallback hiện dùng dữ liệu hồ sơ/baseline có nhãn.
 - Fallback tìm kiếm chỉ lọc trong tối đa 100 hồ sơ gần nhất do `fetchHoSo` giới hạn
@@ -111,4 +155,8 @@ Kết quả tại lát cắt này:
 - Bảng điều hành chọn phường cho chỉ số cũ, nhưng API H đọc tenant từ JWT; chưa có
   tham số chọn địa bàn cho chỉ số H.
 - 360 mới hiển thị một liên kết mỗi loại thực thể; chưa có màn hình chi tiết thực thể MDM.
-- Chưa có autofill, OCR review, PWA, self-service.
+- Autofill từ OCR chưa có vì Track D chưa triển khai `/api/v1/ocr/*`.
+- Chưa kiểm tra mã định danh địa điểm 12 số vì RPC nộp hồ sơ hiện chưa nhận trường này;
+  cần Track D bổ sung trước khi thêm vào form.
+- Bản nháp dùng `sessionStorage` của tab hiện tại; đóng tab là mất, không đồng bộ giữa thiết bị.
+- Chưa có OCR review, PWA, self-service.
