@@ -52,6 +52,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Bảng điều hành lọc chỉ số theo tháng (FIX-V11-24):** thẻ chỉ số điều hành gọi `/api/v1/metrics?thang=YYYY-MM` theo ô Tháng; tháng không có dữ liệu trả 0 hoặc `—`; thẻ có `theo_ky: false` mang nhãn “(toàn kỳ)” để không hiểu nhầm là số của tháng đang chọn.
 - **Nút đổi nền bảng điều hành (FIX-V11-26):** nút đổi giao diện ở màn hình chưa đăng nhập của Bảng điều hành dùng icon đồng bộ với thanh điều hướng thay vì hiển thị chữ.
 - **Đổi nền theo giao diện thực tế (FIX-V11-27):** nút đổi nền bảng điều hành chọn icon và hành vi chuyển theo nền đang hiển thị (xử lý chế độ theo hệ thống); nút màn đăng nhập có `z-10` tránh bị khung giới thiệu che khi màn hình hẹp.
+- **Phả hệ chỉ số điều hành (FIX-V11-28):** `/api/v1/metrics/{code}/lineage` lọc sự kiện theo bảng nguồn của chỉ số và phường người gọi thay vì job mặc định; bỏ `lineage_job: export_warm_lakehouse` khỏi các chỉ số không đọc lakehouse; `services/export-warm` ghi lineage cho mỗi đợt xuất Parquet.
 
 ---
 

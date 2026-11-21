@@ -26,7 +26,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, status
 from dxos_core.middleware import setup_standard_service
 from dxos_core.jwt import verify_jwt_token
 from dxos_core.db import get_db_connection
-from dxos_core.lineage import get_lineage_history
+from dxos_core.lineage import get_lineage_history, get_lineage_by_sources
 from dxos_core.xem_dia_ban import ngu_canh_tong_hop
 
 app = FastAPI(title="DX-OS Executive Metrics & Lineage API", version="1.0.0")
@@ -161,18 +161,24 @@ async def get_metric_lineage(code: str, authorization: str = Header(...)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail={"loi": "Không có chỉ số này"})
 
-    job = policy.get("lineage_job", "export_warm_lakehouse")
-    events = await get_lineage_history(job, limit=10)
-    # Chỉ trả sự kiện của tenant người gọi; sự kiện không gắn tenant thì giữ lại
-    events = [
-        e for e in events
-        if not isinstance(e.get("facets"), dict) or e["facets"].get("tenant") in (None, claims.tenant)
-    ]
+    job = policy.get("lineage_job")
+    bang_nguon = policy.get("bang_nguon", [])
+
+    if policy.get("query_type") == "lakehouse" and job:
+        events = await get_lineage_history(job, limit=10)
+        events = [
+            e for e in events
+            if not isinstance(e.get("facets"), dict) or e["facets"].get("tenant") in (None, claims.tenant)
+        ]
+    elif bang_nguon:
+        events = await get_lineage_by_sources(bang_nguon, tenant=claims.tenant, limit=10)
+    else:
+        events = []
 
     return {
         "metric_code": code,
-        "bang_nguon": policy.get("bang_nguon", []),
+        "bang_nguon": bang_nguon,
         "dieu_kien_loc": policy.get("dieu_kien_loc", ""),
-        "job": job,
+        "job": job or "",
         "lineage_events": events,
     }
