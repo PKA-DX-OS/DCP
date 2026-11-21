@@ -547,8 +547,20 @@ function fmtDate(iso?: string | null): string {
   </div>
 
   <div v-else-if="auth === 'chua_dang_nhap'" class="login-shell">
-    <button class="absolute right-4 top-4 rounded border border-slate-300 px-3 py-2 text-sm" :aria-label="cheDo === 'toi' ? 'Chuyển nền sáng' : 'Chuyển nền tối'" @click="doiGiaoDien()">
-      {{ cheDo === "toi" ? "Nền sáng" : "Nền tối" }}
+    <button
+      type="button"
+      class="nut-tren nut-giao-dien !absolute right-4 top-4"
+      :aria-label="cheDo === 'toi' ? 'Nền sáng' : 'Nền tối'"
+      :title="cheDo === 'toi' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'"
+      @click="doiGiaoDien()"
+    >
+      <svg v-if="cheDo === 'toi'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2" />
+        <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" />
+      </svg>
+      <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z" />
+      </svg>
     </button>
     <main class="brand-hero kinh" aria-labelledby="bdh-title">
       <div class="flex items-center gap-3">
