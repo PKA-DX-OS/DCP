@@ -1,0 +1,133 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# APISIX route fragment — Track D (contracts/dh): dữ liệu chủ và xem 360, tìm kiếm, chất lượng dữ liệu,
+# danh mục, phả hệ, chỉ số hiệu quả H. Dịch vụ construction phục vụ đúng các tiền tố này.
+# /api/v1/ocr thuộc dịch vụ ocr (bật bằng DH_OCR) nên không có ở đây.
+
+routes:
+  - id: route_dh_mdm
+    uri: /api/v1/mdm*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_dh_search
+    uri: /api/v1/search*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 240
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_dh_data_quality
+    uri: /api/v1/data-quality*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 120
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_dh_catalog
+    uri: /api/v1/catalog*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 60
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_dh_lineage
+    uri: /api/v1/lineage*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 60
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1
+
+  - id: route_dh_automation
+    uri: /api/v1/automation*
+    priority: 30
+    plugins:
+      limit-count:
+        count: 60
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+      openid-connect:
+        client_id: apisix
+        client_secret: ${{APISIX_OIDC_SECRET}}
+        bearer_only: true
+        use_jwks: true
+        discovery: "http://keycloak:8080/auth/realms/dxos/.well-known/openid-configuration"
+    upstream:
+      type: roundrobin
+      nodes:
+        "construction:8000": 1

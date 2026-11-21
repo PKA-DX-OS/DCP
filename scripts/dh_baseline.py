@@ -5,7 +5,7 @@
 """
 Đo mốc (baseline) H và D trên stack đang chạy, trước khi làm kế hoạch D & H (D-P0-02).
 
-Chỉ đọc, chỉ in số đếm và tỷ lệ: không in CCCD, họ tên, điện thoại hay mã hồ sơ.
+Chỉ đọc (trừ khi có --save: ghi chỉ số H vào core.h_baseline làm mốc cho API chỉ số), chỉ in số đếm và tỷ lệ: không in CCCD, họ tên, điện thoại hay mã hồ sơ.
 
 H — thao tác của người:
 - thao tác thủ công trên mỗi hồ sơ: dòng audit `actor_type = 'user'` gắn với hồ sơ;
@@ -243,6 +243,22 @@ def _psql_cmd(a: argparse.Namespace) -> List[str]:
     return ["docker", "exec", "-i", a.container, "psql", "-U", a.user, "-d", a.database]
 
 
+SQL_LUU_MOC = """
+INSERT INTO core.h_baseline (tenant, label, metrics) VALUES (:'tenant', :'nhan', :'du_lieu'::jsonb)
+ON CONFLICT (tenant, label) DO UPDATE SET metrics = EXCLUDED.metrics, measured_at = now()
+RETURNING json_build_object('label', label);
+"""
+
+
+def luu_moc(cmd_goc: List[str], tenant: str, nhan: str, h: Dict[str, Any]) -> None:
+    """Ghi chỉ số H (chỉ số đếm, không dữ liệu định danh) làm mốc; chạy lại cùng nhãn thì ghi đè."""
+    cmd = cmd_goc + ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-v", f"tenant={tenant}", "-v", f"nhan={nhan}",
+                     "-v", "du_lieu=" + json.dumps(h, ensure_ascii=False), "-f", "-"]
+    res = subprocess.run(cmd, input=SQL_LUU_MOC, capture_output=True, text=True, encoding="utf-8")
+    if res.returncode != 0:
+        raise SystemExit(f"Lỗi lưu mốc: {(res.stderr or res.stdout).strip()}")
+
+
 def _git_mo_ta() -> str:
     try:
         r = subprocess.run(["git", "describe", "--tags", "--always"], cwd=ROOT, capture_output=True, text=True)
@@ -263,6 +279,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--container", default="dxos-postgres")
     p.add_argument("--user", default="dxos_owner")
     p.add_argument("--database", default="dxos")
+    p.add_argument("--save", metavar="NHAN",
+                   help="Lưu chỉ số H làm mốc vào core.h_baseline với nhãn này (ví dụ v1.1); API /automation/metrics so với mốc")
     a = p.parse_args(argv)
 
     cmd = _psql_cmd(a)
@@ -270,6 +288,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     raw = im._psql(sql_baseline(co_bang), a.tenant, cmd)
     kq = tinh(raw, im.tinh(im.chay_sql(a.tenant, cmd)))
 
+    if a.save:
+        luu_moc(cmd, a.tenant, a.save, kq["h"])
+        print(f"Đã lưu mốc '{a.save}' của {a.tenant} vào core.h_baseline", file=sys.stderr)
     if a.json:
         print(json.dumps({"tenant": a.tenant, "ngay_do": date.today().isoformat(), **kq}, ensure_ascii=False, indent=2))
     elif a.markdown:

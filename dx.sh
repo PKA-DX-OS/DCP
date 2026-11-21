@@ -121,6 +121,8 @@ cmd_up() {
   run "${COMPOSE[@]}" --profile core --profile tools build
   echo "--> Ghép route APISIX từ core/apisix/routes..."
   run "${TOOLS[@]}" scripts/build_apisix.py --from-env
+  echo "--> Khóa HMAC dữ liệu chủ (giữ khóa cũ nếu đã có)..."
+  run "${TOOLS[@]}" scripts/dh_khoa.py
   echo "--> Chạy profile core..."
   run "${COMPOSE[@]}" --profile core up -d --wait
   echo "--> Đồng bộ JWKS Keycloak sang PostgREST..."
@@ -134,6 +136,8 @@ cmd_up() {
   run "${TOOLS[@]}" scripts/app_manager.py install cap-phep
   echo "--> Nạp kho văn bản pháp luật (chạy lại không tạo trùng)..."
   host_python scripts/seed_legal.py
+  echo "--> Chấm chất lượng dữ liệu (DQ worker)..."
+  "${TOOLS[@]}" scripts/data_quality_worker.py || echo "  [WARN] DQ worker lỗi, chạy lại: ${TOOLS[*]} scripts/data_quality_worker.py"
   if [ ! -f secrets/demo-accounts.txt ] && is_demo; then
     echo "--> Nạp tài khoản và dữ liệu mẫu..."
     run "${TOOLS[@]}" apps/cap-phep/seed/seed.py

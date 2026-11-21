@@ -13,10 +13,18 @@ from fastapi.responses import JSONResponse
 from dxos_core.db import check_db_health
 from dxos_core.middleware import setup_standard_service
 
+from construction.dh import LoiDH
+
 logger = logging.getLogger("dxos.construction")
 
 app = FastAPI(title="DX-OS Construction Core API", version="1.0.0")
 setup_standard_service(app, "construction")
+
+
+@app.exception_handler(LoiDH)
+async def _loi_dh(_request, exc: LoiDH):
+    """API Track D trả lỗi đúng hợp đồng contracts/dh: {code, message, details}."""
+    return JSONResponse(status_code=exc.status_code, content=exc.body())
 
 
 @app.get("/ready", tags=["Giám sát"])
