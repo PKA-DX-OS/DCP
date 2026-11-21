@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
+import axe from "axe-core";
 import QRCode from "qrcode";
 import QrCodeModal from "../src/components/QrCodeModal.vue";
 
@@ -37,5 +38,16 @@ describe("QrCodeModal", () => {
     const img = w.get("img");
     expect(img.attributes("src")).toContain("data:image/png;base64,QRMAU");
     expect(w.get('a[download="qr-GP-001.png"]').exists()).toBe(true);
+  });
+
+  test("không có vi phạm axe serious/critical", async () => {
+    const w = mount(QrCodeModal, {
+      props: { url: "https://example.test/kiem-tra/GP-001", ma: "GP-001" },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const kq = await axe.run(w.element, { rules: { "color-contrast": { enabled: false } } });
+    const nang = kq.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+    expect(nang.map((v) => v.id)).toEqual([]);
   });
 });
