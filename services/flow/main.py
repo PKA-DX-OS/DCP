@@ -1160,6 +1160,8 @@ async def start_process(
                     init_vars = dict(req.variables)
                     init_vars["business_key"] = req.business_key
                     init_vars["han_buoc_at"] = han_buoc_iso
+                    # Tenant từ JWT người mở quy trình (biến client gửi không dùng để kiểm phường)
+                    init_vars["_tenant"] = claims.tenant
                     await conn.execute(
                         f"SELECT {sync_state_sql}($1, $2, $3::jsonb)",
                         proc_id,

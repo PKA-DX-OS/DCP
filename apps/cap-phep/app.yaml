@@ -60,7 +60,7 @@ flow_policies:
       - "app:cap-phep:trat-tu-xd"
     site_check: app_cap_phep_private.vi_tri_thuoc_dia_ban
   # Biến quy trình được trả kèm danh sách nhiệm vụ cho giao diện (U-07)
-  task_list_variables: [ho_so_id, ma_ho_so, business_key, phieu_id, object_id, object_type, dia_chi_cong_trinh, trang_thai_ho_so, do_uu_tien]
+  task_list_variables: [ho_so_id, ma_ho_so, business_key, phieu_id, object_id, object_type, dia_chi_cong_trinh, trang_thai_ho_so, do_uu_tien, site_id, chi_so, gia_tri, nguong]
   submitter_roles:
     - "app:cap-phep:chu-dau-tu"
   manager_roles:
@@ -106,8 +106,11 @@ flow_policies:
     taskPheDuyet: [pheDuyet, dongYCapPhep, yKienPheDuyet]
     taskPheDuyetTruyCapKhan: [quyetDinh, lyDoTuChoi, p_ho_so_id, ho_so_id]
     taskChoBoSung: [noiDungBoSung, taiLieuBoSung]
+    taskKiemTraHienTruong: [ketLuan, ghi_chu]
+    taskXuLyViPham: [ghi_chu]
   submitter_tasks: ["taskChoBoSung", "taskBoSungThietKe"]
   variable_roles:
+    ketLuan: ["app:cap-phep:trat-tu-xd"]
     quy_hoach_pass: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua", "app:cap-phep:lanh-dao"]
     quy_hoach_fail_rules: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua"]
     ket_qua_kiem_tra_id: ["app:cap-phep:tham-dinh", "app:cap-phep:mot-cua"]
@@ -183,11 +186,13 @@ flow_policies:
     tham-dinh-thiet-ke:
       bo_mon_can_tham_dinh: ["kien_truc", "ket_cau", "mep", "pccc"]
   on_timer: app_cap_phep_private.ghi_qua_han
-  sync_state_sql: app_cap_phep_private.sync_flow_state
+  # Hồ sơ (sync_flow_state) và kết luận phiếu hậu kiểm
+  sync_state_sql: app_cap_phep_private.sync_trang_thai
   sync_state_sql_by_process:
     cap-phep: app_cap_phep_private.sync_flow_state
     quy-hoach: app_cap_phep_private.sync_quy_hoach_state
     nghiem-thu: app_cap_phep_private.sync_nghiem_thu_state
+    hau-kiem: app_cap_phep_private.sync_hau_kiem_state
   on_task_complete:
     taskDuyetCapPhep:
       when: { dongYCapPhep: true }

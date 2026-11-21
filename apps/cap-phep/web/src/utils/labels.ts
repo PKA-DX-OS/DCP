@@ -199,3 +199,14 @@ const BUOC: Record<string, string> = {
 export function tenBuoc(b: string | undefined | null): string {
   return (b && BUOC[b]) || b || "";
 }
+
+/** Tên chỉ số cảm biến hoặc loại kiểm tra trên phiếu hậu kiểm. */
+export function tenChiSo(value: string | undefined | null): string {
+  const ten: Record<string, string> = {
+    laeq_dba: "Độ ồn LAeq",
+    do_bui: "Bụi",
+    rung_cham: "Rung chấn",
+    kiem_tra_dinh_ky: "Kiểm tra chủ động",
+  };
+  return (value && ten[value]) || value || "Chỉ số";
+}
