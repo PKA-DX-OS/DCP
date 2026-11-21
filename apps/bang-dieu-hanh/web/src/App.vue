@@ -28,9 +28,13 @@ import AutomationMetricsPanel from "./components/automation/AutomationMetricsPan
 import LogoMark from "./components/LogoMark.vue";
 
 const { cheDo } = useTheme();
+// Chế độ "he-thong" theo nền máy: icon và nút đổi phải dựa trên nền đang hiển thị
+const laToi = computed(
+  () => cheDo.value === "toi" || (cheDo.value === "he-thong" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches),
+);
 
 function doiGiaoDien() {
-  cheDo.value = cheDo.value === "toi" ? "sang" : "toi";
+  cheDo.value = laToi.value ? "sang" : "toi";
 }
 
 interface MetricItem {
@@ -549,12 +553,12 @@ function fmtDate(iso?: string | null): string {
   <div v-else-if="auth === 'chua_dang_nhap'" class="login-shell">
     <button
       type="button"
-      class="nut-tren nut-giao-dien !absolute right-4 top-4"
-      :aria-label="cheDo === 'toi' ? 'Nền sáng' : 'Nền tối'"
-      :title="cheDo === 'toi' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'"
+      class="nut-tren nut-giao-dien !absolute right-4 top-4 z-10"
+      :aria-label="laToi ? 'Nền sáng' : 'Nền tối'"
+      :title="laToi ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'"
       @click="doiGiaoDien()"
     >
-      <svg v-if="cheDo === 'toi'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+      <svg v-if="laToi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="4.2" />
         <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" />
       </svg>
@@ -610,11 +614,11 @@ function fmtDate(iso?: string | null): string {
         <button
           type="button"
           class="nut-tren nut-giao-dien"
-          :aria-label="cheDo === 'toi' ? 'Nền sáng' : 'Nền tối'"
-          :title="cheDo === 'toi' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'"
+          :aria-label="laToi ? 'Nền sáng' : 'Nền tối'"
+          :title="laToi ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'"
           @click="doiGiaoDien()"
         >
-          <svg v-if="cheDo === 'toi'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <svg v-if="laToi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
             <circle cx="12" cy="12" r="4.2" />
             <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" />
           </svg>
