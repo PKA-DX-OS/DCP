@@ -30,7 +30,8 @@ def dam_bao_khoa(thu_muc: Path) -> bool:
     thu_muc.mkdir(parents=True, exist_ok=True)
     tep.write_text(secrets.token_hex(32) + "\n", encoding="utf-8")
     try:
-        os.chmod(tep, 0o600)
+        if os.name != "nt":
+            os.chmod(tep, 0o644)
     except OSError:
         pass
     return True

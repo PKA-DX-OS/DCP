@@ -17,8 +17,8 @@ from dxos_core.db import get_db_connection
 from dxos_core.jwt import verify_jwt_token
 
 from construction.dh import (
-    VAI_DOC_DH, VAI_GOP, VAI_LIEN_KET, LoiDH, can_vai, che_cccd, che_dien_thoai, idempotent,
-    kiem_khoa_idempotency, la_chu_dau_tu, trang,
+    VAI_DOC_DH, VAI_DSAR_XUAT, VAI_DSAR_XU_LY, VAI_GOP, VAI_LIEN_KET, LoiDH, can_vai, che_cccd, che_dien_thoai,
+    cccd_hmac, idempotent, kiem_khoa_idempotency, la_chu_dau_tu, trang,
 )
 from construction.dh_mdm import BANG, COT_LIEN_KET, lien_ket_ho_so, lien_ket_tu_ho_so, tom_tat, vang
 
@@ -44,6 +44,14 @@ class GopThucThe(BaseModel):
     giu_id: UUID
     gop_ids: List[UUID] = Field(min_length=1, max_length=10)
     ly_do: str = Field(min_length=5, max_length=500)
+
+
+class XoaDsarMDM(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    subject_sub: Optional[str] = None
+    so_dinh_danh: Optional[str] = None
+    cccd: Optional[str] = None
+    reason: Optional[str] = Field(default="Yêu cầu xóa dữ liệu cá nhân theo DSAR", max_length=500)
 
 
 def _uuid(v: str, ten: str = "id") -> UUID:
@@ -468,3 +476,122 @@ async def hoan_tac_gop(merge_id: str, authorization: str = Header(...),
     await log_audit_event(tenant=claims.tenant, action="mdm.entity.merge_undone", actor_sub=claims.sub,
                           object_type="mdm_merge", object_id=str(mid), detail={})
     return JSONResponse(status_code=ma, content=kq)
+
+
+@router.get("/dsar/export")
+async def dsar_xuat_mdm(
+    subject_sub: Optional[str] = Query(default=None),
+    so_dinh_danh: Optional[str] = Query(default=None),
+    cccd: Optional[str] = Query(default=None),
+    authorization: str = Header(...),
+):
+    """Xuất dữ liệu MDM phục vụ yêu cầu DSAR (D-GOV-02); không trả HMAC thô."""
+    claims = verify_jwt_token(authorization)
+    target_sub = claims.sub
+    if la_chu_dau_tu(claims):
+        target_sub = claims.sub
+    else:
+        can_vai(claims, VAI_DSAR_XUAT, "Chỉ cán bộ hoặc chính chủ thể được xuất dữ liệu DSAR")
+        if subject_sub:
+            target_sub = subject_sub
+
+    async with get_db_connection(claims) as conn:
+        ma = None
+        cccd_in = so_dinh_danh or cccd
+        if cccd_in:
+            ma = cccd_hmac(cccd_in)
+        if not ma:
+            so_cccd = await conn.fetchval(
+                "SELECT cccd FROM app_cap_phep.ho_so WHERE tenant = core.jwt_tenant() "
+                "AND chu_dau_tu_sub = $1 AND cccd IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+                target_sub,
+            )
+            if so_cccd:
+                ma = cccd_hmac(so_cccd)
+
+        if not ma:
+            return {
+                "tenant": claims.tenant,
+                "subject": None,
+                "dossier_links": [],
+                "external_refs": [],
+            }
+
+        res_json = await conn.fetchval(
+            "SELECT core_api.dsar_mdm_export(core.jwt_tenant(), $1)",
+            ma,
+        )
+        if not res_json:
+            return {
+                "tenant": claims.tenant,
+                "subject": None,
+                "dossier_links": [],
+                "external_refs": [],
+            }
+
+        kq = json.loads(res_json) if isinstance(res_json, str) else res_json
+
+    subj_id = (kq.get("subject") or {}).get("subject_id")
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="dsar.mdm.exported",
+        actor_sub=claims.sub,
+        object_type="mdm_subject",
+        object_id=str(subj_id) if subj_id else "unknown",
+        detail={"subject_sub": target_sub},
+    )
+    return kq
+
+
+@router.post("/dsar/erase")
+async def dsar_xoa_mdm(
+    body: XoaDsarMDM,
+    authorization: str = Header(...),
+    idempotency_key: Optional[str] = Header(default=None),
+):
+    """Xóa/ẩn danh dữ liệu MDM theo chính sách lưu trữ retention (D-GOV-02); ghi audit."""
+    claims = verify_jwt_token(authorization)
+    target_sub = claims.sub
+    if la_chu_dau_tu(claims):
+        target_sub = claims.sub
+    else:
+        can_vai(claims, VAI_DSAR_XU_LY, "Chỉ cán bộ xử lý DSAR hoặc chính chủ thể được yêu cầu xóa")
+        if body.subject_sub:
+            target_sub = body.subject_sub
+
+    khoa = kiem_khoa_idempotency(idempotency_key) if idempotency_key else None
+
+    async with get_db_connection(claims) as conn:
+        ma = None
+        so_dinh_danh = body.so_dinh_danh or body.cccd
+        if so_dinh_danh:
+            ma = cccd_hmac(so_dinh_danh)
+        if not ma:
+            so_cccd = await conn.fetchval(
+                "SELECT cccd FROM app_cap_phep.ho_so WHERE tenant = core.jwt_tenant() "
+                "AND chu_dau_tu_sub = $1 AND cccd IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+                target_sub,
+            )
+            if so_cccd:
+                ma = cccd_hmac(so_cccd)
+
+        if not ma:
+            raise LoiDH(404, "MDM_SUBJECT_NOT_FOUND", "Không tìm thấy dữ liệu chủ của người yêu cầu trong phường")
+
+        res_json = await conn.fetchval(
+            "SELECT core_api.dsar_mdm_erase(core.jwt_tenant(), $1, $2, $3)",
+            ma, body.reason, claims.sub,
+        )
+        kq = json.loads(res_json) if isinstance(res_json, str) else res_json
+        if kq.get("status") == "not_found":
+            raise LoiDH(404, "MDM_SUBJECT_NOT_FOUND", kq.get("message", "Không tìm thấy"))
+
+    await log_audit_event(
+        tenant=claims.tenant,
+        action="dsar.mdm.erased",
+        actor_sub=claims.sub,
+        object_type="mdm_subject",
+        object_id=str(kq.get("subject_id")),
+        detail={"reason": body.reason, "anonymized": True, "retention_policy": "core.data_assets"},
+    )
+    return kq
