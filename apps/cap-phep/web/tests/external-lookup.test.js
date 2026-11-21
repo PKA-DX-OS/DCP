@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 import ExternalLookupPanel from "../src/features/link/ExternalLookupPanel.vue";
-import { fetchDossierLinks } from "../src/api/mdm";
+import { createMdmLink, fetchDossierLinks, searchMdmEntities } from "../src/api/mdm";
 
 vi.mock("../src/auth", () => ({
   readRoles: vi.fn(() => ["app:cap-phep:tham-dinh"]),
@@ -13,6 +13,8 @@ vi.mock("../src/auth", () => ({
 
 vi.mock("../src/api/mdm", () => ({
   fetchDossierLinks: vi.fn(async () => ({ data: null, source: "khong_co" })),
+  searchMdmEntities: vi.fn(),
+  createMdmLink: vi.fn(),
 }));
 
 const HO_SO = {
@@ -33,6 +35,13 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   vi.mocked(fetchDossierLinks).mockResolvedValue({ data: null, source: "khong_co" });
+  vi.mocked(searchMdmEntities).mockResolvedValue({
+    items: [{ type: "parcel", id: "p1", nhan: "Thửa td-a-01", ma: "790101000001", confidence: 1 }],
+    page: 1,
+    page_size: 10,
+    total: 1,
+  });
+  vi.mocked(createMdmLink).mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -59,7 +68,7 @@ describe("ExternalLookupPanel — H-LINK", () => {
     const w = moManHinh();
     await flushPromises();
     expect(w.text()).toContain("Dữ liệu mẫu");
-    expect(w.text()).toContain("API liên ngành chưa sẵn sàng");
+    expect(w.text()).toContain("API tra cứu liên ngành chưa sẵn sàng");
 
     await traCuu(w, "001099001234");
     expect(w.text()).toContain("Khớp hồ sơ");
@@ -76,12 +85,37 @@ describe("ExternalLookupPanel — H-LINK", () => {
     expect(sessionStorage.length).toBe(0);
   });
 
-  test("kiểm toán viên chỉ xem, không có nút xác nhận", async () => {
+  test("kiểm toán viên chỉ xem, không có nút xác nhận hay liên kết", async () => {
     const w = moManHinh(["dx:auditor"]);
     await flushPromises();
     await traCuu(w, "001099001234");
     expect(w.text()).toContain("Chỉ cán bộ nghiệp vụ được xác nhận đối chiếu");
     expect(w.findAll("button").some((b) => b.text() === "Xác nhận đối chiếu")).toBe(false);
+    expect(w.text()).not.toContain("Liên kết thủ công với dữ liệu chủ");
+    expect(w.text()).toContain("Chỉ cán bộ một cửa, thẩm định hoặc quản trị dữ liệu được tạo liên kết");
+  });
+
+  test("tìm và liên kết dữ liệu chủ thật, ghi audit", async () => {
+    const w = moManHinh();
+    await flushPromises();
+
+    await w.get('input[aria-label="Từ khóa tìm dữ liệu chủ"]').setValue("td-a-01");
+    await w.findAll("button").find((b) => b.text() === "Tìm").trigger("click");
+    await flushPromises();
+
+    expect(searchMdmEntities).toHaveBeenCalledWith("token", "td-a-01", "parcel");
+    expect(w.text()).toContain("Thửa td-a-01");
+
+    await w.findAll("button").find((b) => b.text() === "Liên kết").trigger("click");
+    await flushPromises();
+
+    expect(createMdmLink).toHaveBeenCalledWith("token", {
+      dossier_id: HO_SO.id,
+      entity_type: "parcel",
+      entity_id: "p1",
+    });
+    expect(w.text()).toContain("Đã liên kết Thửa td-a-01");
+    expect(w.text()).toContain("mdm.entity.linked");
   });
 
   test("API liên kết MDM thiếu thì hiện ghi chú, không chặn tra cứu", async () => {
