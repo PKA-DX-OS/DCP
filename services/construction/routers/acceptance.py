@@ -14,7 +14,7 @@ from dxos_core.audit import log_audit_event
 from dxos_core.db import get_db_connection
 from dxos_core.jwt import verify_jwt_token
 
-from construction.deps import la_can_bo, yeu_cau_kiem_tra
+from construction.deps import la_can_bo, yeu_cau_nghiem_thu
 
 router = APIRouter(prefix="/api/v1/acceptance", tags=["Nghiệm thu"])
 
@@ -174,7 +174,7 @@ async def tong_quan_nghiem_thu(ho_so_id: str, authorization: str = Header(...)):
 @router.post("/{ho_so_id}/milestones")
 async def tao_moc_nghiem_thu(ho_so_id: str, body: MilestoneRequest, authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
-    yeu_cau_kiem_tra(claims)
+    yeu_cau_nghiem_thu(claims)
     if body.loai_moc not in MILESTONES:
         raise HTTPException(status_code=422, detail={"loi": "Loại mốc nghiệm thu không hợp lệ"})
     async with get_db_connection(claims) as conn:
@@ -219,7 +219,7 @@ async def tao_moc_nghiem_thu(ho_so_id: str, body: MilestoneRequest, authorizatio
 @router.post("/milestones/{moc_id}/records")
 async def nop_bien_ban(moc_id: str, body: RecordRequest, authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
-    yeu_cau_kiem_tra(claims)
+    yeu_cau_nghiem_thu(claims)
     async with get_db_connection(claims) as conn:
         moc = await conn.fetchrow(
             """
@@ -270,7 +270,7 @@ async def nop_bien_ban(moc_id: str, body: RecordRequest, authorization: str = He
 @router.post("/{ho_so_id}/as-built")
 async def nop_ban_ve_hoan_cong(ho_so_id: str, body: AsBuiltRequest, authorization: str = Header(...)):
     claims = verify_jwt_token(authorization)
-    yeu_cau_kiem_tra(claims)
+    yeu_cau_nghiem_thu(claims)
     async with get_db_connection(claims) as conn:
         await _ho_so(conn, ho_so_id)
         file_id = await _file_hop_le(conn, body.file_id)

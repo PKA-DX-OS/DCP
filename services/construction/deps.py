@@ -20,6 +20,9 @@ CHECK_ROLES = (
     "app:cap-phep:tham-dinh",
     "app:cap-phep:lanh-dao",
 )
+# Nghiệm thu theo mốc do cán bộ kiểm tra hoặc trật tự xây dựng thực hiện
+# (BPMN giao việc nghiệm thu cho nhóm tham-dinh và trat-tu-xd).
+ACCEPTANCE_ROLES = CHECK_ROLES + ("app:cap-phep:trat-tu-xd",)
 AUDIT_ROLES = ("dx:auditor",)
 ADMIN_ROLES = ("dx:platform-admin", "dx:tenant-admin")
 
@@ -35,6 +38,10 @@ def la_can_bo(claims: UserClaims) -> bool:
 
 def la_nguoi_kiem_tra(claims: UserClaims) -> bool:
     return co_vai(claims, CHECK_ROLES + ADMIN_ROLES)
+
+
+def la_nguoi_nghiem_thu(claims: UserClaims) -> bool:
+    return co_vai(claims, ACCEPTANCE_ROLES + ADMIN_ROLES)
 
 
 def la_auditor(claims: UserClaims) -> bool:
@@ -59,4 +66,12 @@ def yeu_cau_can_bo(claims: UserClaims) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"loi": "Chỉ cán bộ nghiệp vụ hoặc kiểm toán viên được xem dữ liệu này", "ma_loi": "FORBIDDEN"},
+        )
+
+
+def yeu_cau_nghiem_thu(claims: UserClaims) -> None:
+    if not la_nguoi_nghiem_thu(claims):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"loi": "Chỉ cán bộ một cửa, thẩm định, trật tự xây dựng hoặc lãnh đạo được nghiệm thu", "ma_loi": "FORBIDDEN"},
         )
