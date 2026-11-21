@@ -32,6 +32,8 @@ export interface RequestOptions {
   timeoutMs?: number;
   /** Số lần thử lại khi lỗi mạng/timeout/5xx. Mặc định 2 cho GET, 0 cho lời gọi ghi. */
   retries?: number;
+  /** Header bổ sung (ví dụ Idempotency-Key); không ghi đè Authorization/Accept. */
+  headers?: Record<string, string>;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -52,6 +54,11 @@ export async function apiRequest(path: string, opts: RequestOptions = {}): Promi
   const retries = opts.retries ?? (method === "GET" ? 2 : 0);
   const headers: Record<string, string> = { Accept: opts.accept || "application/json" };
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  if (opts.headers) {
+    for (const [ten, giaTri] of Object.entries(opts.headers)) {
+      if (ten.toLowerCase() !== "authorization" && ten.toLowerCase() !== "accept") headers[ten] = giaTri;
+    }
+  }
   let body: BodyInit | undefined;
   if (opts.form) {
     body = opts.form;

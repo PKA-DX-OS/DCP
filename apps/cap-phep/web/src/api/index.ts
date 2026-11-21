@@ -24,3 +24,4 @@ export * from "./construction";
 export * from "./dsar";
 export * from "./legal";
 export * from "./dh";
+export * from "./ocr";
