@@ -113,9 +113,48 @@ async def generate_with_ollama(question: str, hits: List[Dict[str, Any]]) -> str
     return text
 
 
-def extractive_answer(hits: List[Dict[str, Any]]) -> str:
-    top = hits[0]["chunk"][:SNIPPET_CHARS].strip()
-    return f"Theo tri thức của địa bàn [1]: {top}"
+EXTRACT_CHARS = 600
+EXTRACT_SENTENCES = 3
+_MARKDOWN = re.compile(r"^\s{0,3}(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)|\*\*|__|`", re.MULTILINE)
+_TACH_CAU = re.compile(r"(?<=[.!?;])\s+|\n+")
+
+
+_BO_DONG = re.compile(r"^\s*(#{1,6}\s.*|<!--.*|-->|SPDX-.*|-{3,}|>.*)$", re.MULTILINE)
+
+
+def _cac_cau(chunk: str) -> List[str]:
+    """Tách đoạn tri thức thành câu: bỏ dòng tiêu đề, ghi chú, chú thích; bỏ ký hiệu markdown."""
+    sach = _MARKDOWN.sub("", _BO_DONG.sub("", chunk))
+    return [c.strip(" \t-•:;,") for c in _TACH_CAU.split(sach) if len(c.strip()) >= 20]
+
+
+def extractive_answer(question: str, hits: List[Dict[str, Any]]) -> str:
+    """Trả lời không có mô hình: ghép các câu trọn vẹn khớp câu hỏi nhất, giữ thứ tự trong nguồn,
+    ghi [n] sau mỗi câu. Không cắt giữa chữ."""
+    q = tokenize(question)
+    ung_vien = []
+    for i, h in enumerate(hits):
+        for thu_tu, cau in enumerate(_cac_cau(h["chunk"])):
+            diem = len(q & tokenize(cau))
+            if diem:
+                ung_vien.append((diem, i, thu_tu, cau))
+    ung_vien.sort(key=lambda x: (-x[0], x[1], x[2]))
+    chon: List[Tuple[int, int, str]] = []
+    do_dai = 0
+    for _, i, thu_tu, cau in ung_vien:
+        if len(chon) >= EXTRACT_SENTENCES:
+            break
+        if chon and do_dai + len(cau) > EXTRACT_CHARS:
+            continue
+        chon.append((i, thu_tu, cau))
+        do_dai += len(cau)
+    if not chon:
+        cau_dau = (_cac_cau(hits[0]["chunk"]) or [hits[0]["chunk"].strip()])[0]
+        if len(cau_dau) > EXTRACT_CHARS:
+            cau_dau = cau_dau[:EXTRACT_CHARS].rsplit(" ", 1)[0] + "…"
+        chon = [(0, 0, cau_dau)]
+    chon.sort(key=lambda x: (x[0], x[1]))
+    return " ".join(f"{cau.rstrip('.')}. [{i + 1}]" for i, _, cau in chon)
 
 
 async def answer_question(question: str, hits: List[Dict[str, Any]]) -> Tuple[str, str]:
@@ -123,7 +162,7 @@ async def answer_question(question: str, hits: List[Dict[str, Any]]) -> Tuple[st
         return await generate_with_ollama(question, hits), "ollama"
     except Exception as exc:
         logger.warning(f"Ollama không khả dụng, dùng trích xuất trực tiếp: {exc}")
-        return extractive_answer(hits), "trich_xuat"
+        return extractive_answer(question, hits), "trich_xuat"
 
 
 @app.post("/api/v1/assistant/ask")
