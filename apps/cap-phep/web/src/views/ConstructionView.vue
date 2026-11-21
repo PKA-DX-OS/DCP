@@ -7,7 +7,7 @@ import { getUser, getValidToken, readRoles } from "../auth";
 import { createInspection, fetchCongTrinh, fetchPhieuKiemTra, triggerDemoSensor } from "../api/construction";
 import { notify } from "../composables/useToast";
 
-// Quyền lập phiếu: trật tự xây dựng hoặc lãnh đạo (theo app.yaml và permissions.js)
+// Quyền lập phiếu: trật tự xây dựng hoặc lãnh đạo (theo app.yaml)
 const VAI_LAP_PHIEU = [
   "app:cap-phep:trat-tu-xd",
   "app:cap-phep:lanh-dao",

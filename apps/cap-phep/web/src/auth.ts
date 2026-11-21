@@ -30,10 +30,6 @@ export async function logout(): Promise<void> {
   await userManager.signoutRedirect();
 }
 
-export async function clearSession(): Promise<void> {
-  await userManager.removeUser();
-}
-
 /**
  * Trả access token còn hạn; sắp hết hạn (dưới `minSeconds`) thì làm mới bằng refresh token.
  * Không làm mới được thì trả null để giao diện đưa người dùng về đăng nhập.
