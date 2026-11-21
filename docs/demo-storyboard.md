@@ -14,7 +14,7 @@ Một công dân, một hồ sơ, một địa bàn.
 4. **Duyệt và ký.** Lãnh đạo phê duyệt. Giấy phép được ký số **PAdES** bằng khoá trong SoftHSM, có **mã công khai** để tra cứu.
 5. **Nghiệm thu.** Mốc **móng không đạt** (cao độ đáy móng thấp hơn thiết kế), khắc phục, rồi **đạt**.
 6. **Minh bạch.** Ai cũng kiểm tra được giấy phép không cần tài khoản. Mọi thao tác có **nhật ký kiểm toán dạng chuỗi băm**. Công dân xem và yêu cầu dữ liệu cá nhân của mình (**DSAR**, Luật Bảo vệ dữ liệu cá nhân 91/2025).
-7. **Điều hành.** Lãnh đạo xem chỉ số, xu hướng 12 tháng, tải việc và hỏi trợ lý pháp lý có trích dẫn.
+7. **Điều hành.** Lãnh đạo xem chỉ số, hồ sơ theo tháng (6 tháng), tải việc và hỏi trợ lý pháp lý có trích dẫn.
 
 Thời hạn giải quyết hiển thị theo **Điều 54 NĐ 217/2026**: cấp giấy phép xây dựng mới nhà ở riêng lẻ trong **07 ngày làm việc**, thẩm định trong **03 ngày làm việc**.
 

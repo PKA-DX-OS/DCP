@@ -12,6 +12,7 @@ Trợ lý hỏi đáp có trích dẫn từ kho tri thức core.knowledge_chunks
 
 import logging
 import os
+import math
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -32,11 +33,14 @@ ASSISTANT_MODEL = os.getenv("ASSISTANT_MODEL", "qwen2.5:0.5b")
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "8"))
 TOP_K = 3
 CANDIDATE_LIMIT = 500
+# Thuật ngữ đặc trưng: xuất hiện trong không quá 20% số đoạn của kho tri thức
+TY_LE_DAC_TRUNG = 0.2
 SNIPPET_CHARS = 280
 NOT_FOUND = "Không tìm thấy căn cứ trong tri thức của địa bàn bạn."
 STOPWORDS = {
     "là", "và", "của", "có", "không", "được", "thì", "cho", "các", "một", "những", "để",
     "với", "trong", "khi", "nào", "gì", "bao", "nhiêu", "tại", "này", "đó", "the", "is", "a",
+    "phải", "cần", "vì", "sao", "thế", "ai",
 }
 
 
@@ -51,6 +55,35 @@ def tokenize(text: str) -> Set[str]:
 
 def score_chunk(query_tokens: Set[str], chunk: str) -> int:
     return len(query_tokens & tokenize(chunk))
+
+
+def cum_tu(text: str) -> Set[str]:
+    """Cặp âm tiết liền nhau: tiếng Việt phần lớn là từ hai âm tiết, cặp phân biệt nghĩa tốt hơn từng âm."""
+    am_tiet = [t for t in re.findall(r"\w+", text.lower())]
+    return {f"{a} {b}" for a, b in zip(am_tiet, am_tiet[1:]) if a not in STOPWORDS and b not in STOPWORDS}
+
+
+def thuat_ngu(text: str) -> Set[str]:
+    return tokenize(text) | cum_tu(text)
+
+
+def trong_so(van_ban: List[str]) -> Dict[str, float]:
+    """IDF trên tập ứng viên: từ xuất hiện khắp nơi nặng ít, từ phân biệt nặng nhiều."""
+    df: Dict[str, int] = {}
+    for v in van_ban:
+        for t in thuat_ngu(v):
+            df[t] = df.get(t, 0) + 1
+    n = len(van_ban)
+    w = {t: math.log((n + 1) / (d + 1)) + 1.0 for t, d in df.items()}
+    # Thuật ngữ không có trong tập ứng viên nhận trọng số cao nhất (hiếm nhất)
+    w[""] = math.log(n + 1) + 1.0
+    return w
+
+
+def diem_khop(q_terms: Set[str], terms: Set[str], idf: Dict[str, float]) -> float:
+    """Tổng trọng số thuật ngữ trùng; cụm hai âm tiết nhân 1.5 vì mang nghĩa rõ hơn."""
+    mac_dinh = idf.get("", 1.0)
+    return sum(idf.get(t, mac_dinh) * (1.5 if " " in t else 1.0) for t in q_terms & terms)
 
 
 def min_match(query_tokens: Set[str]) -> int:
@@ -73,12 +106,22 @@ async def retrieve(conn, tenant: str, question: str, app_code: Optional[str]) ->
     if not q:
         return []
     threshold = min_match(q)
+    q_terms = thuat_ngu(question)
+    idf = trong_so([r["chunk"] for r in rows])
     scored = []
     for r in rows:
-        s = score_chunk(q, r["chunk"])
-        if s >= threshold:
-            scored.append((s, r))
+        # Ngưỡng giữ nguyên theo số từ đơn khớp; thứ hạng theo trọng số để đoạn đúng ý lên đầu
+        if score_chunk(q, r["chunk"]) >= threshold:
+            scored.append((diem_khop(q_terms, thuat_ngu(r["chunk"]), idf), r))
     scored.sort(key=lambda item: item[0], reverse=True)
+    if not scored:
+        return []
+    # Đoạn khớp nhất chỉ trùng từ chung của cả kho (không trùng thuật ngữ đặc trưng nào): không có căn cứ
+    nguong_df = math.log((len(rows) + 1) / (TY_LE_DAC_TRUNG * len(rows) + 1)) + 1.0
+    # Chỉ xét cụm hai âm tiết: một âm tiết lẻ (như "tiết", "nay") trùng ngẫu nhiên quá dễ
+    dac_trung = {t for t in q_terms if " " in t and idf.get(t, 0.0) >= nguong_df}
+    if not dac_trung & thuat_ngu(scored[0][1]["chunk"]):
+        return []
     return [r for _, r in scored[:TOP_K]]
 
 
@@ -115,11 +158,20 @@ async def generate_with_ollama(question: str, hits: List[Dict[str, Any]]) -> str
 
 EXTRACT_CHARS = 600
 EXTRACT_SENTENCES = 3
+HE_SO_THU_HANG = 0.15
+NGUONG_TUONG_DOI = 0.75
 _MARKDOWN = re.compile(r"^\s{0,3}(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)|\*\*|__|`", re.MULTILINE)
-_TACH_CAU = re.compile(r"(?<=[.!?;])\s+|\n+")
+# Không tách ở dấu ";": vế sau thường không đứng riêng được thành câu
+_TACH_CAU = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
 _BO_DONG = re.compile(r"^\s*(#{1,6}\s.*|<!--.*|-->|SPDX-.*|-{3,}|>.*)$", re.MULTILINE)
+
+
+def _tieu_de(chunk: str) -> str:
+    """Tiêu đề mục (## ...) của đoạn: dùng để chấm điểm câu, không đưa vào câu trả lời."""
+    m = re.search(r"^\s{0,3}#{1,6}\s+(.*)$", chunk, re.MULTILINE)
+    return m.group(1) if m else ""
 
 
 def _cac_cau(chunk: str) -> List[str]:
@@ -131,14 +183,24 @@ def _cac_cau(chunk: str) -> List[str]:
 def extractive_answer(question: str, hits: List[Dict[str, Any]]) -> str:
     """Trả lời không có mô hình: ghép các câu trọn vẹn khớp câu hỏi nhất, giữ thứ tự trong nguồn,
     ghi [n] sau mỗi câu. Không cắt giữa chữ."""
-    q = tokenize(question)
+    q = thuat_ngu(question)
+    cau_theo_doan = [(i, _tieu_de(h["chunk"]), _cac_cau(h["chunk"])) for i, h in enumerate(hits)]
+    idf = trong_so([c for _, _, ds in cau_theo_doan for c in ds])
     ung_vien = []
-    for i, h in enumerate(hits):
-        for thu_tu, cau in enumerate(_cac_cau(h["chunk"])):
-            diem = len(q & tokenize(cau))
-            if diem:
+    for i, tieu_de, ds in cau_theo_doan:
+        tu_tieu_de = thuat_ngu(tieu_de)
+        for thu_tu, cau in enumerate(ds):
+            # Câu được tính thêm từ của tiêu đề mục chứa nó (nửa trọng số)
+            diem = diem_khop(q, thuat_ngu(cau), idf) + 0.5 * diem_khop(q, tu_tieu_de - thuat_ngu(cau), idf)
+            # Đoạn xếp hạng cao hơn khi truy xuất được ưu tiên
+            diem *= 1.0 - HE_SO_THU_HANG * min(i, 3)
+            if diem > 0:
                 ung_vien.append((diem, i, thu_tu, cau))
     ung_vien.sort(key=lambda x: (-x[0], x[1], x[2]))
+    if ung_vien:
+        # Bỏ câu kém xa câu khớp nhất để câu trả lời không lạc sang ý khác
+        nguong = NGUONG_TUONG_DOI * ung_vien[0][0]
+        ung_vien = [u for u in ung_vien if u[0] >= nguong]
     chon: List[Tuple[int, int, str]] = []
     do_dai = 0
     for _, i, thu_tu, cau in ung_vien:

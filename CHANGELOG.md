@@ -28,6 +28,10 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **404 cho API (FIX-V11-09):** đường dẫn `/api/` không có route trả 404 JSON (`ma_loi` `NOT_FOUND`) thay vì trang HTML của web cấp phép.
 - **Hàng đợi hậu kiểm và hồ sơ hero (FIX-V11-08):** phiếu kiểm tra (lập tay hoặc từ cảm biến) có việc trong Bàn làm việc của trật tự xây dựng, kết luận Đạt/Vi phạm được ghi vào phiếu; `seed_hero.py` đưa `CP-HERO-2026-001` tới bước thẩm định giao `td.binh`.
 - **Hồ sơ hero và kết luận hậu kiểm (FIX-V11-10):** `seed_hero.py` tạo phân công thẩm định cho `td.binh` nên chi tiết hồ sơ mở được; kết luận phiếu dùng lại `sync_flow_state` (ghi "Đạt tiêu chuẩn", người kiểm tra, ghi chú).
+- **Nghiệm thu móng (FIX-V11-11):** bấm "Không đạt" sinh việc khắc phục móng thay vì sang nghiệm thu kết cấu.
+- **Trật tự xây dựng mở hồ sơ (FIX-V11-12):** cán bộ trật tự xây dựng mở được hồ sơ cùng phường đã cấp phép khi nghiệm thu; hồ sơ chưa cấp phép vẫn bị từ chối.
+- **Trợ lý pháp lý (FIX-V11-13):** hỏi giấy tờ thì trả lời đúng danh mục giấy tờ; câu hỏi không có căn cứ trong kho trả lời không tìm thấy thay vì đoạn lạc đề.
+- **Kịch bản demo (FIX-V11-14):** nhãn và thứ tự bước khớp giao diện (Bàn làm việc, Mở hồ sơ đầy đủ, tab bảng điều hành); ghi chú giấy phép ghi quy mô theo hồ sơ nộp.
 
 ---
 
