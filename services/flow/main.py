@@ -255,6 +255,7 @@ async def list_user_tasks(
     visible_vars = set(policy.get("task_list_variables", []))
     for t in tasks:
         t["variables"] = [v for v in (t.get("variables") or []) if v.get("name") in visible_vars]
+        t["dueDate"] = suy_ra_han_task(t, policy)
 
     return {"tasks": tasks, "count": len(tasks), "tenant": claims.tenant}
 
@@ -339,6 +340,22 @@ def _task_due(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def suy_ra_han_task(task: Dict[str, Any], policy: Dict[str, Any]) -> Optional[str]:
+    """Hạn của task: `dueDate` của Flowable nếu có; nếu BPMN không đặt thì lấy thời điểm tạo task cộng
+    SLA của bước trong `flow_policies.sla` (app.yaml). Bước không khai báo SLA thì không có hạn."""
+    if task.get("dueDate"):
+        return task["dueDate"]
+    sla = (policy.get("sla") or {}).get(task.get("taskDefinitionKey") or "")
+    tao = _task_due(task.get("createTime"))
+    if not sla or not tao:
+        return None
+    try:
+        han = tao + parse_iso_duration(sla)
+    except Exception:
+        return None
+    return han.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 @app.get("/api/v1/flow/escalations")
 async def list_escalations(
     window_hours: int = Query(default=24, ge=1, le=720),
@@ -367,6 +384,7 @@ async def list_escalations(
     visible = set(policy.get("task_list_variables", []))
     items = []
     for t in raw:
+        t["dueDate"] = suy_ra_han_task(t, policy)
         due = _task_due(t.get("dueDate"))
         if not due:
             continue
