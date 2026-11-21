@@ -120,6 +120,8 @@ function Invoke-Up {
     Invoke-Step "docker" @("compose", "--profile", "core", "--profile", "tools", "build")
     Write-Host "--> Ghep route APISIX tu core/apisix/routes..."
     Invoke-Tools @("scripts/build_apisix.py", "--from-env")
+    Write-Host "--> Khoa HMAC du lieu chu (giu khoa cu neu da co)..."
+    Invoke-Tools @("scripts/dh_khoa.py")
     Write-Host "--> Chay profile core..."
     Invoke-Step "docker" @("compose", "--profile", "core", "up", "-d", "--wait")
     Write-Host "--> Dong bo JWKS Keycloak sang PostgREST..."

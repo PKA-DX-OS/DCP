@@ -121,6 +121,8 @@ cmd_up() {
   run "${COMPOSE[@]}" --profile core --profile tools build
   echo "--> Ghép route APISIX từ core/apisix/routes..."
   run "${TOOLS[@]}" scripts/build_apisix.py --from-env
+  echo "--> Khóa HMAC dữ liệu chủ (giữ khóa cũ nếu đã có)..."
+  run "${TOOLS[@]}" scripts/dh_khoa.py
   echo "--> Chạy profile core..."
   run "${COMPOSE[@]}" --profile core up -d --wait
   echo "--> Đồng bộ JWKS Keycloak sang PostgREST..."
