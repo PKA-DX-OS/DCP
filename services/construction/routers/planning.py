@@ -4,7 +4,10 @@
 """A-PLAN-03: API kiểm tra quy hoạch, thửa đất, vùng và kết quả."""
 
 import json
+import logging
 from typing import Any, Optional
+
+logger = logging.getLogger("dxos.construction.planning")
 
 from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -12,6 +15,7 @@ from pydantic import BaseModel, Field
 from dxos_core.audit import log_audit_event
 from dxos_core.db import get_db_connection
 from dxos_core.jwt import UserClaims, verify_jwt_token
+from dxos_core.lineage import record_lineage_event
 
 from construction.deps import la_can_bo, yeu_cau_can_bo, yeu_cau_kiem_tra
 from construction.rules.planning_engine import check_planning, overall_pass
@@ -339,6 +343,21 @@ async def kiem_tra_quy_hoach(body: CheckRequest, authorization: str = Header(...
                 ensure_ascii=False,
             ),
         )
+
+        if ho_so:
+            try:
+                await record_lineage_event(
+                    job="quy_hoach.kiem_tra",
+                    inputs=[{"name": "app_cap_phep.ho_so"}, {"name": "app_construction.thua_dat"}],
+                    outputs=[{"name": "app_construction.ket_qua_kiem_tra_quy_hoach"}],
+                    facets={
+                        "tenant": claims.tenant,
+                        "entity": {"type": "ho_so", "id": str(ho_so["id"])},
+                        "pass": passed,
+                    },
+                )
+            except Exception as e:
+                logger.warning(f"Lỗi ghi lineage: {e}", exc_info=True)
 
     await log_audit_event(
         tenant=claims.tenant,
