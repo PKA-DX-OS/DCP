@@ -66,6 +66,7 @@ Thumbs.db
 
 # Docker / Volumes local data
 data/
+!docs/data/
 volumes/
 *.db
 *.sqlite3

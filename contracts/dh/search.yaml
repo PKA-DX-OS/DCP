@@ -1,0 +1,116 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-360-02 Tìm kiếm toàn cục
+  version: 1.0.0
+  summary: Một ô tìm cho mã hồ sơ, CCCD, họ tên, điện thoại, địa chỉ, mã công trình, số giấy phép.
+  description: |
+    Dịch vụ `construction` phục vụ tại `/api/v1/search` (route `core/apisix/routes/dh.yaml`); bảng lệnh
+    `Ctrl/Cmd+K` của giao diện (H-WORK-03) gọi API này.
+
+    - Xếp hạng: khớp đúng > khớp đầu chuỗi > khớp gần đúng.
+    - CCCD: chỉ khớp khi nhập đủ 12 số; máy chủ tính HMAC rồi so `cccd_hmac`, không tìm theo một phần CCCD.
+    - Điện thoại: khớp khi nhập từ 9 số trở lên.
+    - Kết quả chỉ trong phường của người gọi; chủ đầu tư chỉ thấy hồ sơ của mình.
+    - Chuỗi tìm không ghi vào log ứng dụng; audit ghi `search.query` với độ dài chuỗi, không ghi nội dung.
+
+    Vai: mọi người dùng đã đăng nhập.
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearer: []
+
+tags:
+  - name: search
+
+paths:
+  /api/v1/search:
+    get:
+      tags: [search]
+      operationId: tim_kiem
+      summary: Tìm toàn cục, kết quả nhóm theo loại
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 100 }
+        - name: types
+          in: query
+          description: Giới hạn loại, cách nhau bởi dấu phẩy; bỏ trống là mọi loại
+          schema: { type: string, examples: ["ho_so,giay_phep"] }
+        - name: limit
+          in: query
+          description: Số kết quả tối đa mỗi nhóm
+          schema: { type: integer, minimum: 1, maximum: 20, default: 5 }
+      responses:
+        "200":
+          description: Kết quả theo nhóm; nhóm không có kết quả không trả về
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KetQuaTimKiem" }
+        "400":
+          description: Chuỗi tìm quá ngắn hoặc loại không hợp lệ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+    LoaiKetQua:
+      type: string
+      enum: [ho_so, chu_dau_tu, thua_dat, cong_trinh, giay_phep]
+
+    MucKetQua:
+      type: object
+      required: [type, id, nhan, phu, khop, diem, dossier_id]
+      properties:
+        type: { $ref: "#/components/schemas/LoaiKetQua" }
+        id: { type: string, format: uuid }
+        nhan: { type: string, description: "Dòng chính: mã hồ sơ, họ tên, số giấy phép..." }
+        phu: { type: [string, "null"], description: "Dòng phụ: trạng thái, CCCD che, địa chỉ rút gọn" }
+        khop: { type: string, enum: [exact, prefix, fuzzy] }
+        diem: { type: number, minimum: 0, maximum: 1 }
+        dossier_id:
+          type: [string, "null"]
+          format: uuid
+          description: Hồ sơ để mở khi chọn kết quả (null nếu thực thể chưa gắn hồ sơ nào)
+
+    NhomKetQua:
+      type: object
+      required: [type, total, items]
+      properties:
+        type: { $ref: "#/components/schemas/LoaiKetQua" }
+        total: { type: integer, minimum: 0 }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MucKetQua" }
+
+    KetQuaTimKiem:
+      type: object
+      required: [groups, took_ms]
+      properties:
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/NhomKetQua" }
+        took_ms: { type: integer, minimum: 0 }

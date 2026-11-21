@@ -1,0 +1,164 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-CAT-01 Danh mục dữ liệu và hợp đồng dữ liệu
+  version: 1.0.0
+  summary: Tài sản dữ liệu, chủ sở hữu, phân loại, thời hạn lưu trữ; hợp đồng dữ liệu theo phiên bản.
+  description: |
+    Dịch vụ `construction` phục vụ tại `/api/v1/catalog/*`; dữ liệu ở `core.data_assets`,
+    `core.data_owners`, `core.data_contracts` (`core/postgres/20-data-governance.sql`,
+    `23-catalog-lineage.sql`). Danh mục là dữ liệu cấp nền tảng, không chứa dữ liệu cá nhân.
+
+    Vai: `dx:auditor`, `dx:tenant-admin`, `dx:data-steward`, `dx:platform-admin` (chỉ đọc qua API;
+    danh mục khai báo bằng migration).
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearer: []
+
+tags:
+  - name: catalog
+
+paths:
+  /api/v1/catalog/assets:
+    get:
+      tags: [catalog]
+      operationId: ds_tai_san
+      summary: Danh sách tài sản dữ liệu
+      parameters:
+        - name: domain
+          in: query
+          schema: { type: string }
+        - name: classification
+          in: query
+          schema: { $ref: "#/components/schemas/PhanLoai" }
+        - name: owner
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tài sản, sắp theo miền rồi tên
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TaiSan" }
+
+  /api/v1/catalog/assets/{asset}:
+    get:
+      tags: [catalog]
+      operationId: lay_tai_san
+      summary: Chi tiết một tài sản kèm cột và phân loại từng cột
+      parameters:
+        - name: asset
+          in: path
+          required: true
+          description: Tên đầy đủ `schema.bảng`, ví dụ `app_cap_phep.ho_so`
+          schema: { type: string, pattern: "^[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*$" }
+      responses:
+        "200":
+          description: Tài sản
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaiSanChiTiet" }
+        "404":
+          description: Không có tài sản
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+
+  /api/v1/catalog/contracts:
+    get:
+      tags: [catalog]
+      operationId: ds_hop_dong_du_lieu
+      summary: Hợp đồng dữ liệu (schema, SLA, bên dùng) theo tài sản
+      parameters:
+        - name: asset
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Hợp đồng, phiên bản mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/HopDongDuLieu" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+    PhanLoai:
+      type: string
+      enum: [public, internal, pii, sensitive]
+
+    TaiSan:
+      type: object
+      required: [asset, domain, description, owner, steward, classification, retention, freshness_sla, last_updated, version]
+      properties:
+        asset: { type: string, description: "schema.bảng hoặc schema.view" }
+        domain: { type: string }
+        description: { type: string }
+        owner: { type: string, description: "Đơn vị chủ quản" }
+        steward: { type: [string, "null"], description: "Người/vai quản lý chất lượng" }
+        classification: { $ref: "#/components/schemas/PhanLoai" }
+        retention: { type: [string, "null"], description: "Thời hạn lưu trữ, ví dụ `vinh_vien`, `10_nam`" }
+        freshness_sla: { type: [string, "null"], description: "Độ tươi cam kết, ví dụ `realtime`, `1h`, `1d`" }
+        last_updated: { type: [string, "null"], format: date-time }
+        version: { type: string }
+        dq_score: { type: [number, "null"], minimum: 0, maximum: 100 }
+
+    TaiSanChiTiet:
+      allOf:
+        - $ref: "#/components/schemas/TaiSan"
+        - type: object
+          required: [columns]
+          properties:
+            columns:
+              type: array
+              items:
+                type: object
+                required: [name, type, classification]
+                properties:
+                  name: { type: string }
+                  type: { type: string }
+                  classification: { $ref: "#/components/schemas/PhanLoai" }
+                  description: { type: [string, "null"] }
+                  masked_in_api: { type: boolean }
+
+    HopDongDuLieu:
+      type: object
+      required: [asset, version, json_schema, sla, consumers, effective_from]
+      properties:
+        asset: { type: string }
+        version: { type: string }
+        json_schema: { type: object, description: "JSON Schema của bản ghi" }
+        sla:
+          type: object
+          properties:
+            freshness: { type: string }
+            availability_pct: { type: number }
+        consumers:
+          type: array
+          items: { type: string, description: "Dịch vụ hoặc màn hình dùng tài sản" }
+        effective_from: { type: string, format: date-time }

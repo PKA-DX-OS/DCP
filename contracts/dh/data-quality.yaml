@@ -1,0 +1,318 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-DQ Chất lượng dữ liệu
+  version: 1.0.0
+  summary: Điểm chất lượng theo miền, danh mục rule, vấn đề dữ liệu và vòng đời xử lý.
+  description: |
+    Dịch vụ `construction` phục vụ tại `/api/v1/data-quality/*`. Rule khai báo trong migration
+    `core/postgres/22-data-quality.sql` (không tạo/sửa rule qua API); `scripts/data_quality_worker.py`
+    chạy rule bằng vai chỉ đọc và ghi lần chạy, kết quả, vấn đề.
+
+    Vấn đề chỉ chứa `entity_type`, `entity_id`, `field`: không có giá trị của trường bị lỗi.
+
+    ## Vai
+
+    | Thao tác | Vai |
+    |---|---|
+    | Xem điểm, rule, vấn đề | cán bộ `app:cap-phep:*` (trừ chủ đầu tư), `dx:auditor`, `dx:tenant-admin`, `dx:data-steward` |
+    | Giao vấn đề | `app:cap-phep:lanh-dao`, `dx:tenant-admin`, `dx:data-steward` |
+    | Đóng, bỏ qua vấn đề | người được giao, `dx:tenant-admin`, `dx:data-steward` |
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearer: []
+
+tags:
+  - name: data-quality
+
+paths:
+  /api/v1/data-quality/summary:
+    get:
+      tags: [data-quality]
+      operationId: tong_quan_dq
+      summary: Điểm chất lượng của lần chạy gần nhất, theo miền dữ liệu
+      responses:
+        "200":
+          description: Tổng quan; `run_id` null khi chưa có lần chạy nào
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TongQuanDQ" }
+
+  /api/v1/data-quality/rules:
+    get:
+      tags: [data-quality]
+      operationId: ds_rule_dq
+      summary: Danh mục rule kèm kết quả lần chạy gần nhất
+      parameters:
+        - $ref: "#/components/parameters/Domain"
+        - $ref: "#/components/parameters/Severity"
+      responses:
+        "200":
+          description: Rule
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RuleDQ" }
+
+  /api/v1/data-quality/runs:
+    get:
+      tags: [data-quality]
+      operationId: ds_lan_chay_dq
+      summary: Các lần chạy gần nhất (dùng cho biểu đồ điểm theo thời gian)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+      responses:
+        "200":
+          description: Lần chạy, mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LanChay" }
+
+  /api/v1/data-quality/issues:
+    get:
+      tags: [data-quality]
+      operationId: ds_van_de_dq
+      summary: Vấn đề dữ liệu, lọc và phân trang
+      parameters:
+        - $ref: "#/components/parameters/Domain"
+        - $ref: "#/components/parameters/Severity"
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/TrangThaiVanDe" }
+        - name: rule_code
+          in: query
+          schema: { type: string }
+        - name: entity_type
+          in: query
+          schema: { type: string }
+        - name: entity_id
+          in: query
+          description: Lọc theo một hồ sơ/thực thể (panel 360 dùng để hiện cảnh báo)
+          schema: { type: string }
+        - name: assigned_to_me
+          in: query
+          schema: { type: boolean, default: false }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Một trang vấn đề, nghiêm trọng trước rồi mới nhất trước
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrangVanDe" }
+
+  /api/v1/data-quality/issues/{id}/assign:
+    post:
+      tags: [data-quality]
+      operationId: giao_van_de_dq
+      summary: Giao vấn đề cho người xử lý (chuyển sang in_progress)
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [assigned_to]
+              properties:
+                assigned_to: { type: string, description: "sub của người nhận, cùng phường" }
+                note: { type: string, maxLength: 1000 }
+      responses:
+        "200":
+          description: Vấn đề sau khi giao; người nhận có thông báo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VanDe" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/data-quality/issues/{id}/resolve:
+    post:
+      tags: [data-quality]
+      operationId: dong_van_de_dq
+      summary: Đóng vấn đề (đã sửa) hoặc bỏ qua (có lý do)
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status, note]
+              properties:
+                status: { type: string, enum: [resolved, ignored] }
+                note: { type: string, minLength: 3, maxLength: 1000 }
+      responses:
+        "200":
+          description: Vấn đề sau khi đóng; lần chạy sau vẫn lỗi thì vấn đề mở lại
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VanDe" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Domain:
+      name: domain
+      in: query
+      schema: { $ref: "#/components/schemas/MienDuLieu" }
+    Severity:
+      name: severity
+      in: query
+      schema: { $ref: "#/components/schemas/MucDo" }
+    IssueId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+
+  responses:
+    Loi:
+      description: Lỗi
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Loi" }
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+    MienDuLieu:
+      type: string
+      enum: [cong_dan, thua_dat, ho_so, giay_phep, cong_trinh, giay_to, kiem_tra, tai_chinh, audit]
+
+    MucDo:
+      type: string
+      enum: [info, warn, critical]
+
+    ChieuDQ:
+      type: string
+      enum: [completeness, validity, uniqueness, consistency, timeliness, referential, security]
+
+    TrangThaiVanDe:
+      type: string
+      enum: [open, in_progress, resolved, ignored]
+
+    DiemMien:
+      type: object
+      required: [domain, score, rules, failed_rules, open_issues]
+      properties:
+        domain: { $ref: "#/components/schemas/MienDuLieu" }
+        score: { type: [number, "null"], minimum: 0, maximum: 100 }
+        rules: { type: integer, minimum: 0 }
+        failed_rules: { type: integer, minimum: 0 }
+        open_issues: { type: integer, minimum: 0 }
+
+    TongQuanDQ:
+      type: object
+      required: [run_id, computed_at, overall_score, domains]
+      properties:
+        run_id: { type: [string, "null"], format: uuid }
+        computed_at: { type: [string, "null"], format: date-time }
+        overall_score: { type: [number, "null"], minimum: 0, maximum: 100 }
+        domains:
+          type: array
+          items: { $ref: "#/components/schemas/DiemMien" }
+
+    RuleDQ:
+      type: object
+      required: [code, domain, dimension, severity, description, owner, enabled, last_result]
+      properties:
+        code: { type: string, pattern: "^DQ-[A-Z]+-[0-9]{2}$" }
+        domain: { $ref: "#/components/schemas/MienDuLieu" }
+        dimension: { $ref: "#/components/schemas/ChieuDQ" }
+        severity: { $ref: "#/components/schemas/MucDo" }
+        description: { type: string }
+        owner: { type: string, description: "Đơn vị/vai chịu trách nhiệm dữ liệu" }
+        enabled: { type: boolean }
+        last_result:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [total, failed, score]
+              properties:
+                total: { type: integer, minimum: 0 }
+                failed: { type: integer, minimum: 0 }
+                score: { type: number, minimum: 0, maximum: 100 }
+
+    LanChay:
+      type: object
+      required: [id, started_at, finished_at, status, overall_score]
+      properties:
+        id: { type: string, format: uuid }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        status: { type: string, enum: [running, succeeded, partial, failed] }
+        overall_score: { type: [number, "null"], minimum: 0, maximum: 100 }
+        rule_errors: { type: integer, minimum: 0, description: "Rule lỗi khi chạy (không tính vào điểm)" }
+
+    VanDe:
+      type: object
+      required: [id, rule_code, domain, entity_type, entity_id, field, severity, status, assigned_to, note, created_at, resolved_at]
+      properties:
+        id: { type: string, format: uuid }
+        rule_code: { type: string }
+        domain: { $ref: "#/components/schemas/MienDuLieu" }
+        entity_type: { type: string }
+        entity_id: { type: string }
+        field: { type: [string, "null"] }
+        severity: { $ref: "#/components/schemas/MucDo" }
+        status: { $ref: "#/components/schemas/TrangThaiVanDe" }
+        assigned_to: { type: [string, "null"] }
+        note: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        resolved_at: { type: [string, "null"], format: date-time }
+        dossier_id: { type: [string, "null"], format: uuid, description: "Hồ sơ liên quan để mở từ bảng vấn đề" }
+
+    TrangVanDe:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/VanDe" }
+        page: { type: integer, minimum: 1 }
+        page_size: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }

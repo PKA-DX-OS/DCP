@@ -1,0 +1,40 @@
+{
+  "tim_kiem": {
+    "status": 200,
+    "body": {
+      "took_ms": 12,
+      "groups": [
+        {
+          "type": "ho_so",
+          "total": 1,
+          "items": [
+            {
+              "type": "ho_so",
+              "id": "00000000-0000-4000-8000-000000000101",
+              "nhan": "CP-MAU-000001",
+              "phu": "Đã cấp phép · Chủ đầu tư Mẫu A",
+              "khop": "exact",
+              "diem": 1.0,
+              "dossier_id": "00000000-0000-4000-8000-000000000101"
+            }
+          ]
+        },
+        {
+          "type": "giay_phep",
+          "total": 1,
+          "items": [
+            {
+              "type": "giay_phep",
+              "id": "00000000-0000-4000-8000-000000000501",
+              "nhan": "MAU-001/2026",
+              "phu": "Hiệu lực",
+              "khop": "prefix",
+              "diem": 0.8,
+              "dossier_id": "00000000-0000-4000-8000-000000000101"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

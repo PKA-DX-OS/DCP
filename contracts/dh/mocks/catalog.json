@@ -1,0 +1,136 @@
+{
+  "ds_tai_san": {
+    "status": 200,
+    "body": [
+      {
+        "asset": "app_cap_phep.ho_so",
+        "domain": "ho_so",
+        "description": "Hồ sơ đề nghị cấp phép",
+        "owner": "UBND phường",
+        "steward": "dx:data-steward",
+        "classification": "pii",
+        "retention": "10_nam",
+        "freshness_sla": "realtime",
+        "last_updated": "2026-11-20T09:00:00+07:00",
+        "version": "1",
+        "dq_score": null
+      },
+      {
+        "asset": "app_cap_phep.giay_phep",
+        "domain": "giay_phep",
+        "description": "Giấy phép xây dựng đã cấp",
+        "owner": "UBND phường",
+        "steward": "dx:data-steward",
+        "classification": "internal",
+        "retention": "vinh_vien",
+        "freshness_sla": "realtime",
+        "last_updated": "2026-11-20T09:00:00+07:00",
+        "version": "1",
+        "dq_score": null
+      },
+      {
+        "asset": "core.files",
+        "domain": "giay_to",
+        "description": "Tệp đính kèm (metadata)",
+        "owner": "UBND phường",
+        "steward": "dx:data-steward",
+        "classification": "pii",
+        "retention": "10_nam",
+        "freshness_sla": "realtime",
+        "last_updated": "2026-11-20T09:00:00+07:00",
+        "version": "1",
+        "dq_score": null
+      },
+      {
+        "asset": "core.audit_log",
+        "domain": "audit",
+        "description": "Nhật ký kiểm toán chuỗi băm",
+        "owner": "UBND phường",
+        "steward": "dx:data-steward",
+        "classification": "sensitive",
+        "retention": "vinh_vien",
+        "freshness_sla": "realtime",
+        "last_updated": "2026-11-20T09:00:00+07:00",
+        "version": "1",
+        "dq_score": null
+      },
+      {
+        "asset": "app_construction.moc_nghiem_thu",
+        "domain": "kiem_tra",
+        "description": "Mốc nghiệm thu công trình",
+        "owner": "UBND phường",
+        "steward": "dx:data-steward",
+        "classification": "internal",
+        "retention": "10_nam",
+        "freshness_sla": "1h",
+        "last_updated": "2026-11-20T09:00:00+07:00",
+        "version": "1",
+        "dq_score": null
+      }
+    ]
+  },
+  "lay_tai_san": {
+    "status": 200,
+    "body": {
+      "asset": "app_cap_phep.ho_so",
+      "domain": "ho_so",
+      "description": "Hồ sơ đề nghị cấp phép",
+      "owner": "UBND phường",
+      "steward": "dx:data-steward",
+      "classification": "pii",
+      "retention": "10_nam",
+      "freshness_sla": "realtime",
+      "last_updated": "2026-11-20T09:00:00+07:00",
+      "version": "1",
+      "dq_score": null,
+      "columns": [
+        {
+          "name": "ma_ho_so",
+          "type": "text",
+          "classification": "internal",
+          "description": "Mã hồ sơ",
+          "masked_in_api": false
+        },
+        {
+          "name": "cccd",
+          "type": "text",
+          "classification": "pii",
+          "description": "Số CCCD chủ đầu tư",
+          "masked_in_api": true
+        },
+        {
+          "name": "dien_thoai",
+          "type": "text",
+          "classification": "pii",
+          "description": null,
+          "masked_in_api": true
+        }
+      ]
+    }
+  },
+  "ds_hop_dong_du_lieu": {
+    "status": 200,
+    "body": [
+      {
+        "asset": "app_cap_phep.ho_so",
+        "version": "1",
+        "json_schema": {
+          "type": "object",
+          "required": [
+            "ma_ho_so",
+            "trang_thai"
+          ]
+        },
+        "sla": {
+          "freshness": "realtime",
+          "availability_pct": 99.0
+        },
+        "consumers": [
+          "bang-dieu-hanh",
+          "metrics-api"
+        ],
+        "effective_from": "2026-11-20T00:00:00+07:00"
+      }
+    ]
+  }
+}

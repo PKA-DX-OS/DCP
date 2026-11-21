@@ -1,0 +1,117 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-MART Chỉ số hiệu quả vận hành (H)
+  version: 1.0.0
+  summary: Chỉ số thao tác thủ công, chuyển tay, làm lại, thời gian xử lý, tự phục vụ; so với mốc v1.1.
+  description: |
+    Dịch vụ `construction` phục vụ tại `/api/v1/automation/metrics`, đọc các mart (D-MART) tính từ
+    `core.audit_log`, `app_cap_phep.ho_so_lich_su`, `app_cap_phep.ho_so` theo cùng định nghĩa với
+    `scripts/dh_baseline.py`. Mốc (`baseline`) là số đo trên v1.1, lưu khi chạy `dh_baseline.py`;
+    không có mốc thì `baseline` và `delta_pct` là null. Không có chỉ số nào nhập tay.
+
+    Vai: `app:cap-phep:lanh-dao`, `dx:tenant-admin`, `dx:auditor`.
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearer: []
+
+tags:
+  - name: automation
+
+paths:
+  /api/v1/automation/metrics:
+    get:
+      tags: [automation]
+      operationId: chi_so_hieu_qua
+      summary: Chỉ số H trong một khoảng thời gian, kèm mốc
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Chỉ số; thiếu dữ liệu thì `current` là null, không bịa số
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChiSoHieuQua" }
+        "400":
+          description: Khoảng thời gian sai
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+        "403":
+          description: Sai vai
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+    KhoaChiSo:
+      type: string
+      enum:
+        - thao_tac_thu_cong_tb
+        - chuyen_tay_tb
+        - ty_le_ho_so_phai_bo_sung_pct
+        - thoi_gian_xu_ly_tb_ngay_lam_viec
+        - ty_le_ky_dung_han_pct
+        - ty_le_tu_phuc_vu_pct
+        - trich_xuat_tu_dong
+
+    ChiSo:
+      type: object
+      required: [key, label, unit, better, baseline, current, delta_pct, source]
+      properties:
+        key: { $ref: "#/components/schemas/KhoaChiSo" }
+        label: { type: string }
+        unit: { type: string, examples: ["", "%", "ngày làm việc"] }
+        better: { type: string, enum: [lower, higher], description: "Chiều tốt lên" }
+        baseline: { type: [number, "null"] }
+        current: { type: [number, "null"] }
+        delta_pct: { type: [number, "null"], description: "(current − baseline) / baseline × 100" }
+        source: { type: string, description: "Bảng/view nguồn" }
+
+    ChiSoHieuQua:
+      type: object
+      required: [computed_at, period, baseline_label, so_ho_so, metrics]
+      properties:
+        computed_at: { type: string, format: date-time }
+        period:
+          type: object
+          required: [from, to]
+          properties:
+            from: { type: [string, "null"], format: date }
+            to: { type: [string, "null"], format: date }
+        baseline_label: { type: [string, "null"], examples: [v1.1] }
+        so_ho_so: { type: integer, minimum: 0 }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/ChiSo" }
+        ghi_chu:
+          type: array
+          items: { type: string }

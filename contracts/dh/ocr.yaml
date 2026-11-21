@@ -1,0 +1,278 @@
+# SPDX-FileCopyrightText: 2026 DX-OS Open-Core contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+openapi: 3.1.0
+info:
+  title: DX-OS — D-OCR Trích xuất giấy tờ (có người duyệt)
+  version: 1.0.0
+  summary: Gửi tệp đã quét virus để trích xuất trường; cán bộ duyệt, sửa, xác nhận hoặc từ chối.
+  description: |
+    Dịch vụ `ocr` (bật bằng `DH_OCR`, mặc định tắt) phục vụ tại `/api/v1/ocr/*`. Kết quả ở
+    `app_cap_phep.ocr_extractions`. Pipeline: tệp sạch trong `files` → Tesseract `vie` → tách trường →
+    độ tin cậy → hàng chờ duyệt. Không có bước nào tự ghi kết quả vào hồ sơ: chỉ sau `confirm` thì
+    giao diện mới dùng các trường để điền sẵn (H-AUTO-01), và người dùng vẫn phải lưu.
+
+    Giá trị trường là dữ liệu cá nhân: chỉ trả cho người có quyền với hồ sơ chứa tệp; mỗi lần đọc
+    chi tiết ghi audit `ocr.read`.
+
+    ## Vai
+
+    | Thao tác | Vai |
+    |---|---|
+    | Gửi trích xuất | chủ hồ sơ, `app:cap-phep:mot-cua`, `app:cap-phep:tham-dinh` |
+    | Xem hàng chờ, xác nhận, từ chối | `app:cap-phep:mot-cua`, `app:cap-phep:tham-dinh`, `app:cap-phep:lanh-dao` |
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearer: []
+
+tags:
+  - name: ocr
+
+paths:
+  /api/v1/ocr/extract:
+    post:
+      tags: [ocr]
+      operationId: gui_trich_xuat
+      summary: Gửi một tệp để trích xuất (xử lý nền)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file_id, doc_type]
+              properties:
+                file_id: { type: string, format: uuid, description: "Tệp trạng thái clean trong dịch vụ files" }
+                doc_type: { $ref: "#/components/schemas/LoaiGiayTo" }
+      responses:
+        "202":
+          description: Đã nhận, đang chờ xử lý
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrichXuat" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409":
+          description: Tệp chưa quét xong hoặc bị nhiễm
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+        "503":
+          description: OCR đang tắt (`DH_OCR=false`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loi" }
+
+  /api/v1/ocr:
+    get:
+      tags: [ocr]
+      operationId: hang_cho_trich_xuat
+      summary: Hàng chờ duyệt, lọc theo trạng thái và độ tin cậy
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/TrangThaiTrichXuat" }
+        - name: doc_type
+          in: query
+          schema: { $ref: "#/components/schemas/LoaiGiayTo" }
+        - name: max_confidence
+          in: query
+          description: Chỉ lấy trích xuất có độ tin cậy không quá mức này (ưu tiên duyệt cái kém)
+          schema: { type: number, minimum: 0, maximum: 1 }
+        - name: dossier_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Một trang, cũ nhất trước; danh sách không kèm giá trị trường
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrangTrichXuat" }
+
+  /api/v1/ocr/{id}:
+    get:
+      tags: [ocr]
+      operationId: lay_trich_xuat
+      summary: Chi tiết một trích xuất kèm các trường
+      parameters:
+        - $ref: "#/components/parameters/ExtractionId"
+      responses:
+        "200":
+          description: Trích xuất
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrichXuat" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/ocr/{id}/confirm:
+    post:
+      tags: [ocr]
+      operationId: xac_nhan_trich_xuat
+      summary: Cán bộ xác nhận (có thể sửa giá trị trường)
+      parameters:
+        - $ref: "#/components/parameters/ExtractionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [fields]
+              properties:
+                fields:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [name, value]
+                    properties:
+                      name: { type: string }
+                      value: { type: [string, "null"] }
+      responses:
+        "200":
+          description: Đã xác nhận; trường đã sửa có `edited = true`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrichXuat" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/ocr/{id}/reject:
+    post:
+      tags: [ocr]
+      operationId: tu_choi_trich_xuat
+      summary: Từ chối trích xuất (ảnh mờ, sai loại giấy tờ...)
+      parameters:
+        - $ref: "#/components/parameters/ExtractionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        "200":
+          description: Đã từ chối
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrichXuat" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "409": { $ref: "#/components/responses/Loi" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ExtractionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+
+  responses:
+    Loi:
+      description: Lỗi
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Loi" }
+
+  schemas:
+    Loi:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+    LoaiGiayTo:
+      type: string
+      description: Ba loại giấy tờ của giai đoạn đầu
+      enum: [cccd, giay_chung_nhan_qsdd, don_de_nghi_cap_phep]
+
+    TrangThaiTrichXuat:
+      type: string
+      enum: [queued, processing, needs_review, confirmed, rejected, failed]
+
+    TruongTrichXuat:
+      type: object
+      required: [name, value, confidence]
+      properties:
+        name: { type: string, examples: [ho_ten, so_cccd, so_thua, to_ban_do, dien_tich_m2] }
+        value: { type: [string, "null"] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        page: { type: integer, minimum: 1 }
+        bbox:
+          type: [array, "null"]
+          description: "[x, y, rộng, cao] theo tỷ lệ 0–1 của trang, để tô vùng trên ảnh"
+          minItems: 4
+          maxItems: 4
+          items: { type: number, minimum: 0, maximum: 1 }
+        edited: { type: boolean }
+
+    TrichXuatTomTat:
+      type: object
+      required: [id, file_id, dossier_id, doc_type, status, confidence, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        file_id: { type: string, format: uuid }
+        dossier_id: { type: [string, "null"], format: uuid }
+        doc_type: { $ref: "#/components/schemas/LoaiGiayTo" }
+        status: { $ref: "#/components/schemas/TrangThaiTrichXuat" }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        created_at: { type: string, format: date-time }
+
+    TrichXuat:
+      allOf:
+        - $ref: "#/components/schemas/TrichXuatTomTat"
+        - type: object
+          required: [fields, reviewed_by, reviewed_at, reject_reason]
+          properties:
+            fields:
+              type: array
+              items: { $ref: "#/components/schemas/TruongTrichXuat" }
+            reviewed_by: { type: [string, "null"] }
+            reviewed_at: { type: [string, "null"], format: date-time }
+            reject_reason: { type: [string, "null"] }
+            error: { type: [string, "null"], description: "Lý do khi status = failed" }
+
+    TrangTrichXuat:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/TrichXuatTomTat" }
+        page: { type: integer, minimum: 1 }
+        page_size: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
