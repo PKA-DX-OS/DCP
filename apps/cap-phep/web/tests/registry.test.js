@@ -13,8 +13,8 @@ describe("tab theo vai", () => {
     [[CDT], ["ho-so", "du-lieu"]],
     [["app:cap-phep:mot-cua"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat"]],
     [["app:cap-phep:tham-dinh"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat"]],
-    [["app:cap-phep:trat-tu-xd"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
-    [["app:cap-phep:lanh-dao"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat", "truy-cap-khan"]],
+    [["app:cap-phep:trat-tu-xd"], ["ban-lam-viec", "hien-truong", "cong-trinh", "phap-luat"]],
+    [["app:cap-phep:lanh-dao"], ["ban-lam-viec", "duyet-ocr", "hien-truong", "cong-trinh", "phap-luat", "truy-cap-khan"]],
     [[], []],
     [["dx:auditor"], []],
   ])("%j -> %j", (vai, kq) => {
