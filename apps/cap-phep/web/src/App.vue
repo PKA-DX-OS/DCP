@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { getUser, getValidToken, handleCallbackIfNeeded, login, logout, readRoles, readTenant } from "./auth";
 import { useNotifications } from "./composables/useNotifications";
 import { useCongDan } from "./composables/useCongDan";
@@ -13,11 +13,14 @@ import LogoMark from "./components/LogoMark.vue";
 import ToastHost from "./components/ToastHost.vue";
 import { APP_VERSION, SOURCE_URL } from "./config";
 import { tenDonVi } from "./utils/labels";
+import { khoaBanNhap } from "./utils/nop-ho-so";
 import CreateDossierModal from "./components/CreateDossierModal.vue";
 import DetailDossierModal from "./components/DetailDossierModal.vue";
 import SupplementModal from "./components/SupplementModal.vue";
 import Forbidden403Modal from "./components/Forbidden403Modal.vue";
 import BreakGlassModal from "./components/BreakGlassModal.vue";
+import GlobalSearch from "./components/GlobalSearch.vue";
+import HelpDrawer from "./components/HelpDrawer.vue";
 import { tabsChoVai } from "./features/registry";
 import { provideFeatureContext } from "./features/context";
 import { laCanBo as coVaiCanBo, laChuDauTu as coVaiChuDauTu } from "./features/roles";
@@ -67,6 +70,8 @@ const hoSoChiTiet = ref<HoSo | null>(null);
 const hoSoBoSung = ref<HoSo | null>(null);
 const biChan = ref<{ id: string; ma: string } | null>(null);
 const xinKhan = ref<{ id: string; ma: string } | null>(null);
+const moTimKiem = ref(false);
+const moTroGiup = ref(false);
 
 async function moNopHoSo(): Promise<void> {
   moNop.value = true;
@@ -94,6 +99,45 @@ async function moHoSo(idHoacMa: string, ma = ""): Promise<void> {
 function moBoSung(d: HoSo): void {
   hoSoChiTiet.value = null;
   hoSoBoSung.value = d;
+}
+
+async function moHoSoTuTimKiem(id: string): Promise<void> {
+  moTimKiem.value = false;
+  // Đóng hộp thoại cũ trước để các panel (360, cảnh báo, nhật ký) nạp lại theo hồ sơ mới.
+  hoSoChiTiet.value = null;
+  await nextTick();
+  await moHoSo(id);
+}
+
+async function moHoSoTuNopMoi(id: string, ma: string): Promise<void> {
+  moNop.value = false;
+  await nextTick();
+  await moHoSo(id, ma);
+}
+
+/** Đăng xuất thì xóa bản nháp nộp hồ sơ của chính người dùng trên tab này. */
+function dangXuat(): void {
+  if (subNguoiDung.value) {
+    try {
+      sessionStorage.removeItem(khoaBanNhap(subNguoiDung.value));
+    } catch {
+      /* trình duyệt chặn storage: bỏ qua */
+    }
+  }
+  logout();
+}
+
+function onPhimTat(e: KeyboardEvent): void {
+  if (trang.value !== "ok") return;
+  if (e.key === "F1") {
+    e.preventDefault();
+    moTroGiup.value = true;
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    moTimKiem.value = !moTimKiem.value;
+  }
 }
 
 function chuyenSangXinKhan(): void {
@@ -131,6 +175,9 @@ onMounted(async () => {
   thongBao.batDau();
   if (laChuDauTu.value) await cd.taiHoSo();
 });
+
+onMounted(() => document.addEventListener("keydown", onPhimTat));
+onUnmounted(() => document.removeEventListener("keydown", onPhimTat));
 </script>
 
 <template>
@@ -153,7 +200,9 @@ onMounted(async () => {
       @chuyen-tab="(ma: string) => (tab = ma)"
       @da-doc="thongBao.danhDauDaDoc()"
       @doc-mot="thongBao.danhDauMot"
-      @dang-xuat="logout()"
+      @mo-tim-kiem="moTimKiem = true"
+      @mo-tro-giup="moTroGiup = true"
+      @dang-xuat="dangXuat()"
       @dang-nhap="login()"
     />
 
@@ -199,7 +248,7 @@ onMounted(async () => {
         <p v-if="coBangDieuHanh" class="mt-2 text-phu">Vai của bạn làm việc trên bảng điều hành (chỉ số, kiểm toán, quản trị).</p>
         <div class="mt-4 flex flex-wrap gap-2">
           <a v-if="coBangDieuHanh" class="btn btn-chinh" href="/dieu-hanh/">Mở bảng điều hành</a>
-          <button class="btn" @click="logout()">Đăng xuất</button>
+          <button class="btn" @click="dangXuat()">Đăng xuất</button>
         </div>
       </section>
     </main>
@@ -220,8 +269,12 @@ onMounted(async () => {
     :requirements="cd.requirements.value"
     :errors="cd.docErrors.value"
     :loading-requirements="cd.dangTaiGiayTo.value"
+    :dossiers="cd.dossiers.value"
+    :ten-nguoi-dung="tenNguoiDung"
+    :nguoi-dung-id="subNguoiDung"
     @close="moNop = false"
     @submit="nopHoSo"
+    @mo-ho-so="moHoSoTuNopMoi"
   />
   <DetailDossierModal
     v-if="hoSoChiTiet"
@@ -251,4 +304,11 @@ onMounted(async () => {
     @close="xinKhan = null"
     @confirm="guiXinKhan"
   />
+  <GlobalSearch
+    v-if="moTimKiem"
+    :token="accessToken || ''"
+    @close="moTimKiem = false"
+    @mo-ho-so="moHoSoTuTimKiem"
+  />
+  <HelpDrawer v-if="moTroGiup" @close="moTroGiup = false" />
 </template>

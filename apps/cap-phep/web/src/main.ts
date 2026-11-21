@@ -20,3 +20,12 @@ if (DEMO_DS && new URLSearchParams(window.location.search).get("tab") === "desig
 } else {
   createApp(App).mount("#app");
 }
+
+// PWA: chỉ đăng ký ở bản build để không giữ cache cũ khi phát triển.
+if (!import.meta.env.DEV && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((err) => {
+      console.warn("Không đăng ký được service worker:", err);
+    });
+  });
+}
