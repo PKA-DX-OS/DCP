@@ -8,13 +8,13 @@ import { DOSSIER_TABS, FEATURES, dossierTabsChoVai, maTrung, tabsChoVai } from "
 const ma = (ds) => ds.map((f) => f.ma);
 const CDT = "app:cap-phep:chu-dau-tu";
 
-describe("tab theo vai (giữ nguyên như trước khi có registry)", () => {
+describe("tab theo vai", () => {
   test.each([
     [[CDT], ["ho-so", "du-lieu"]],
-    [["app:cap-phep:mot-cua"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
-    [["app:cap-phep:tham-dinh"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
+    [["app:cap-phep:mot-cua"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat"]],
+    [["app:cap-phep:tham-dinh"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat"]],
     [["app:cap-phep:trat-tu-xd"], ["ban-lam-viec", "cong-trinh", "phap-luat"]],
-    [["app:cap-phep:lanh-dao"], ["ban-lam-viec", "cong-trinh", "phap-luat", "truy-cap-khan"]],
+    [["app:cap-phep:lanh-dao"], ["ban-lam-viec", "duyet-ocr", "cong-trinh", "phap-luat", "truy-cap-khan"]],
     [[], []],
     [["dx:auditor"], []],
   ])("%j -> %j", (vai, kq) => {
