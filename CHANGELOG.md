@@ -12,6 +12,9 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 
 ## [Chưa phát hành]
 
+### Đã thêm (Added)
+- **Kế hoạch D & H (D-P0-01):** `docs/data/ke-hoach-dh.md` bản chỉnh sau rà soát v1.1 và `OWNERSHIP.md` chia quyền sở hữu tệp giữa Track D và Track H.
+
 ---
 
 ## [1.1] - 2026-11-20
