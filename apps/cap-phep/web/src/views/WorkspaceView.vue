@@ -10,6 +10,7 @@ import { useDossierActions, type NguoiDung } from "../composables/useDossierActi
 import { notify } from "../composables/useToast";
 import { EmptyState, Skeleton } from "../design-system";
 import DossierActionBar from "../components/DossierActionBar.vue";
+import WorkflowAssistantPanel from "../components/workflow/WorkflowAssistantPanel.vue";
 import { formatStatus } from "../utils/formatters";
 import { cheCccd, ngayLamViecDaQua, tenBuoc, tenHanhDong } from "../utils/labels";
 import {
@@ -481,6 +482,11 @@ async function sauKhiXuLy(d: any): Promise<void> {
   await taiChiTiet();
 }
 
+async function sauKhiPhanCong(): Promise<void> {
+  await taiViec();
+  if (selectedTask.value) await taiChiTiet();
+}
+
 const STEPS = [
   { key: "tiep_nhan", label: "Tiếp nhận", days: 3 },
   { key: "phan_cong", label: "Phân công", days: 2 },
@@ -921,6 +927,14 @@ defineExpose({ taiViec });
             @done="sauKhiXuLy"
           />
           <p v-else class="mt-4 text-[12.5px] text-vang">Chưa có phiên đăng nhập hợp lệ.</p>
+          <WorkflowAssistantPanel
+            v-if="accessToken && selectedTask && selectedDossier"
+            :task="selectedTask"
+            :dossier="selectedDossier"
+            :token="accessToken"
+            :la-quan-ly="laQuanLy"
+            @assigned="sauKhiPhanCong"
+          />
           <div class="mt-4 rounded-[16px] border border-vien-nhat bg-mat-2 p-3 text-[12.5px] text-phu">
             <p class="m-0 font-semibold text-chu">Gợi ý</p>
             <p class="m-0 mt-1">Dùng cột giữa để kiểm tra hồ sơ, tệp đính kèm và lịch sử trước khi ra quyết định.</p>

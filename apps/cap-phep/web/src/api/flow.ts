@@ -77,6 +77,23 @@ export async function remindTask(token: string, taskId: string, message = ""): P
   );
 }
 
+export interface WorkloadItem {
+  user_sub: string;
+  ho_ten?: string | null;
+  so_ho_so_duoc_giao: number;
+  dang_xu_ly: number;
+}
+
+/** Tải việc theo cán bộ để gợi ý phân công. */
+export async function fetchWorkload(token: string): Promise<WorkloadItem[]> {
+  const data = await apiJson<{ items?: WorkloadItem[] }>(
+    "/metrics/workload",
+    { token, timeoutMs: 8_000, retries: 0 },
+    "Lỗi tải tải việc cán bộ",
+  );
+  return data?.items || [];
+}
+
 export async function fetchEscalations(token: string, windowHours = 24): Promise<any> {
   return apiJson<any>(
     `/flow/escalations?window_hours=${windowHours}`,
