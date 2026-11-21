@@ -47,6 +47,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Ngưỡng liên quan của trợ lý (FIX-V11-21):** câu hỏi có âm tiết nội dung không xuất hiện trong kho tri thức (ví dụ "kết hôn", "căn cước", "mật độ") trả "không tìm thấy căn cứ" thay vì ghép đoạn trùng cụm chung như "giấy tờ", "thời hạn".
 - **Hạn hậu kiểm (FIX-V11-22):** phiếu kiểm tra có cột `han_xu_ly_at` (2 ngày từ lúc lập, tự điền khi lập phiếu, điền lại cho phiếu cũ; migration 22); việc kiểm tra hiện trường (P2D) và khắc phục vi phạm (P7D) có SLA nên hiện hạn trong hàng đợi.
 - **Quy mô trên giấy phép (FIX-V11-23):** văn bản ký và bảng `giay_phep` (cột mới `so_tang`, `dien_tich_san_m2`, `nguon_quy_mo`) dùng quy mô của lần kiểm tra quy hoạch đạt gần nhất, chưa có thì quy mô hồ sơ (migration 23); giấy phép cũ ghi theo quy mô hồ sơ.
+- **Tỷ lệ đúng hạn theo ngày cấp (FIX-V11-25):** `/api/v1/metrics/on-time` tính tỷ lệ cấp phép đúng hạn theo ngày cấp của giấy phép (`giay_phep.ngay_cap <= ho_so.han_tong_at`) và nhóm theo tháng của ngày cấp (giờ Việt Nam), khớp định nghĩa với thẻ chỉ số điều hành thay vì dùng `ho_so.updated_at`.
 
 ---
 
