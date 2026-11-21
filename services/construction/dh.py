@@ -39,6 +39,8 @@ VAI_GOP = VAI_QUAN_TRI_DU_LIEU
 VAI_DANH_MUC = ("dx:auditor",) + VAI_QUAN_TRI_DU_LIEU
 VAI_GIAO_DQ = ("app:cap-phep:lanh-dao",) + VAI_QUAN_TRI_DU_LIEU
 VAI_CHI_SO_H = ("app:cap-phep:lanh-dao", "dx:tenant-admin", "dx:auditor")
+VAI_DSAR_XU_LY = ("dx:tenant-admin", "dx:data-steward", "app:cap-phep:lanh-dao", "dx:platform-admin")
+VAI_DSAR_XUAT = VAI_CAN_BO + VAI_QUAN_TRI_DU_LIEU + ("dx:auditor",)
 VAI_CHU_DAU_TU = "app:cap-phep:chu-dau-tu"
 QUAN_TRI_NEN_TANG = "dx:platform-admin"
 

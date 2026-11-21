@@ -199,6 +199,50 @@ paths:
         "403": { $ref: "#/components/responses/Loi" }
         "409": { $ref: "#/components/responses/Loi" }
 
+  /api/v1/mdm/dsar/export:
+    get:
+      tags: [mdm]
+      operationId: dsar_xuat_mdm
+      summary: Xuất dữ liệu cá nhân trong dữ liệu chủ phục vụ DSAR
+      parameters:
+        - name: subject_sub
+          in: query
+          required: false
+          schema: { type: string }
+        - name: cccd
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Dữ liệu cá nhân MDM đã xuất (không chứa HMAC thô)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DsarMdmExport" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
+  /api/v1/mdm/dsar/erase:
+    post:
+      tags: [mdm]
+      operationId: dsar_xoa_mdm
+      summary: Xóa hoặc ẩn danh dữ liệu MDM theo chính sách lưu trữ
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XoaDsarMdm" }
+      responses:
+        "200":
+          description: Kết quả xử lý xóa/ẩn danh dữ liệu MDM
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KetQuaXoaDsarMdm" }
+        "403": { $ref: "#/components/responses/Loi" }
+        "404": { $ref: "#/components/responses/Loi" }
+
 components:
   securitySchemes:
     bearer:
@@ -459,3 +503,64 @@ components:
           items: { type: string, format: uuid }
         trang_thai: { type: string, enum: [da_gop, da_hoan_tac] }
         thuc_hien_luc: { type: string, format: date-time }
+
+    DsarMdmExport:
+      type: object
+      required: [tenant, subject, dossier_links, external_refs]
+      properties:
+        tenant: { type: string }
+        subject:
+          type: [object, "null"]
+          properties:
+            subject_id: { type: string, format: uuid }
+            source_system: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+        dossier_links:
+          type: array
+          items:
+            type: object
+            required: [link_id, dossier_id]
+            properties:
+              link_id: { type: string, format: uuid }
+              dossier_id: { type: string, format: uuid }
+              parcel_id: { type: [string, "null"], format: uuid }
+              construction_id: { type: [string, "null"], format: uuid }
+              permit_id: { type: [string, "null"], format: uuid }
+              created_at: { type: string, format: date-time }
+              parcel: { type: [object, "null"] }
+              construction: { type: [object, "null"] }
+        external_refs:
+          type: array
+          items:
+            type: object
+            required: [ref_id, entity_type, entity_id, system, external_id]
+            properties:
+              ref_id: { type: string, format: uuid }
+              entity_type: { type: string }
+              entity_id: { type: string, format: uuid }
+              system: { type: string }
+              external_id: { type: string }
+              confidence: { $ref: "#/components/schemas/DoTinCay" }
+              created_at: { type: string, format: date-time }
+
+    XoaDsarMdm:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        subject_sub: { type: string }
+        so_dinh_danh: { type: string }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    KetQuaXoaDsarMdm:
+      type: object
+      required: [status, subject_id, anonymized, deleted_external_refs, retained_dossier_links, reason, erased_at]
+      properties:
+        status: { type: string, enum: [success, not_found] }
+        subject_id: { type: string, format: uuid }
+        anonymized: { type: boolean }
+        deleted_external_refs: { type: integer, minimum: 0 }
+        retained_dossier_links: { type: integer, minimum: 0 }
+        reason: { type: string }
+        erased_at: { type: string, format: date-time }
