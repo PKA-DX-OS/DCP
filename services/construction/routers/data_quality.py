@@ -206,21 +206,31 @@ async def giao_van_de(issue_id: str, body: GiaoVanDe, authorization: str = Heade
     khoa = kiem_khoa_idempotency(idempotency_key)
 
     thong_bao = []
+    assignee_info = {}
     async with get_db_connection(claims) as conn:
         async def lam():
             iid, r = await _lay_van_de(conn, issue_id)
             if r["status"] in ("resolved", "ignored"):
                 raise LoiDH(409, "DQ_ISSUE_CLOSED", "Vấn đề đã đóng")
-            cung_phuong = await conn.fetchval(
-                "SELECT EXISTS (SELECT 1 FROM core.users_directory WHERE id::text = $1 AND tenant = core.jwt_tenant() AND active)",
+            nguoi_nhan = await conn.fetchrow(
+                """
+                SELECT id::text AS sub, username
+                FROM core.users_directory
+                WHERE (id::text = $1 OR username = $1)
+                  AND tenant = core.jwt_tenant()
+                  AND active
+                LIMIT 1
+                """,
                 body.assigned_to,
             )
-            if not cung_phuong:
-                raise LoiDH(422, "DQ_ASSIGNEE_INVALID", "Người nhận không thuộc phường của bạn")
+            if not nguoi_nhan:
+                raise LoiDH(422, "DQ_ASSIGNEE_NOT_FOUND", "Không tìm thấy người nhận trong phường")
+            assignee_sub = nguoi_nhan["sub"]
+            assignee_info["sub"] = assignee_sub
             moi = await conn.fetchrow(
                 "WITH i AS (UPDATE core.data_quality_issues SET status = 'in_progress', assigned_to = $2, "
                 "note = COALESCE($3, note) WHERE id = $1 RETURNING *) " + SQL_CHON_VAN_DE,
-                iid, body.assigned_to, body.note,
+                iid, assignee_sub, body.note,
             )
             thong_bao.append((f"Vấn đề {r['rule_code']} ({r['field'] or r['entity_type']}) cần xử lý.",
                               f"/?ho_so={r['dossier_id']}" if r["dossier_id"] else None))
@@ -228,14 +238,15 @@ async def giao_van_de(issue_id: str, body: GiaoVanDe, authorization: str = Heade
 
         ma, kq = await idempotent(conn, claims, f"dq.assign.{issue_id}", khoa, lam)
     # web_user không ghi được core.notifications: gửi bằng kết nối dịch vụ, chỉ ở lần giao đầu (không phải gọi lại)
+    target_sub = assignee_info.get("sub", body.assigned_to)
     for noi_dung, lien_ket in thong_bao:
         async with get_db_connection() as svc:
             await svc.execute(
                 "INSERT INTO core.notifications (tenant, user_sub, title, body, link) VALUES ($1, $2, $3, $4, $5)",
-                claims.tenant, body.assigned_to, "Được giao xử lý vấn đề dữ liệu", noi_dung, lien_ket,
+                claims.tenant, target_sub, "Được giao xử lý vấn đề dữ liệu", noi_dung, lien_ket,
             )
     await log_audit_event(tenant=claims.tenant, action="dq.issue.assigned", actor_sub=claims.sub,
-                          object_type="dq_issue", object_id=issue_id, detail={"assigned_to": body.assigned_to})
+                          object_type="dq_issue", object_id=issue_id, detail={"assigned_to": target_sub})
     return JSONResponse(status_code=ma, content=kq)
 
 

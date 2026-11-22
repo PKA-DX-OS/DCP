@@ -20,8 +20,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from dxos_core.db import get_db_connection
 from dxos_core.jwt import UserClaims, verify_jwt_token
@@ -245,6 +246,28 @@ app = FastAPI(title="DX-OS OCR Service", version="1.0.0", lifespan=lifespan)
 setup_standard_service(app, "ocr")
 
 
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(_request: Request, exc: RequestValidationError):
+    """Lỗi validation trả đúng hợp đồng: {code: 'VALIDATION_ERROR', message, details: {fields: [...]}}."""
+    fields = []
+    for err in exc.errors():
+        loc = err.get("loc", ())
+        field_name = ".".join(str(x) for x in loc[1:]) if len(loc) > 1 else ".".join(str(x) for x in loc)
+        fields.append({
+            "field": field_name,
+            "message": err.get("msg", ""),
+            "type": err.get("type", ""),
+        })
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "code": "VALIDATION_ERROR",
+            "message": "Dữ liệu không hợp lệ",
+            "details": {"fields": fields},
+        },
+    )
+
+
 @app.exception_handler(LoiDH)
 async def _loi_dh_handler(_request: Request, exc: LoiDH):
     return JSONResponse(
@@ -328,6 +351,16 @@ async def gui_trich_xuat(
             RETURNING id, file_id, dossier_id, doc_type, status, confidence, fields,
                       reviewed_by, reviewed_at, reject_reason, error, created_at;
         """, claims.tenant, file_uuid, dossier_id, body.doc_type, idem_key)
+
+        # 5. Ghi audit log yêu cầu trích xuất: TUYỆT ĐỐI KHÔNG GHI FIELDS
+        await conn.execute("""
+            SELECT core.record_audit($1, $2, 'user', 'ocr.requested', 'ocr_extraction', $3, $4::jsonb);
+        """, claims.tenant, claims.sub, str(new_row["id"]), json.dumps({
+            "extraction_id": str(new_row["id"]),
+            "doc_type": body.doc_type,
+            "file_id": str(file_uuid),
+            "dossier_id": str(dossier_id) if dossier_id else None,
+        }))
 
         return JSONResponse(
             status_code=status.HTTP_202_ACCEPTED,
@@ -435,7 +468,7 @@ async def lay_chi_tiet_trich_xuat(
 @app.post("/api/v1/ocr/{id}/confirm", tags=["ocr"])
 async def xac_nhan_trich_xuat(
     id: str,
-    body: XacNhanRequest,
+    request: Request,
     authorization: str = Header(...),
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
@@ -462,6 +495,31 @@ async def xac_nhan_trich_xuat(
 
         if not row:
             raise LoiDH(status_code=404, code="NOT_FOUND", message="Không tìm thấy bản trích xuất OCR")
+
+        # Kiểm tra body SAU KHI đã kiểm tra bản ghi tồn tại theo phường (Yêu cầu 4)
+        try:
+            body_dict = await request.json()
+        except Exception:
+            raise LoiDH(status_code=422, code="VALIDATION_ERROR", message="Dữ liệu JSON không hợp lệ", details={"fields": []})
+
+        try:
+            body = XacNhanRequest.model_validate(body_dict)
+        except ValidationError as val_err:
+            fields = []
+            for err in val_err.errors():
+                loc = err.get("loc", ())
+                field_name = ".".join(str(x) for x in loc)
+                fields.append({
+                    "field": field_name,
+                    "message": err.get("msg", ""),
+                    "type": err.get("type", ""),
+                })
+            raise LoiDH(
+                status_code=422,
+                code="VALIDATION_ERROR",
+                message="Dữ liệu không hợp lệ",
+                details={"fields": fields},
+            )
 
         if row["status"] == "confirmed":
             return _to_dict(row, include_fields=True)
@@ -523,7 +581,7 @@ async def xac_nhan_trich_xuat(
 @app.post("/api/v1/ocr/{id}/reject", tags=["ocr"])
 async def tu_choi_trich_xuat(
     id: str,
-    body: TuChoiRequest,
+    request: Request,
     authorization: str = Header(...),
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
@@ -550,6 +608,31 @@ async def tu_choi_trich_xuat(
 
         if not row:
             raise LoiDH(status_code=404, code="NOT_FOUND", message="Không tìm thấy bản trích xuất OCR")
+
+        # Kiểm tra body SAU KHI đã kiểm tra bản ghi tồn tại theo phường (Yêu cầu 4)
+        try:
+            body_dict = await request.json()
+        except Exception:
+            raise LoiDH(status_code=422, code="VALIDATION_ERROR", message="Dữ liệu JSON không hợp lệ", details={"fields": []})
+
+        try:
+            body = TuChoiRequest.model_validate(body_dict)
+        except ValidationError as val_err:
+            fields = []
+            for err in val_err.errors():
+                loc = err.get("loc", ())
+                field_name = ".".join(str(x) for x in loc)
+                fields.append({
+                    "field": field_name,
+                    "message": err.get("msg", ""),
+                    "type": err.get("type", ""),
+                })
+            raise LoiDH(
+                status_code=422,
+                code="VALIDATION_ERROR",
+                message="Dữ liệu không hợp lệ",
+                details={"fields": fields},
+            )
 
         if row["status"] == "rejected":
             return _to_dict(row, include_fields=True)

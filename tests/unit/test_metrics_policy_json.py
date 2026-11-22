@@ -230,6 +230,7 @@ def test_pha_he_lay_tu_cau_hinh_va_404_khi_khong_co(monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["bang_nguon"] == ["app_cap_phep.ho_so", "app_cap_phep.giay_phep"]
+    assert body["job"] is None
     assert len(body["lineage_events"]) == 1
 
     # Khi không có sự kiện phù hợp với bang_nguon thì trả danh sách rỗng
