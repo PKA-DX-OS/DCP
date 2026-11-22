@@ -20,7 +20,7 @@ Dữ liệu là dữ liệu thật của stack; phần chưa có dữ liệu tr�
 | D-360-02 | `routers/search.py` | Nhóm hồ sơ, chủ đầu tư, thửa đất, công trình, giấy phép; CCCD đủ 12 số, điện thoại từ 9 số; audit chỉ ghi độ dài chuỗi |
 | D-DQ-01..04 | `core/postgres/22-data-quality.sql`, `scripts/data_quality_worker.py`, `routers/data_quality.py` | 22 rule; worker chạy giao dịch chỉ đọc từng rule, `dx up` chạy một lần; vấn đề có vòng đời mở, đang xử lý, đã đóng, bỏ qua |
 | D-CAT-01/02 | `core/postgres/23-catalog-lineage.sql`, `apps/cap-phep/db/migrations/25-lineage-nghiep-vu.sql`, `routers/catalog.py`, `routers/lineage.py` | Danh mục, cột, hợp đồng dữ liệu; phả hệ theo `facets.entity` (nộp hồ sơ, kiểm tra quy hoạch, cấp giấy phép, nghiệm thu) và theo job |
-| D-MART | `routers/automation_metrics.py`, `scripts/dh_baseline.py --save` | Cùng định nghĩa với `dh_baseline.py`; mốc đọc từ `core.h_baseline` |
+| D-MART | `routers/automation_metrics.py`, `scripts/dh_baseline.py --save` | Cùng định nghĩa với `dh_baseline.py`; mốc đọc từ `core.h_baseline`; đã lưu v1.1 cho `phuong-a`/`phuong-b` ngày 2026-11-22 |
 | D-OCR | `services/ocr`, `apps/cap-phep/db/migrations/26-ocr-extractions.sql` | Dịch vụ OCR và hàng chờ duyệt (`/api/v1/ocr/*`, bật bằng `DH_OCR`); trích xuất 3 loại giấy tờ, RLS cách ly theo phường, không ghi PII vào audit log |
 
 Route: `core/apisix/routes/dh.yaml`. Lỗi trả `{code, message, details}` như hợp đồng (lỗi quyền
@@ -38,4 +38,4 @@ python scripts/dh_baseline.py --tenant phuong-a --save v1.1                     
 
 - Kiểm toán viên chưa xem được 360 hồ sơ vì RLS của `app_cap_phep.ho_so` không cho vai này; cần quyết
   định chính sách trước khi mở.
-- Mốc H chưa có trong DB cho tới khi chạy `dh_baseline.py --save`; trước đó `baseline` là null.
+- Mốc H v1.1 đã lưu cho `phuong-a`/`phuong-b`; cần đo lại khi dữ liệu hoặc quy trình thay đổi.
