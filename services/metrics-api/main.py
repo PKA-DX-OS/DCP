@@ -179,6 +179,6 @@ async def get_metric_lineage(code: str, authorization: str = Header(...)):
         "metric_code": code,
         "bang_nguon": bang_nguon,
         "dieu_kien_loc": policy.get("dieu_kien_loc", ""),
-        "job": job or "",
+        "job": job if job else None,
         "lineage_events": events,
     }

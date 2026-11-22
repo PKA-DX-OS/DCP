@@ -135,7 +135,7 @@ paths:
               additionalProperties: false
               required: [assigned_to]
               properties:
-                assigned_to: { type: string, description: "sub của người nhận, cùng phường" }
+                assigned_to: { type: string, description: "sub hoặc username của người nhận, cùng phường" }
                 note: { type: string, maxLength: 1000 }
       responses:
         "200":

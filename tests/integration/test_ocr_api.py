@@ -131,12 +131,17 @@ class MockDBConn:
 
     async def execute(self, query, *args):
         if "core.record_audit" in query:
-            tenant, sub, entity_id, detail_json = args[0], args[1], args[2], args[3]
+            action_name = "unknown"
+            for act in ("ocr.requested", "ocr.read", "ocr.confirmed", "ocr.rejected"):
+                if act in query:
+                    action_name = act
+                    break
             self.state["audit_logs"].append({
-                "tenant": tenant,
-                "sub": sub,
-                "entity_id": entity_id,
-                "detail": json.loads(detail_json),
+                "tenant": args[0],
+                "sub": args[1],
+                "action": action_name,
+                "entity_id": args[2],
+                "detail": json.loads(args[3]),
             })
             return "RECORD"
         return "OK"
@@ -222,6 +227,18 @@ async def test_ocr_api_full_workflow(monkeypatch):
         )
         assert r_no_idem.status_code == 422
 
+        # 2.1b Body sai trường -> 422 VALIDATION_ERROR theo hop dong (Mục 1)
+        r_val_err = await client.post(
+            "/api/v1/ocr/extract",
+            headers=_h("mc.thu", idem="idem-test-val-err"),
+            json={"doc_type": "khong_hop_le"},
+        )
+        assert r_val_err.status_code == 422
+        val_data = r_val_err.json()
+        assert val_data["code"] == "VALIDATION_ERROR"
+        assert "fields" in val_data["details"]
+        assert len(val_data["details"]["fields"]) >= 1
+
         # 2.2 Tệp bị nhiễm hoặc chưa quét -> 409
         r_infected = await client.post(
             "/api/v1/ocr/extract",
@@ -243,6 +260,13 @@ async def test_ocr_api_full_workflow(monkeypatch):
         assert ext_data["doc_type"] == "cccd"
         assert ext_data["status"] == "queued"
         extraction_id = ext_data["id"]
+
+        # 2.3b Kiểm tra audit ocr.requested đã được ghi (Mục 3)
+        req_audit = next((log for log in db_state["audit_logs"] if log.get("action") == "ocr.requested" and log["entity_id"] == extraction_id), None)
+        assert req_audit is not None
+        assert "fields" not in req_audit["detail"]
+        assert req_audit["detail"]["doc_type"] == "cccd"
+        assert req_audit["detail"]["file_id"] == file_id
 
         # Idempotency: Gửi lại cùng Idempotency-Key trả đúng bản ghi đã tạo
         r_ext_dup = await client.post(
@@ -333,6 +357,34 @@ async def test_ocr_api_full_workflow(monkeypatch):
             "idempotency_key": "rej-idem-1",
             "created_at": datetime.now(timezone.utc),
         }
+
+        # 2.9 Mục 4: confirm/reject bản ghi phường khác trả 404 kể cả khi body sai
+        r_conf_other_tenant = await client.post(
+            f"/api/v1/ocr/{ext_rej_id}/confirm",
+            headers=_h("mc.phuongb", idem="idem-conf-phuongb"),
+            json={"body_sai": 123},  # body hoàn toàn sai schema
+        )
+        assert r_conf_other_tenant.status_code == 404
+        assert r_conf_other_tenant.json()["code"] == "NOT_FOUND"
+
+        r_rej_other_tenant = await client.post(
+            f"/api/v1/ocr/{ext_rej_id}/reject",
+            headers=_h("mc.phuongb", idem="idem-rej-phuongb"),
+            json={"sai_field": "test"},  # body thiếu reason
+        )
+        assert r_rej_other_tenant.status_code == 404
+        assert r_rej_other_tenant.json()["code"] == "NOT_FOUND"
+
+        # Bản ghi đúng phường nhưng body sai -> 422 VALIDATION_ERROR
+        r_rej_bad_body = await client.post(
+            f"/api/v1/ocr/{ext_rej_id}/reject",
+            headers=_h("mc.thu", idem="idem-rej-bad-body"),
+            json={"reason": "ab"},  # min_length 3 -> lỗi
+        )
+        assert r_rej_bad_body.status_code == 422
+        assert r_rej_bad_body.json()["code"] == "VALIDATION_ERROR"
+        assert "fields" in r_rej_bad_body.json()["details"]
+
         r_rej = await client.post(
             f"/api/v1/ocr/{ext_rej_id}/reject",
             headers=_h("mc.thu", idem="idem-rej-12345"),

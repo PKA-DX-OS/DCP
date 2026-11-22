@@ -7,7 +7,8 @@ import importlib
 import pkgutil
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from dxos_core.db import check_db_health
@@ -19,6 +20,28 @@ logger = logging.getLogger("dxos.construction")
 
 app = FastAPI(title="DX-OS Construction Core API", version="1.0.0")
 setup_standard_service(app, "construction")
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(_request, exc: RequestValidationError):
+    """Lỗi validation trả đúng hợp đồng: {code: 'VALIDATION_ERROR', message, details: {fields: [...]}}."""
+    fields = []
+    for err in exc.errors():
+        loc = err.get("loc", ())
+        field_name = ".".join(str(x) for x in loc[1:]) if len(loc) > 1 else ".".join(str(x) for x in loc)
+        fields.append({
+            "field": field_name,
+            "message": err.get("msg", ""),
+            "type": err.get("type", ""),
+        })
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "code": "VALIDATION_ERROR",
+            "message": "Dữ liệu không hợp lệ",
+            "details": {"fields": fields},
+        },
+    )
 
 
 @app.exception_handler(LoiDH)
