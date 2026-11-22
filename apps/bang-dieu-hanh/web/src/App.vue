@@ -26,6 +26,7 @@ import TenantAdminPanel from "./components/TenantAdminPanel.vue";
 import DsarPanel from "./components/DsarPanel.vue";
 import AutomationMetricsPanel from "./components/automation/AutomationMetricsPanel.vue";
 import DataQualityPanel from "./components/data/DataQualityPanel.vue";
+import CatalogPanel from "./components/data/CatalogPanel.vue";
 import LogoMark from "./components/LogoMark.vue";
 
 const { cheDo } = useTheme();
@@ -105,7 +106,7 @@ interface DanhSachHoSo {
 
 const KEY_FILTER = "dxos-bdh-filter";
 const APP_CODE = "cap-phep";
-type Tab = "chi-so" | "hieu-qua" | "chat-luong" | "tro-ly" | "du-lieu-ca-nhan" | "kiem-toan" | "quan-tri";
+type Tab = "chi-so" | "hieu-qua" | "chat-luong" | "danh-muc" | "tro-ly" | "du-lieu-ca-nhan" | "kiem-toan" | "quan-tri";
 
 type AuthState = "dang_kiem_tra" | "chua_dang_nhap" | "khong_quyen" | "ok";
 const auth = ref<AuthState>("dang_kiem_tra");
@@ -178,6 +179,11 @@ const laChatLuong = computed(() =>
       "dx:data-steward",
       "dx:platform-admin",
     ].includes(r),
+  ),
+);
+const laDanhMuc = computed(() =>
+  vaiTro.value.some((r) =>
+    ["dx:auditor", "dx:tenant-admin", "dx:data-steward", "dx:platform-admin"].includes(r),
   ),
 );
 
@@ -655,6 +661,7 @@ function fmtDate(iso?: string | null): string {
         <button type="button" class="tab-chinh" :class="tab === 'chi-so' && 'tab-dang-mo'" :aria-current="tab === 'chi-so' ? 'page' : undefined" @click="tab = 'chi-so'">Chỉ số điều hành</button>
         <button v-if="laHieuQua" type="button" class="tab-chinh" :class="tab === 'hieu-qua' && 'tab-dang-mo'" :aria-current="tab === 'hieu-qua' ? 'page' : undefined" @click="tab = 'hieu-qua'">Hiệu quả vận hành</button>
         <button v-if="laChatLuong" type="button" class="tab-chinh" :class="tab === 'chat-luong' && 'tab-dang-mo'" :aria-current="tab === 'chat-luong' ? 'page' : undefined" @click="tab = 'chat-luong'">Chất lượng dữ liệu</button>
+        <button v-if="laDanhMuc" type="button" class="tab-chinh" :class="tab === 'danh-muc' && 'tab-dang-mo'" :aria-current="tab === 'danh-muc' ? 'page' : undefined" @click="tab = 'danh-muc'">Danh mục dữ liệu</button>
         <button type="button" class="tab-chinh" :class="tab === 'tro-ly' && 'tab-dang-mo'" :aria-current="tab === 'tro-ly' ? 'page' : undefined" @click="tab = 'tro-ly'">Hỏi đáp quy định</button>
         <button v-if="laDsar" type="button" class="tab-chinh" :class="tab === 'du-lieu-ca-nhan' && 'tab-dang-mo'" :aria-current="tab === 'du-lieu-ca-nhan' ? 'page' : undefined" @click="tab = 'du-lieu-ca-nhan'">Dữ liệu cá nhân</button>
         <button v-if="laKiemToan" type="button" class="tab-chinh" :class="tab === 'kiem-toan' && 'tab-dang-mo'" :aria-current="tab === 'kiem-toan' ? 'page' : undefined" @click="tab = 'kiem-toan'">Kiểm toán</button>
@@ -909,6 +916,11 @@ function fmtDate(iso?: string | null): string {
     <!-- Tab Chất lượng dữ liệu (D-DQ-04) -->
     <section v-if="laChatLuong" v-show="tab === 'chat-luong'">
       <DataQualityPanel :vai-tro="vaiTro" />
+    </section>
+
+    <!-- Tab Danh mục dữ liệu (D-CAT-01) -->
+    <section v-if="laDanhMuc" v-show="tab === 'danh-muc'">
+      <CatalogPanel />
     </section>
 
     <!-- Tab Trợ lý -->
