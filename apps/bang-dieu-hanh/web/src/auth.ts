@@ -78,7 +78,6 @@ export function readRoles(accessToken: string | null | undefined): string[] {
   }
 }
 
-/** Chỉ lãnh đạo hoặc quản trị nền tảng mới được xem bảng điều hành. */
 /** Đọc claim `tenant` (mã địa bàn) từ access token. */
 export function readTenant(accessToken: string | null | undefined): string {
   if (!accessToken) return "";
@@ -91,11 +90,13 @@ export function readTenant(accessToken: string | null | undefined): string {
   }
 }
 
+/** Lãnh đạo, kiểm toán, quản trị hoặc quản lý dữ liệu được xem bảng điều hành. */
 export function canViewDashboard(roles: string[]): boolean {
   return (
     roles.includes("app:cap-phep:lanh-dao") ||
     roles.includes("dx:platform-admin") ||
     roles.includes("dx:tenant-admin") ||
+    roles.includes("dx:data-steward") ||
     roles.includes("dx:auditor")
   );
 }
