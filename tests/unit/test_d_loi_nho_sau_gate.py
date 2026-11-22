@@ -14,39 +14,37 @@ import json
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from dxos_core.jwt import UserClaims
 import ocr.main as ocr_module
 from ocr.main import app as ocr_app
 from construction.main import app as construction_app
 import construction.routers.data_quality as dq_router
-from tests.integration._auth import get_token
 
 
-class FakeRecord(dict):
-    def __getitem__(self, key):
-        return super().__getitem__(key)
-
-
-def _h(user: str, idem: str = None) -> dict:
-    headers = {"Authorization": f"Bearer {get_token(user)}"}
-    if idem:
-        headers["Idempotency-Key"] = idem
-    return headers
+def _claims(user: str = "ld.hoa", tenant: str = "phuong-a", roles: list = None) -> UserClaims:
+    default_roles = ["app:cap-phep:lanh-dao", "app:cap-phep:mot-cua", "app:cap-phep:tham-dinh", "dx:data-steward"]
+    return UserClaims(
+        sub=str(uuid.uuid5(uuid.NAMESPACE_DNS, user)),
+        tenant=tenant,
+        roles=roles if roles is not None else default_roles,
+        preferred_username=user,
+    )
 
 
 # --- 1. Test RequestValidationError handler cho cả 2 dịch vụ ---
 
 @pytest.mark.asyncio
-async def test_construction_validation_error_format():
+async def test_construction_validation_error_format(monkeypatch):
+    monkeypatch.setattr(dq_router, "verify_jwt_token", lambda _h: _claims("ld.hoa"))
     transport = ASGITransport(app=construction_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Gửi body sai tới /api/v1/data-quality/issues/{id}/assign (thiếu assigned_to)
         r = await client.post(
             f"/api/v1/data-quality/issues/{uuid.uuid4()}/assign",
-            headers=_h("ld.hoa", idem="idem-test-1234"),
+            headers={"Authorization": "Bearer fake_token", "Idempotency-Key": "idem-test-1234"},
             json={"sai_truong": "abc"},
         )
         assert r.status_code == 422
@@ -59,14 +57,15 @@ async def test_construction_validation_error_format():
 
 
 @pytest.mark.asyncio
-async def test_ocr_validation_error_format():
+async def test_ocr_validation_error_format(monkeypatch):
     ocr_module.DH_OCR_ENABLED = True
+    monkeypatch.setattr(ocr_module, "verify_jwt_token", lambda _h: _claims("mc.thu"))
     transport = ASGITransport(app=ocr_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Gửi body thiếu doc_type hoặc doc_type sai
         r = await client.post(
             "/api/v1/ocr/extract",
-            headers=_h("mc.thu", idem="idem-test-ocr-val"),
+            headers={"Authorization": "Bearer fake_token", "Idempotency-Key": "idem-test-ocr-val"},
             json={"file_id": str(uuid.uuid4()), "doc_type": "loai_sai"},
         )
         assert r.status_code == 422
@@ -80,8 +79,15 @@ async def test_ocr_validation_error_format():
 
 # --- 2. Test DQ Assign: nhận cả sub lẫn username, 422 DQ_ASSIGNEE_NOT_FOUND khi không thấy ---
 
+class FakeRecord(dict):
+    def __getitem__(self, key):
+        return super().__getitem__(key)
+
+
 @pytest.mark.asyncio
 async def test_dq_assign_username_and_sub(monkeypatch):
+    monkeypatch.setattr(dq_router, "verify_jwt_token", lambda _h: _claims("ld.hoa"))
+
     issue_id = uuid.uuid4()
     steward_sub = str(uuid.uuid4())
     fake_user_dir = {
@@ -153,7 +159,7 @@ async def test_dq_assign_username_and_sub(monkeypatch):
         # 2a. Giao bằng username "mc.thu"
         r1 = await client.post(
             f"/api/v1/data-quality/issues/{issue_id}/assign",
-            headers=_h("ld.hoa", idem="idem-assign-user"),
+            headers={"Authorization": "Bearer fake_token", "Idempotency-Key": "idem-assign-user"},
             json={"assigned_to": "mc.thu", "note": "Giao xu ly"},
         )
         assert r1.status_code == 200, r1.text
@@ -164,7 +170,7 @@ async def test_dq_assign_username_and_sub(monkeypatch):
         db_issue["status"] = "open"
         r2 = await client.post(
             f"/api/v1/data-quality/issues/{issue_id}/assign",
-            headers=_h("ld.hoa", idem="idem-assign-sub"),
+            headers={"Authorization": "Bearer fake_token", "Idempotency-Key": "idem-assign-sub"},
             json={"assigned_to": steward_sub, "note": "Giao bang sub"},
         )
         assert r2.status_code == 200, r2.text
@@ -173,7 +179,7 @@ async def test_dq_assign_username_and_sub(monkeypatch):
         # 2c. Không tìm thấy người nhận trong phường -> 422 DQ_ASSIGNEE_NOT_FOUND
         r3 = await client.post(
             f"/api/v1/data-quality/issues/{issue_id}/assign",
-            headers=_h("ld.hoa", idem="idem-assign-notfound"),
+            headers={"Authorization": "Bearer fake_token", "Idempotency-Key": "idem-assign-notfound"},
             json={"assigned_to": "nguoi_la_mat", "note": "Thu giao"},
         )
         assert r3.status_code == 422
@@ -189,6 +195,13 @@ async def test_ocr_requested_audit_and_cross_tenant_404(monkeypatch):
     ocr_module.DH_OCR_ENABLED = True
     file_id = str(uuid.uuid4())
     extraction_id = str(uuid.uuid4())
+
+    def fake_verify_jwt(auth_header: str) -> UserClaims:
+        if "phuongb" in auth_header:
+            return _claims("mc.phuongb", tenant="phuong-b")
+        return _claims("mc.thu", tenant="phuong-a")
+
+    monkeypatch.setattr(ocr_module, "verify_jwt_token", fake_verify_jwt)
 
     state = {
         "files": {
@@ -285,7 +298,7 @@ async def test_ocr_requested_audit_and_cross_tenant_404(monkeypatch):
         # 3. POST /api/v1/ocr/extract ghi audit ocr.requested (không ghi fields)
         r_ext = await client.post(
             "/api/v1/ocr/extract",
-            headers=_h("mc.thu", idem="idem-req-audit-test"),
+            headers={"Authorization": "Bearer token_phuonga", "Idempotency-Key": "idem-req-audit-test"},
             json={"file_id": file_id, "doc_type": "cccd"},
         )
         assert r_ext.status_code == 202
@@ -301,7 +314,7 @@ async def test_ocr_requested_audit_and_cross_tenant_404(monkeypatch):
         # Dù body SAI (rỗng hoặc không khớp schema), vẫn nhận 404 NOT_FOUND thay vì 422
         r_conf_b = await client.post(
             f"/api/v1/ocr/{extraction_id}/confirm",
-            headers=_h("mc.phuongb", idem="idem-b-conf"),
+            headers={"Authorization": "Bearer token_phuongb", "Idempotency-Key": "idem-b-conf"},
             json={"invalid_body": True},
         )
         assert r_conf_b.status_code == 404
@@ -309,7 +322,7 @@ async def test_ocr_requested_audit_and_cross_tenant_404(monkeypatch):
 
         r_rej_b = await client.post(
             f"/api/v1/ocr/{extraction_id}/reject",
-            headers=_h("mc.phuongb", idem="idem-b-rej"),
+            headers={"Authorization": "Bearer token_phuongb", "Idempotency-Key": "idem-b-rej"},
             json={},  # Thiếu reason
         )
         assert r_rej_b.status_code == 404
