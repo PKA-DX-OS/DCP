@@ -32,6 +32,7 @@ Toàn bộ các thay đổi đáng chú ý của dự án **DX-OS Open-Core** đ
 - **Dịch vụ OCR và hàng chờ duyệt (D-OCR):** backend `services/ocr` trích xuất 3 loại giấy tờ (CCCD, đất đai, đơn đề nghị) bằng Tesseract `vie`, hỗ trợ tính độ tin cậy từng trường; hàng chờ duyệt có cán bộ xác nhận hoặc từ chối; cờ `DH_OCR` (mặc định tắt trả 503); RLS cách ly theo phường; web_user chỉ đọc, ghi qua kết nối svc; không ghi PII vào log/audit và không trả trường fields ở danh sách (#247).
 
 ### Đã sửa (Fixed)
+- **Khớp nhãn OCR không phân biệt dấu (FIX-V11-29):** parser trích xuất OCR chuẩn hóa NFC, so khớp nhãn trên bản bỏ dấu (NFD, đ->d) lấy giá trị từ văn bản gốc có dấu; nới mẫu nhận dạng các lỗi OCR phổ biến (6/o, 0/o, 1/l, mất dấu hai chấm); giảm độ tin cậy nhân 0.8 khi khớp mờ; nhận dạng tốt GCN QSDĐ và CCCD kể cả khi mất dấu (#257).
 - **Cache web và theme (FIX-V11-01):** `index.html` không còn bị trình duyệt giữ bản cũ sau khi build lại; theme Keycloak đổi CSS có hiệu lực ngay; `dx up` nạp văn bản pháp lý cho trợ lý.
 - **Hạn bước xử lý (FIX-V11-02):** việc trong hàng đợi có hạn suy ra từ SLA của bước khi quy trình không đặt `dueDate`, nên cảnh báo quá hạn và leo thang hoạt động.
 - **Bảng điều hành (FIX-V11-03):** quản trị nền tảng chọn được phường để xem chỉ số và nhật ký; nhật ký kiểm toán hiện mới nhất trước kèm tên người thực hiện; tỷ lệ đúng hạn hiện "—" khi chưa có giấy phép.
