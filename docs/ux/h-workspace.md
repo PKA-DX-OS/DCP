@@ -18,7 +18,7 @@ service backend hay `contracts/dh/*` của Track D.
 | H-WORK-03 | Tìm kiếm toàn cục `Ctrl/Cmd+K`, nhóm kết quả, điều hướng bàn phím | Xong |
 | H-AUTO-01 | Điền nhanh từ hồ sơ cũ/tài khoản; không ghi đè dữ liệu đã nhập; cảnh báo trùng | Xong phần hồ sơ/tài khoản |
 | H-AUTO-02 | Kiểm tra CCCD, điện thoại, địa chỉ, thửa đất, số tầng, diện tích; tự lưu bản nháp | Xong |
-| H-OCR | Hàng chờ duyệt trích xuất, xem tệp gốc, sửa trường, xác nhận/từ chối | Xong UI + mock; chờ API D |
+| H-OCR | Hàng chờ duyệt trích xuất, xem tệp gốc, sửa trường, xác nhận/từ chối | Xong UI; API D đã có, mặc định `DH_OCR=false` |
 | H-WORK-04 | Lưu bộ lọc, chọn nhiều, nhắc/phân công hàng loạt, xuất CSV | Xong |
 | H-FIELD | PWA hiện trường: nháp offline, ảnh, GPS, checklist, ký tay, đồng bộ | Xong phần UI + lưu máy |
 | H-SELF | Tự phục vụ công dân: tiến độ, bổ sung, tải giấy phép, QR tra cứu | Xong |
@@ -107,6 +107,9 @@ Form bổ sung hồ sơ dùng cùng bộ kiểm tra cho địa chỉ, thửa đ�
   `POST /api/v1/ocr/{id}/confirm`, `POST /api/v1/ocr/{id}/reject` với `Idempotency-Key`.
 - Khi API chưa có: dùng dữ liệu mẫu theo `contracts/dh/ocr.yaml`, ghi rõ “Dữ liệu mẫu”;
   xác nhận/từ chối chỉ đổi trên trình duyệt, không tạo audit thật.
+- Khi dịch vụ OCR có nhưng đang tắt (`DH_OCR=false`, API trả 503 `OCR_DISABLED`):
+  banner ghi rõ “Dịch vụ OCR đang tắt” và hướng dẫn bật, không báo nhầm là “API chưa sẵn sàng”.
+- Khi `DH_OCR=true` và hàng chờ rỗng: hiện trạng thái rỗng thật, không rơi về mock.
 
 ## 6. Bộ lọc đã lưu & thao tác hàng loạt
 
@@ -310,12 +313,13 @@ Kết quả tại lát cắt này:
 - Bảng điều hành chọn phường cho chỉ số cũ, nhưng API H đọc tenant từ JWT; chưa có
   tham số chọn địa bàn cho chỉ số H.
 - 360 mới hiển thị một liên kết mỗi loại thực thể; chưa có màn hình chi tiết thực thể MDM.
-- Autofill từ OCR chưa có vì Track D chưa triển khai `/api/v1/ocr/*`.
+- Autofill từ OCR chưa nối; backend OCR đã có nhưng mặc định tắt (`DH_OCR=false`)
+  và chưa có luồng đẩy kết quả đã xác nhận vào form nộp.
 - Chưa kiểm tra mã định danh địa điểm 12 số vì RPC nộp hồ sơ hiện chưa nhận trường này;
   cần Track D bổ sung trước khi thêm vào form.
 - Bản nháp dùng `sessionStorage` của tab hiện tại; đóng tab là mất, không đồng bộ giữa thiết bị.
-- OCR mới có UI + mock; chưa kiểm chứng audit thật, chưa có hàng chờ thật, chưa nối
-  kết quả đã xác nhận vào autofill.
+- OCR đã có backend và UI API-first; mặc định tắt (`DH_OCR=false`). Chưa kiểm chứng
+  audit thật trên dữ liệu thật và chưa nối kết quả đã xác nhận vào autofill.
 - Xem tệp gốc phụ thuộc dịch vụ files và quyền của người dùng; PDF/ảnh lỗi MIME sẽ
   chỉ hiện nút tải tệp.
 - Bộ lọc đã lưu chỉ nằm trong trình duyệt hiện tại, không đồng bộ giữa thiết bị.
