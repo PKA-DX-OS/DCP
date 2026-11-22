@@ -67,6 +67,9 @@ Thumbs.db
 # Docker / Volumes local data
 data/
 !docs/data/
+# Thư mục component dữ liệu của Track D (không phải volume dữ liệu)
+!apps/bang-dieu-hanh/web/src/components/data/
+!apps/bang-dieu-hanh/web/src/components/data/**
 volumes/
 *.db
 *.sqlite3

@@ -16,7 +16,12 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: "GET" | "POST",
+  path: string,
+  body?: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<T> {
   const token = await getValidToken();
   if (!token) {
     await login();
@@ -27,6 +32,7 @@ async function request<T>(method: "GET" | "POST", path: string, body?: unknown):
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const headers: Record<string, string> = { Authorization: `Bearer ${token}`, Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
+  Object.assign(headers, extraHeaders || {});
 
   let resp: Response;
   try {
@@ -70,9 +76,9 @@ export function apiGet<T>(path: string): Promise<T> {
   return request<T>("GET", path);
 }
 
-/** Chỉ dùng cho hỏi đáp trợ lý; không ghi dữ liệu nghiệp vụ. */
-export function apiPost<T>(path: string, body: unknown): Promise<T> {
-  return request<T>("POST", path, body);
+/** Gửi JSON; `headers` dùng cho Idempotency-Key của endpoint ghi. */
+export function apiPost<T>(path: string, body: unknown, headers?: Record<string, string>): Promise<T> {
+  return request<T>("POST", path, body, headers);
 }
 
 /** Tải tệp xuất (Excel/PDF) kèm token, trả Blob để trình duyệt lưu. */
