@@ -52,6 +52,8 @@ export interface ThamSoHangCho {
 export interface KetQuaOcr<T> {
   data: T;
   source: "api" | "mock";
+  /** API có nhưng dịch vụ OCR đang tắt (DH_OCR=false); dữ liệu là mock. */
+  disabled?: boolean;
 }
 
 const OCR_TIMEOUT_MS = 6_000;
@@ -78,7 +80,8 @@ export async function fetchOcrQueue(token: string, params: ThamSoHangCho = {}): 
     return { data, source: "api" };
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) throw e;
-    return { data: locMockOcr(params), source: "mock" };
+    const tat = e instanceof ApiError && e.status === 503 && e.data?.code === "OCR_DISABLED";
+    return { data: locMockOcr(params), source: "mock", disabled: tat };
   }
 }
 

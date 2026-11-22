@@ -38,6 +38,21 @@ describe("API OCR", () => {
     expect(kq.data.items.every((x) => x.confidence !== null && x.confidence <= 0.8)).toBe(true);
   });
 
+  test("503 OCR_DISABLED trả mock kèm cờ disabled", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        traLoi(503, { code: "OCR_DISABLED", message: "Dịch vụ OCR hiện đang tắt (DH_OCR=false)", details: {} }),
+      ),
+    );
+
+    const kq = await fetchOcrQueue("token", { status: "needs_review" });
+
+    expect(kq.source).toBe("mock");
+    expect(kq.disabled).toBe(true);
+    expect(kq.data.items.length).toBeGreaterThan(0);
+  });
+
   test("API có thì dùng dữ liệu API", async () => {
     const fetchMock = vi.fn(async () =>
       traLoi(200, {

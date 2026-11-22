@@ -113,6 +113,20 @@ describe("OcrReviewTab", () => {
     expect(w.text()).toContain("Xác nhận kết quả");
   });
 
+  test("503 OCR_DISABLED hiện banner dịch vụ đang tắt", async () => {
+    vi.mocked(fetchOcrQueue).mockResolvedValueOnce({
+      data: { items: [structuredClone(TOM_TAT)], page: 1, page_size: 20, total: 1 },
+      source: "mock",
+      disabled: true,
+    });
+    const w = moManHinh();
+    await flushPromises();
+
+    expect(w.text()).toContain("Dịch vụ OCR đang tắt");
+    expect(w.text()).toContain("DH_OCR=false");
+    expect(w.text()).toContain("OCR đang tắt · dữ liệu mẫu");
+  });
+
   test("sửa trường rồi xác nhận trên bản mô phỏng", async () => {
     const w = moManHinh();
     await flushPromises();

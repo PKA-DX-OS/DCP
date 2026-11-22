@@ -63,6 +63,7 @@ const NHAN_TRANG_THAI: Record<TrangThaiTrichXuat, string> = {
 
 const token = ref<string | null>(null);
 const nguon = ref<"api" | "mock" | null>(null);
+const ocrTat = ref(false);
 const hangCho = ref<{ items: TrichXuatTomTat[]; page: number; page_size: number; total: number } | null>(null);
 const loading = ref(false);
 const loi = ref("");
@@ -233,6 +234,7 @@ async function taiHangCho(): Promise<void> {
     if (lan !== lanHang) return;
     hangCho.value = kq.data;
     nguon.value = kq.source;
+    ocrTat.value = Boolean(kq.disabled);
     const dau = kq.data.items[0];
     if (dau) {
       const dangChon = chiTiet.value?.id;
@@ -368,7 +370,7 @@ onBeforeUnmount(xoaPreview);
       </div>
       <div class="flex-1"></div>
       <span v-if="nguon" class="tt" :class="nguon === 'api' ? 'tt-xanh' : 'tt-vang'">
-        {{ nguon === "api" ? "API OCR" : "Dữ liệu mẫu" }}
+        {{ nguon === "api" ? "API OCR" : ocrTat ? "OCR đang tắt · dữ liệu mẫu" : "Dữ liệu mẫu" }}
       </span>
       <button type="button" class="btn" :disabled="loading" @click="taiHangCho">
         {{ loading ? "Đang tải…" : "Làm mới" }}
@@ -376,8 +378,12 @@ onBeforeUnmount(xoaPreview);
     </div>
 
     <div v-if="nguon === 'mock'" class="thong-bao-vang mb-4 text-[13.5px]" role="note">
-      <p class="m-0 font-semibold">API OCR chưa sẵn sàng</p>
-      <p class="m-0 mt-1">
+      <p class="m-0 font-semibold">{{ ocrTat ? "Dịch vụ OCR đang tắt" : "API OCR chưa sẵn sàng" }}</p>
+      <p v-if="ocrTat" class="m-0 mt-1">
+        Dịch vụ OCR có trong hệ thống nhưng đang tắt (<code>DH_OCR=false</code>). Đang hiển thị dữ liệu mẫu để xem trước;
+        bật <code>DH_OCR=true</code> và khởi động lại <code>dxos-ocr</code> để dùng hàng chờ thật.
+      </p>
+      <p v-else class="m-0 mt-1">
         Đang dùng dữ liệu mẫu theo <code>contracts/dh/ocr.yaml</code>. Xác nhận/từ chối chỉ thay đổi trên trình duyệt,
         không ghi vào hồ sơ thật và không tạo audit thật.
       </p>
